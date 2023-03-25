@@ -65,7 +65,7 @@ if __name__ == '__main__':
     global_weights = global_model.state_dict()
 
     # Training
-    train_loss, train_accuracy = [], []
+    train_loss, train_accuracy, test_accuracy = [], [], []
     val_acc_list, net_list = [], []
     cv_loss, cv_acc = [], []
     print_every = 2
@@ -78,14 +78,18 @@ if __name__ == '__main__':
         global_model.train()
         m = max(int(args.frac * args.num_users), 1)
         idxs_users = np.random.choice(range(args.num_users), m, replace=False)
-
+        
+        list_acc = []
         for idx in idxs_users:
             local_model = LocalUpdate(args=args, dataset=train_dataset,
                                       idxs=user_groups[idx], logger=logger)
             w, loss = local_model.update_weights(
                 model=copy.deepcopy(global_model), global_round=epoch)
-            local_weights.append(copy.deepcopy(w))
+            acc, loss = local_model.inference(model=w, is_test=False)
+            list_acc.append(acc)
+            local_weights.append(copy.deepcopy(w.state_dict()))
             local_losses.append(copy.deepcopy(loss))
+        train_accuracy.append(sum(list_acc)/len(list_acc))
 
         # update global weights
         global_weights = average_weights(local_weights)
@@ -97,21 +101,24 @@ if __name__ == '__main__':
         train_loss.append(loss_avg)
 
         # Calculate avg training accuracy over all users at every epoch
-        list_acc, list_loss = [], []
+        
         global_model.eval()
-        for c in range(args.num_users):
+        test_accs = []
+        # Getting the test loss for all users' data of the global model
+        for c in idxs_users:
             local_model = LocalUpdate(args=args, dataset=train_dataset,
                                       idxs=user_groups[idx], logger=logger)
-            acc, loss = local_model.inference(model=global_model)
-            list_acc.append(acc)
-            list_loss.append(loss)
-        train_accuracy.append(sum(list_acc)/len(list_acc))
+            acc, loss = local_model.inference(model=global_model, is_test=True)
+            test_accs.append(acc)
+        test_accuracy.append(sum(test_accs)/len(test_accs))
 
         # print global training loss after every 'i' rounds
         if (epoch+1) % print_every == 0:
             print(f' \nAvg Training Stats after {epoch+1} global rounds:')
             print(f'Training Loss : {np.mean(np.array(train_loss))}')
             print('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
+            print('Test Accuracy: {:.2f}% \n'.format(100*test_accuracy[-1]))
+
 
     # Test inference after completion of training
     test_acc, test_loss = test_inference(args, global_model, test_dataset)

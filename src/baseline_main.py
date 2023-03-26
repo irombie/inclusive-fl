@@ -5,6 +5,7 @@
 
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import os
 
 import torch
 from torch.utils.data import DataLoader
@@ -17,10 +18,14 @@ from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar
 
 if __name__ == '__main__':
     args = args_parser()
-    if args.gpu:
-        torch.cuda.set_device(args.gpu)
-    device = 'cuda' if args.gpu else 'cpu'
-
+        
+    if args.gpu and args.device == "cuda":
+        device = "cuda"
+    elif args.gpu and args.device == "mps":
+        device = "mps"
+    else:
+        device = "cpu"
+    device = torch.device(device)
     # load datasets
     train_dataset, test_dataset, _ = get_dataset(args)
 
@@ -89,8 +94,8 @@ if __name__ == '__main__':
     plt.plot(range(len(epoch_loss)), epoch_loss)
     plt.xlabel('epochs')
     plt.ylabel('Train loss')
-    plt.savefig('../save/nn_{}_{}_{}.png'.format(args.dataset, args.model,
-                                                 args.epochs))
+    fig_path = os.path.join(os.path.abspath(""), "save", f"nn_{args.dataset}_{args.model}_{args.epochs}.png")
+    plt.savefig(fig_path)
 
     # testing
     test_acc, test_loss = test_inference(args, global_model, test_dataset)

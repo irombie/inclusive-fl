@@ -29,7 +29,12 @@ class LocalUpdate(object):
         self.logger = logger
         self.trainloader, self.validloader, self.testloader = self.train_val_test(
             dataset, list(idxs))
-        self.device = 'cuda' if args.gpu else 'cpu'
+        if args.gpu and args.device == "cuda":
+            self.device = "cuda"
+        elif args.gpu and args.device == "mps":
+            self.device = "mps"
+        else:
+            self.device = "cpu"
         # Default criterion set to NLL loss function
         self.criterion = nn.NLLLoss().to(self.device)
 
@@ -118,7 +123,12 @@ def test_inference(args, model, test_dataset):
     model.eval()
     loss, total, correct = 0.0, 0.0, 0.0
 
-    device = 'cuda' if args.gpu else 'cpu'
+    if args.gpu and args.device == "cuda":
+        device = "cuda"
+    elif args.gpu and args.device == "mps":
+        device = "mps"
+    else:
+        device = "cpu"
     criterion = nn.NLLLoss().to(device)
     testloader = DataLoader(test_dataset, batch_size=128,
                             shuffle=False)

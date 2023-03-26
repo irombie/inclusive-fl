@@ -63,7 +63,7 @@ class CNNFashion_Mnist(nn.Module):
         out = self.layer2(out)
         out = out.view(out.size(0), -1)
         out = self.fc(out)
-        return out
+        return F.log_softmax(out, dim=1)
 
 
 class CNNCifar(nn.Module):

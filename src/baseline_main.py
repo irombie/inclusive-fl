@@ -25,6 +25,7 @@ if __name__ == '__main__':
         device = "mps"
     else:
         device = "cpu"
+    device = torch.device(device)
     # load datasets
     train_dataset, test_dataset, _ = get_dataset(args)
 

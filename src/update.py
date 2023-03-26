@@ -27,7 +27,7 @@ class LocalUpdate(object):
     def __init__(self, args, dataset, idxs, logger):
         self.args = args
         self.logger = logger
-        self.trainloader, self.validloader, self.testloader = self.train_val_test(
+        self.trainloader, self.testloader = self.train_test(
             dataset, list(idxs))
         if args.gpu and args.device == "cuda":
             self.device = "cuda"
@@ -38,23 +38,21 @@ class LocalUpdate(object):
         # Default criterion set to NLL loss function
         self.criterion = nn.NLLLoss().to(self.device)
 
-    def train_val_test(self, dataset, idxs):
+    def train_test(self, dataset, idxs):
         """
         Returns train, validation and test dataloaders for a given dataset
         and user indexes.
         """
         # split indexes for train, validation, and test (80, 10, 10)
         idxs_train = idxs[:int(0.8*len(idxs))]
-        idxs_val = idxs[int(0.8*len(idxs)):int(0.9*len(idxs))]
-        idxs_test = idxs[int(0.9*len(idxs)):]
+        idxs_test = idxs[int(0.8*len(idxs)):]
 
         trainloader = DataLoader(DatasetSplit(dataset, idxs_train),
                                  batch_size=self.args.local_bs, shuffle=True)
-        validloader = DataLoader(DatasetSplit(dataset, idxs_val),
-                                 batch_size=int(len(idxs_val)/10), shuffle=False)
+        
         testloader = DataLoader(DatasetSplit(dataset, idxs_test),
                                 batch_size=int(len(idxs_test)/10), shuffle=False)
-        return trainloader, validloader, testloader
+        return trainloader, testloader
 
     def update_weights(self, model, global_round):
         # Set mode to train model
@@ -89,16 +87,19 @@ class LocalUpdate(object):
                 batch_loss.append(loss.item())
             epoch_loss.append(sum(batch_loss)/len(batch_loss))
 
-        return model.state_dict(), sum(epoch_loss) / len(epoch_loss)
+        return model, sum(epoch_loss) / len(epoch_loss)
 
-    def inference(self, model):
+    def inference(self, model, is_test):
         """ Returns the inference accuracy and loss.
         """
-
+        if is_test:
+            loader = self.testloader
+        else:
+            loader = self.trainloader
         model.eval()
         loss, total, correct = 0.0, 0.0, 0.0
 
-        for batch_idx, (images, labels) in enumerate(self.testloader):
+        for batch_idx, (images, labels) in enumerate(loader):
             images, labels = images.to(self.device), labels.to(self.device)
 
             # Inference

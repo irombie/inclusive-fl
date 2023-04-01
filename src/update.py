@@ -83,9 +83,10 @@ class LocalUpdate(object):
                         global_round, iter, batch_idx * len(images),
                         len(self.trainloader.dataset),
                         100. * batch_idx / len(self.trainloader), loss.item()))
-                self.logger.add_scalar('loss', loss.item())
                 batch_loss.append(loss.item())
-            epoch_loss.append(sum(batch_loss)/len(batch_loss))
+            avg_loss_per_local_training = sum(batch_loss)/len(batch_loss)
+            epoch_loss.append(avg_loss_per_local_training)
+            # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
 
         return model, sum(epoch_loss) / len(epoch_loss)
 

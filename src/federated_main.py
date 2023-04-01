@@ -7,12 +7,13 @@ import copy
 import os
 import pickle
 import time
+from datetime import datetime
 
 import numpy as np
 import torch
-from tensorboardX import SummaryWriter
 from tqdm import tqdm
 
+import wandb
 from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist
 from options import args_parser
 from update import LocalUpdate, test_inference
@@ -23,10 +24,26 @@ if __name__ == '__main__':
 
     # define paths
     path_project = os.path.abspath('..')
-    logger = SummaryWriter('../logs')
-
+    
     args = args_parser()
     exp_details(args)
+
+    now = datetime.now()    
+    dt_string = now.strftime("%d_%m_%Y-%H_%M")
+    run = wandb.init(project=args.wandb_name)
+    config = run.config
+    # If you add new parameters, do not forget to 
+    # log them to wandb here!
+    config.learning_rate = args.lr
+    config.optimizer = args.optimizer
+    config.dataset = args.dataset
+    config.model = args.model 
+    config.global_epochs = args.epochs
+    config.batch_size = args.local_bs
+    config.iid = "iid" if args.iid==1 else "non-iid"
+    config.seed = args.seed
+    config.unequal = args.unequal
+    config.frac = args.frac
 
     if args.gpu and args.device == "cuda":
         device = "cuda"
@@ -80,19 +97,25 @@ if __name__ == '__main__':
 
         global_model.train()
         m = max(int(args.frac * args.num_users), 1)
+        print(args.num_users)
         idxs_users = np.random.choice(range(args.num_users), m, replace=False)
 
         list_acc = []
         for idx in idxs_users:
             local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx], logger=logger)
+                                      idxs=user_groups[idx], logger=run)
             w, loss = local_model.update_weights(
                 model=copy.deepcopy(global_model), global_round=epoch)
             acc, loss = local_model.inference(model=w, is_test=False)
             list_acc.append(acc)
             local_weights.append(copy.deepcopy(w.state_dict()))
             local_losses.append(copy.deepcopy(loss))
-        train_accuracy.append(sum(list_acc)/len(list_acc))
+            # Uncomment to log to wandb if needed
+            # run.log({f"local model training loss per iteration for user {idx}": loss})
+            # run.log({f"local model training accuracy per iteration for user {idx}": acc})
+
+        acc_avg = sum(list_acc)/len(list_acc)
+        train_accuracy.append(acc_avg)
 
         # update global weights
         global_weights = average_weights(local_weights)
@@ -101,21 +124,35 @@ if __name__ == '__main__':
         global_model.load_state_dict(global_weights)
 
         loss_avg = sum(local_losses) / len(local_losses)
+
         train_loss.append(loss_avg)
 
         # Calculate avg training accuracy over all users at every epoch
-        list_acc, list_loss = [], []
+        list_loss = []
         global_model.eval()
 
-        test_accs = []
+        test_accs, test_loss = [], []
+
         # Getting the test loss for all users' data of the global model
         for c in idxs_users:
             local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx], logger=logger)
+                                      idxs=user_groups[idx], logger=run)
             acc, loss = local_model.inference(model=global_model, is_test=True)
             test_accs.append(acc)
             list_loss.append(loss)
-        test_accuracy.append(sum(test_accs)/len(test_accs))
+            # Uncomment to log to wandb if needed
+            # run.log({f"local model test loss for user {c}": loss})
+            # run.log({f"local model test accuracy for user {c}": acc})
+
+        test_loss_avg = sum(list_loss)/len(test_accs)
+        test_loss.append(test_loss_avg)
+        test_acc_avg = sum(test_accs)/len(test_accs)
+        test_accuracy.append(test_acc_avg)
+
+        run.log({"Global test accuracy: ": 100*test_accuracy[-1]})
+        run.log({"Global train accuracy: ": 100*train_accuracy[-1]})
+        run.log({"Global train loss: ": train_loss[-1]})
+        run.log({"Global test loss: ": test_loss[-1]})
 
         # print global training loss after every 'i' rounds
         if (epoch+1) % print_every == 0:
@@ -123,6 +160,7 @@ if __name__ == '__main__':
             print(f'Training Loss : {np.mean(np.array(train_loss))}')
             print('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
             print('Test Accuracy: {:.2f}% \n'.format(100*test_accuracy[-1]))
+            
     # Test inference after completion of training
     test_acc, test_loss = test_inference(args, global_model, test_dataset)
 

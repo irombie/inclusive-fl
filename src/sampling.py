@@ -210,7 +210,7 @@ def cifar_distribution_noniid(dataset, num_users, num_clases=10):
     required_min_items_per_user = 5    
     min_item_user = 0    
                                          
-    class_per_user = np.repeat(np.array(range(num_clases)).reshape(-1, 1), int(data_size/num_clases), axis=1) 
+    class_per_user = np.repeat(np.array(range(int(data_size/num_clases))).reshape(-1, 1), num_clases, axis=1)
     filter = np.ones((num_clases, num_users))
     selected_users = [[] for i in range(num_users)]
     

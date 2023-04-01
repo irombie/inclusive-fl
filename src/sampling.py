@@ -192,28 +192,25 @@ def cifar_distribution_noniid(dataset, num_users, num_clases=10):
     Sample non-I.I.D client data from CIFAR10 dataset
     :param dataset: CIFAR10 dataset
     :param num_users: number of users
-    :param num_classes: number of classes
+    :param num_classes: number of all available classes
     :return dict_users: dictionary with each clients 
     index as key and image indexes list as value
     """
 
-    ##----------------  data specific part 
-
-    labels = np.array(dataset.train_labels)                                             
+    labels = np.array(dataset.train_labels)                                     
     data_size = labels.shape[0]  # len(dataset)
     idxs = np.arange(data_size)
-    idxs_labels = np.vstack((idxs, labels))
 
-    ##----------------  data agnostic part 
+    idxs_labels = np.vstack((idxs, labels))
+    idxs_labels = idxs_labels[:, idxs_labels[1, :].argsort()]
 
     beta = 0.5
-    required_min_items_per_user = 5    
+    required_min_items_per_user = 10    
     min_item_user = 0    
                                          
-    class_per_user = np.repeat(np.array(range(num_clases)).reshape(-1, 1), int(data_size/num_clases), axis=1) 
+    class_per_user = idxs_labels[0, :].reshape(num_clases, int(data_size/num_clases)) 
     filter = np.ones((num_clases, num_users))
-    selected_users = [[] for i in range(num_users)]
-    
+    selected_users = [[] for i in range(num_users)] 
 
     def maxitem_per_user(users, filters, portions):
       for i, k in enumerate(users):                     
@@ -221,8 +218,9 @@ def cifar_distribution_noniid(dataset, num_users, num_clases=10):
           filters[:, i] = filters[:, i]*0
       return filters * portions, filters                
 
-
     while min_item_user < required_min_items_per_user:   
+
+        np.random.shuffle(np.transpose(class_per_user))
 
         class_portions_peruser = np.repeat(np.random.dirichlet(np.repeat(beta, num_users)), num_clases).reshape(num_clases, num_users) 
         class_portions_peruser, filter = maxitem_per_user(selected_users, filter, class_portions_peruser)
@@ -232,20 +230,12 @@ def cifar_distribution_noniid(dataset, num_users, num_clases=10):
 
         for i in range(num_clases):
             selected_users = [user_i + user_ix.tolist() for user_i, user_ix in zip(selected_users, np.split(class_per_user[i], class_portions_peruser[i]))]
-
+  
         min_item_user = min([len(user_i) for user_i in selected_users]) 
 
+    dict_users = {k: v for k, v in enumerate(selected_users)} 
 
-    ##---------------- replace user assigned class ids with same class random data indexes
-
-    dict_users = {} 
-
-    def class_to_index(selected_users):
-        for k, user_i in enumerate(selected_users):
-          dict_users[k] = [ idxs_labels[ 0 , np.random.choice( (np.where(idxs_labels[1, :]==i)[0] ) ) ] for i in user_i ] 
-        return dict_users
-
-    return class_to_index(selected_users)
+    return dict_users
 
 
 if __name__ == '__main__':

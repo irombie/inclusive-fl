@@ -15,7 +15,7 @@ Then, activate the environment by running `conda activate <envname>`.
 1. Clone/pull the repository. `git pull origin main`
 2. Switch to a new branch, something other than main, and possibly appropriately named so it reflects what the changes are about. `git checkout -b <branch_name>`
 3. Make desired changes. 
-4. Commit and push to the new branch. `git add . ; git commit -m "<commit_msg>"; git push -u origin <branch_name>`
+4. Commit and push to the new branch. `git add . ; git commit -m "<commit_msg>"; git push -u origin <branch_name>`. Once you commit and push once to a branch, you can push by just typing `git push`. 😼
 5. Create a pull request (PR) by heading to the repo's website and clicking on `compare & pull request`.
 6. Give an easy to understand name and provide explanation on what the PR does. 
 7. Ask for reviews from team members. Once your PR gets approved by someone, merge to `main`.

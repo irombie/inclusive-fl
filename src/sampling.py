@@ -163,7 +163,7 @@ def cifar_noniid(dataset, num_users):
     Sample non-I.I.D client data from CIFAR10 dataset
     :param dataset:
     :param num_users:
-    :return:
+    :return: 
     """
     num_shards, num_imgs = 200, 250
     idx_shard = [i for i in range(num_shards)]
@@ -177,7 +177,7 @@ def cifar_noniid(dataset, num_users):
     idxs_labels = idxs_labels[:, idxs_labels[1, :].argsort()]
     idxs = idxs_labels[0, :]
 
-    # divide and assign
+    # divide and assign       
     for i in range(num_users):
         rand_set = set(np.random.choice(idx_shard, 2, replace=False))
         idx_shard = list(set(idx_shard) - rand_set)
@@ -185,6 +185,67 @@ def cifar_noniid(dataset, num_users):
             dict_users[i] = np.concatenate(
                 (dict_users[i], idxs[rand*num_imgs:(rand+1)*num_imgs]), axis=0)
     return dict_users
+
+
+def cifar_distribution_noniid(dataset, num_users, num_clases=10):
+    """
+    Sample non-I.I.D client data from CIFAR10 dataset
+    :param dataset: CIFAR10 dataset
+    :param num_users: number of users
+    :param num_classes: number of classes
+    :return dict_users: dictionary with each clients 
+    index as key and image indexes list as value
+    """
+
+    ##----------------  data specific part 
+
+    labels = np.array(dataset.train_labels)                                             
+    data_size = labels.shape[0]  # len(dataset)
+    idxs = np.arange(data_size)
+    idxs_labels = np.vstack((idxs, labels))
+
+    ##----------------  data agnostic part 
+
+    beta = 0.5
+    required_min_items_per_user = 5    
+    min_item_user = 0    
+                                         
+    class_per_user = np.repeat(np.array(range(num_clases)).reshape(-1, 1), int(data_size/num_clases), axis=1) 
+    filter = np.ones((num_clases, num_users))
+    selected_users = [[] for i in range(num_users)]
+    
+
+    def maxitem_per_user(users, filters, portions):
+      for i, k in enumerate(users):                     
+        if len(k) > data_size / num_users :
+          filters[:, i] = filters[:, i]*0
+      return filters * portions, filters                
+
+
+    while min_item_user < required_min_items_per_user:   
+
+        class_portions_peruser = np.repeat(np.random.dirichlet(np.repeat(beta, num_users)), num_clases).reshape(num_clases, num_users) 
+        class_portions_peruser, filter = maxitem_per_user(selected_users, filter, class_portions_peruser)
+        ##if filter.all() == np.zeros((num_clases, num_users)).all(): break
+        class_portions_peruser = np.divide(class_portions_peruser, np.sum(class_portions_peruser, axis=1).reshape(-1,1))
+        class_portions_peruser = (np.cumsum(class_portions_peruser, axis=1) * class_per_user.shape[1]).astype(int)[:, :-1]  
+
+        for i in range(num_clases):
+            selected_users = [user_i + user_ix.tolist() for user_i, user_ix in zip(selected_users, np.split(class_per_user[i], class_portions_peruser[i]))]
+
+        min_item_user = min([len(user_i) for user_i in selected_users]) 
+
+
+    ##---------------- replace user assigned class ids with same class random data indexes
+
+    dict_users = {} 
+
+    def class_to_index(selected_users):
+        for k, user_i in enumerate(selected_users):
+          dict_users[k] = [ idxs_labels[ 0 , np.random.choice( (np.where(idxs_labels[1, :]==i)[0] ) ) ] for i in user_i ] 
+        return dict_users
+
+    return class_to_index(selected_users)
 
 
 if __name__ == '__main__':

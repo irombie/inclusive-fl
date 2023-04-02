@@ -18,7 +18,7 @@ Then, activate the environment by running `conda activate <envname>`.
 4. Commit and push to the new branch. `git add . ; git commit -m "<commit_msg>"; git push -u origin <branch_name>`. Once you commit and push once to a branch, you can push by just typing `git push`. 😼
 5. Create a pull request (PR) by heading to the repo's website and clicking on `compare & pull request`.
 6. Give an easy to understand name and provide explanation on what the PR does. 
-7. Ask for reviews from team members. Once your PR gets approved by someone, merge to `main`.
+7. Ask for reviews from team members. Wait for a day for people to give feedback. After that, once your PR gets approved by someone, merge to `main`.
 8. YOU are AMAZING! 🥳🎉 Thank you for being such a valuable team member 💙
 
 ## Running the experiments

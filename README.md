@@ -23,7 +23,7 @@ Then, activate the environment by running `conda activate <envname>`.
 
 ## Running the experiments
 1. To check which parameters are there to configure, head to `options.py` 👀
-2. If you add a new parameter there, make sure to add it to the wandb config as well if you want to track it! And add it to the README below so others can be informed!
+2. If you add a new parameter there, make sure to add it to the README below so others can be informed!
 3. Whenever you are creating a new experiment set, **create a new project with a unique name** by running the code with the flag `--wandb_name <name>`. If you are running experiments in that set, **create runs within that project** by using the same name with that flag. 
 4. Make sure your wandb settings are configured properly so that the experiment results are being logged onto our [team space called `inclusive-fl`](https://wandb.ai/inclusive-fl). 
 5. Federated experiment involves training a global model using many local models.

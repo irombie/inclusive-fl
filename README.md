@@ -1,48 +1,38 @@
-# Federated-Learning (PyTorch)
-
-Implementation of the vanilla federated learning paper : [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629).
-
+# Inclusive Federated Learning (PyTorch)
 
 Experiments are produced on MNIST, Fashion MNIST and CIFAR10 (both IID and non-IID). In case of non-IID, the data amongst the users can be split equally or unequally.
 
-Since the purpose of these experiments are to illustrate the effectiveness of the federated learning paradigm, only simple models such as MLP and CNN are used.
 
-## Requirments
-Install all the packages from requirments.txt
-* Python3
-* Pytorch
-* Torchvision
+## Setup
 
-## Data
-* Download train and test datasets manually or they will be automatically downloaded from torchvision datasets.
-* Experiments are run on Mnist, Fashion Mnist and Cifar.
-* To use your own dataset: Move your dataset to data directory and write a wrapper on pytorch dataset class.
+Create a conda environment from the `environment_droplet.yml` via running the command 
+
+```conda env create --name <envname> --file=environment_droplet.yml```
+
+Then, activate the environment by running `conda activate <envname>`.
+
+## Contributing
+1. Clone/pull the repository. `git pull origin main`
+2. Switch to a new branch, something other than main, and possibly appropriately named so it reflects what the changes are about. `git checkout -b <branch_name>`
+3. Make desired changes. 
+4. Commit and push to the new branch. `git add . ; git commit -m "<commit_msg>"; git push -u origin <branch_name>`. Once you commit and push once to a branch, you can push by just typing `git push`. 😼
+5. Create a pull request (PR) by heading to the repo's website and clicking on `compare & pull request`.
+6. Give an easy to understand name and provide explanation on what the PR does. 
+7. Ask for reviews from team members. Wait for a day for people to give feedback. After that, once your PR gets approved by someone, merge to `main`.
+8. YOU are AMAZING! 🥳🎉 Thank you for being such a valuable team member 💙
 
 ## Running the experiments
-The baseline experiment trains the model in the conventional way.
-
-* To run the baseline experiment with MNIST on MLP using CPU:
-```
-python src/baseline_main.py --model=mlp --dataset=mnist --epochs=10
-```
-* Or to run it on GPU (eg: if gpu:0 is available):
-```
-python src/baseline_main.py --model=mlp --dataset=mnist --gpu=0 --epochs=10
-```
------
-
-Federated experiment involves training a global model using many local models.
+1. To check which parameters are there to configure, head to `options.py` 👀
+2. If you add a new parameter there, make sure to add it to the README below so others can be informed!
+3. Whenever you are creating a new experiment set, **create a new project with a unique name** by running the code with the flag `--wandb_name <name>`. If you are running experiments in that set, **create runs within that project** by using the same name with that flag. 
+4. Make sure your wandb settings are configured properly so that the experiment results are being logged onto our [team space called `inclusive-fl`](https://wandb.ai/inclusive-fl). 
+5. Federated experiment involves training a global model using many local models.
 
 * To run the federated experiment with CIFAR on CNN (IID):
 ```
 python src/federated_main.py --model=cnn --dataset=cifar --gpu=0 --iid=1 --epochs=10
 ```
-* To run the same experiment under non-IID condition:
-```
-python src/federated_main.py --model=cnn --dataset=cifar --gpu=0 --iid=0 --epochs=10
-```
-
-You can change the default values of other parameters to simulate different conditions. Refer to the options section.
+You can change the default values of other parameters to simulate different conditions. 
 
 ## Options
 The default values for various paramters parsed to the experiment are given in ```options.py```. Details are given some of those parameters:
@@ -62,41 +52,6 @@ The default values for various paramters parsed to the experiment are given in `
 * ```--local_ep:``` Number of local training epochs in each user. Default is 10.
 * ```--local_bs:``` Batch size of local updates in each user. Default is 10.
 * ```--unequal:```  Used in non-iid setting. Option to split the data amongst users equally or unequally. Default set to 0 for equal splits. Set to 1 for unequal splits.
-
-## Results on MNIST
-#### Baseline Experiment:
-The experiment involves training a single model in the conventional way.
-
-Parameters: <br />
-* ```Optimizer:```    : SGD 
-* ```Learning Rate:``` 0.01
-
-```Table 1:``` Test accuracy after training for 10 epochs:
-
-| Model | Test Acc |
-| ----- | -----    |
-|  MLP  |  92.71%  |
-|  CNN  |  98.42%  |
-
-----
-
-#### Federated Experiment:
-The experiment involves training a global model in the federated setting.
-
-Federated parameters (default values):
-* ```Fraction of users (C)```: 0.1 
-* ```Local Batch size  (B)```: 10 
-* ```Local Epochs      (E)```: 10 
-* ```Optimizer            ```: SGD 
-* ```Learning Rate        ```: 0.01 <br />
-
-```Table 2:``` Test accuracy after training for 10 global epochs with:
-
-| Model |    IID   | Non-IID (equal)|
-| ----- | -----    |----            |
-|  MLP  |  88.38%  |     73.49%     |
-|  CNN  |  97.28%  |     75.94%     |
-
 
 ## Further Readings
 ### Papers:

@@ -201,6 +201,9 @@ def cifar_distribution_noniid(dataset, num_users, num_clases=10):
     data_size = labels.shape[0]  # len(dataset)
     idxs = np.arange(data_size)
 
+    if num_users*num_clases > data_size:
+        raise ValueError("Not enough data. Provided data size must be at least num_users*num_clases: {}".format(num_users*num_clases))
+
     idxs_labels = np.vstack((idxs, labels))
     idxs_labels = idxs_labels[:, idxs_labels[1, :].argsort()]
 

@@ -187,7 +187,7 @@ def cifar_noniid(dataset, num_users):
     return dict_users
 
 
-def cifar_distribution_noniid(dataset, num_users, num_clases=10):
+def cifar_distribution_noniid(dataset, num_users, num_classes=10):
     """
     Sample non-I.I.D client data from CIFAR10 dataset
     :param dataset: CIFAR10 dataset
@@ -201,8 +201,8 @@ def cifar_distribution_noniid(dataset, num_users, num_clases=10):
     data_size = labels.shape[0]  # len(dataset)
     idxs = np.arange(data_size)
 
-    if num_users*num_clases > data_size:
-        raise ValueError("Not enough data. Provided data size must be at least num_users*num_clases: {}".format(num_users*num_clases))
+    if num_users*num_classes > data_size:
+        raise ValueError("Not enough data. Provided data size must be at least num_users*num_classes: {}".format(num_users*num_classes))
 
     idxs_labels = np.vstack((idxs, labels))
     idxs_labels = idxs_labels[:, idxs_labels[1, :].argsort()]
@@ -211,8 +211,8 @@ def cifar_distribution_noniid(dataset, num_users, num_clases=10):
     required_min_items_per_user = 10    
     min_item_user = 0    
                                          
-    class_per_user = idxs_labels[0, :].reshape(num_clases, int(data_size/num_clases)) 
-    filter = np.ones((num_clases, num_users))
+    class_per_user = idxs_labels[0, :].reshape(num_classes, int(data_size/num_classes)) 
+    filter = np.ones((num_classes, num_users))
     selected_users = [[] for i in range(num_users)] 
 
     def maxitem_per_user(users, filters, portions):
@@ -225,13 +225,13 @@ def cifar_distribution_noniid(dataset, num_users, num_clases=10):
 
         np.random.shuffle(np.transpose(class_per_user))
 
-        class_portions_peruser = np.repeat(np.random.dirichlet(np.repeat(beta, num_users)), num_clases).reshape(num_clases, num_users) 
+        class_portions_peruser = np.repeat(np.random.dirichlet(np.repeat(beta, num_users)), num_classes).reshape(num_classes, num_users) 
         class_portions_peruser, filter = maxitem_per_user(selected_users, filter, class_portions_peruser)
-        ##if filter.all() == np.zeros((num_clases, num_users)).all(): break
+        ##if filter.all() == np.zeros((num_classes, num_users)).all(): break
         class_portions_peruser = np.divide(class_portions_peruser, np.sum(class_portions_peruser, axis=1).reshape(-1,1))
         class_portions_peruser = (np.cumsum(class_portions_peruser, axis=1) * class_per_user.shape[1]).astype(int)[:, :-1]  
 
-        for i in range(num_clases):
+        for i in range(num_classes):
             selected_users = [user_i + user_ix.tolist() for user_i, user_ix in zip(selected_users, np.split(class_per_user[i], class_portions_peruser[i]))]
   
         min_item_user = min([len(user_i) for user_i in selected_users]) 

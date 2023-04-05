@@ -170,7 +170,7 @@ def cifar_noniid(dataset, num_users):
     dict_users = {i: np.array([]) for i in range(num_users)}
     idxs = np.arange(num_shards*num_imgs)
     # labels = dataset.train_labels.numpy()
-    labels = np.array(dataset.train_labels)
+    labels = np.array(dataset.targets)
 
     # sort labels
     idxs_labels = np.vstack((idxs, labels))
@@ -187,7 +187,7 @@ def cifar_noniid(dataset, num_users):
     return dict_users
 
 
-def cifar_distribution_noniid(dataset, num_users, num_classes=10):
+def distribution_noniid(dataset_labels, num_users, num_classes=10):
     """
     Sample non-I.I.D client data from CIFAR10 dataset
     :param dataset: CIFAR10 dataset
@@ -196,8 +196,9 @@ def cifar_distribution_noniid(dataset, num_users, num_classes=10):
     :return dict_users: dictionary with each clients 
     index as key and image indexes list as value
     """
-
-    labels = np.array(dataset.train_labels)                                     
+    
+    # MNIST: dataset.train_labels or CIFAR: dataset.targets
+    labels = np.array(dataset_labels)                 
     data_size = labels.shape[0]  # len(dataset)
     idxs = np.arange(data_size)
 

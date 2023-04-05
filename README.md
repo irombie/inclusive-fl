@@ -45,13 +45,14 @@ The default values for various paramters parsed to the experiment are given in `
 * ```--verbose:```  Detailed log outputs. Activated by default, set to 0 to deactivate.
 * ```--seed:```     Random Seed. Default set to 1.
 
-#### Federated Parameters
+#### Federated Parameters 
 * ```--iid:```      Distribution of data amongst users. Default set to IID. Set to 0 for non-IID.
 * ```--num_users:```Number of users. Default is 100.
 * ```--frac:```     Fraction of users to be used for federated updates. Default is 0.1.
 * ```--local_ep:``` Number of local training epochs in each user. Default is 10.
 * ```--local_bs:``` Batch size of local updates in each user. Default is 10.
-* ```--unequal:```  Used in non-iid setting. Option to split the data amongst users equally or unequally. Default set to 0 for equal splits. Set to 1 for unequal splits.
+* ```--unequal:```  Used in non-iid setting (--iid must be set to 0). Option to split the data amongst users equally or unequally. Default set to 0 for equal splits. Set to 1 for unequal splits.
+* ```--dist_noniid:```  Used in non-iid setting (--iid must be set to 0). Option to assign each user proportion of each class samples according to Dirichlet distribution. Default set to 0 to omit this option. Set to 1 to select this option. Option to be selected concurrent non-IID option of unequal splits must be set to 0 (--unequal=0).
 
 ## Further Readings
 ### Papers:

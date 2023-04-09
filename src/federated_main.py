@@ -10,14 +10,14 @@ import time
 from datetime import datetime
 
 import numpy as np
-import torch
 from tqdm import tqdm
 
 import wandb
+from averaging_methods import AVG_METHOD_NAME_TO_CLASS
 from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist
 from options import args_parser
 from update import LocalUpdate, test_inference
-from utils import average_weights, exp_details, get_dataset
+from utils import exp_details, get_dataset
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -71,6 +71,8 @@ if __name__ == '__main__':
     # copy weights
     global_weights = global_model.state_dict()
 
+    avg_method = AVG_METHOD_NAME_TO_CLASS[args.avg_method_name](global_model)
+
     # Training
     train_loss, train_accuracy, test_accuracy = [], [], []
     val_acc_list, net_list = [], []
@@ -105,10 +107,10 @@ if __name__ == '__main__':
         train_accuracy.append(acc_avg)
 
         # update global weights
-        global_weights = average_weights(local_weights)
+        global_weights = avg_method.average_weights(local_weights)
 
         # update global weights
-        global_model.load_state_dict(global_weights)
+        global_model.load_state_dict(global_weights, strict=False)
 
         loss_avg = sum(local_losses) / len(local_losses)
 

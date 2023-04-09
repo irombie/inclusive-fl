@@ -23,6 +23,8 @@ def args_parser():
                         help='learning rate')
     parser.add_argument('--momentum', type=float, default=0.5,
                         help='SGD momentum (default: 0.5)')
+    parser.add_argument("--avg_method_name", type=str, default="FedAvg", help="Name of federated averaging method to use, \
+                        options are FedAvg, FedBN")
 
     # model arguments
     parser.add_argument('--model', type=str, default='mlp', help='model name')

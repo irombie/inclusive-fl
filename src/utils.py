@@ -5,8 +5,8 @@
 import copy
 import torch
 from torchvision import datasets, transforms
-from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal
-from sampling import cifar_iid, cifar_noniid
+from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal, distribution_noniid
+from sampling import cifar_iid, cifar_noniid 
 
 
 def get_dataset(args):
@@ -36,6 +36,9 @@ def get_dataset(args):
             if args.unequal:
                 # Chose uneuqal splits for every user
                 raise NotImplementedError()
+            elif args.dist_noniid:
+                # users receive unequal data within classes
+                user_groups = distribution_noniid(train_dataset.targets, args.num_users)
             else:
                 # Chose euqal splits for every user
                 user_groups = cifar_noniid(train_dataset, args.num_users)
@@ -65,6 +68,9 @@ def get_dataset(args):
             if args.unequal:
                 # Chose uneuqal splits for every user
                 user_groups = mnist_noniid_unequal(train_dataset, args.num_users)
+            elif args.dist_noniid:
+                # users receive unequal data within classes
+                user_groups = distribution_noniid(train_dataset.train_labels, args.num_users)
             else:
                 # Chose euqal splits for every user
                 user_groups = mnist_noniid(train_dataset, args.num_users)

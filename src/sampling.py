@@ -237,7 +237,7 @@ def distribution_noniid(dataset_labels, num_users, num_classes=10):
   
         min_item_user = min([len(user_i) for user_i in selected_users]) 
 
-    dict_users = {k: v for k, v in enumerate(selected_users)} 
+    dict_users = {k: np.random.permutation(v).tolist() for k, v in enumerate(selected_users)} 
 
     return dict_users
 

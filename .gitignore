@@ -4,3 +4,4 @@ save/
 data/
 logs/
 wandb/
+venv/

@@ -89,6 +89,40 @@ if __name__ == '__main__':
         print(args.num_users)
         idxs_users = np.random.choice(range(args.num_users), m, replace=False)
 
+        list_acc = []
+        for idx in idxs_users:
+            local_model = LocalUpdate(args=args, dataset=train_dataset,
+                                      idxs=user_groups[idx], logger=run)
+            w, loss = local_model.update_weights(
+                model=copy.deepcopy(global_model), global_round=epoch)
+            acc, loss = local_model.inference(model=w, is_test=False)
+            list_acc.append(acc)
+            local_weights.append(copy.deepcopy(w.state_dict()))
+            local_losses.append(copy.deepcopy(loss))
+            # Uncomment to log to wandb if needed
+            run.log({f"local model training loss per iteration for user {idx}": loss})
+            run.log({f"local model training accuracy per iteration for user {idx}": acc})
+
+        acc_avg = sum(list_acc)/len(list_acc)
+        train_accuracy.append(acc_avg)
+
+        # Reweighting the weights using the losses' magnitudes
+        weights_scalar = np.divide(local_losses, np.sum(local_losses))
+
+        for i, weight_tensor in enumerate(local_weights):
+            local_weights[i] = {k: torch.tensor(v) * weights_scalar[i] for k, v in weight_tensor.items()}
+
+        # update global weights
+        global_weights = average_weights(local_weights) 
+
+        # update global weights
+        global_model.load_state_dict(global_weights)
+
+        loss_avg = sum(local_losses) / len(local_losses)
+
+        train_loss.append(loss_avg)
+
+        # Calculate avg training accuracy over all users at every epoch
         list_loss = []
         global_model.eval()
 

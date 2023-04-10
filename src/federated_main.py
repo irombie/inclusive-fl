@@ -30,7 +30,21 @@ if __name__ == '__main__':
 
     now = datetime.now()    
     dt_string = now.strftime("%d_%m_%Y-%H_%M")
-    run = wandb.init(project=args.wandb_name, config=args)
+    run = wandb.init(project=args.wandb_name)
+    config = run.config
+    # If you add new parameters, do not forget to 
+    # log them to wandb here!
+    config.learning_rate = args.lr
+    config.optimizer = args.optimizer
+    config.dataset = args.dataset
+    config.model = args.model 
+    config.global_epochs = args.epochs
+    config.batch_size = args.local_bs
+    config.iid = "iid" if args.iid==1 else "non-iid"
+    config.seed = args.seed
+    config.unequal = args.unequal
+    config.frac = args.frac
+    config.fedprox = args.fedprox
 
     if args.gpu and args.device == "cuda":
         device = "cuda"

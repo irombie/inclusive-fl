@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
+import copy
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
@@ -67,6 +68,9 @@ class LocalUpdate(object):
             optimizer = torch.optim.Adam(model.parameters(), lr=self.args.lr,
                                          weight_decay=1e-4)
 
+        if self.args.fedprox:
+            global_params = copy.deepcopy(model.parameters())
+        
         for iter in range(self.args.local_ep):
             batch_loss = []
             for batch_idx, (images, labels) in enumerate(self.trainloader):
@@ -74,7 +78,17 @@ class LocalUpdate(object):
 
                 model.zero_grad()
                 log_probs = model(images)
-                loss = self.criterion(log_probs, labels)
+
+                # FedProx Modification
+                fedprox_term = 0.0
+                if self.args.fedprox:
+                    proximal_term = 0.0
+                    for w, w_t in zip(model.parameters(), global_params):
+                        proximal_term += (w - w_t).norm(2)
+
+                    fedprox_term = (self.args.mu / 2) * proximal_term
+                
+                loss = self.criterion(log_probs, labels) + fedprox_term
                 loss.backward()
                 optimizer.step()
 

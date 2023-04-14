@@ -6,7 +6,7 @@ import copy
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
-
+from strategies import AVG_METHOD_NAME_TO_CLASS
 
 class DatasetSplit(Dataset):
     """An abstract Dataset class wrapped around Pytorch Dataset class.
@@ -38,6 +38,7 @@ class LocalUpdate(object):
             self.device = "cpu"
         # Default criterion set to NLL loss function
         self.criterion = nn.NLLLoss().to(self.device)
+        self.strategy = AVG_METHOD_NAME_TO_CLASS[args.avg_method]()
 
     def train_test(self, dataset, idxs):
         """
@@ -68,8 +69,8 @@ class LocalUpdate(object):
             optimizer = torch.optim.Adam(model.parameters(), lr=self.args.lr,
                                          weight_decay=1e-4)
 
-        if self.args.fedprox:
-            global_params = copy.deepcopy(model.parameters())
+        
+        global_params = copy.deepcopy(model.parameters())
         
         for iter in range(self.args.local_ep):
             batch_loss = []
@@ -78,17 +79,8 @@ class LocalUpdate(object):
 
                 model.zero_grad()
                 log_probs = model(images)
-
-                # FedProx Modification
-                fedprox_term = 0.0
-                if self.args.fedprox:
-                    proximal_term = 0.0
-                    for w, w_t in zip(model.parameters(), global_params):
-                        proximal_term += (w - w_t).norm(2)
-
-                    fedprox_term = (self.args.mu / 2) * proximal_term
                 
-                loss = self.criterion(log_probs, labels) + fedprox_term
+                loss = self.strategy.local_loss(self.criterion(log_probs, labels))
                 loss.backward()
                 optimizer.step()
 

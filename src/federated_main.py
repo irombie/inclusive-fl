@@ -18,6 +18,7 @@ from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist
 from options import args_parser
 from update import LocalUpdate, test_inference
 from utils import average_weights, exp_details, get_dataset
+from strategies import AVG_METHOD_NAME_TO_CLASS
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -45,6 +46,7 @@ if __name__ == '__main__':
     config.unequal = args.unequal
     config.frac = args.frac
     config.fedprox = args.fedprox
+    strategy = AVG_METHOD_NAME_TO_CLASS[args.avg_method]()
 
     if args.gpu and args.device == "cuda":
         device = "cuda"
@@ -119,7 +121,7 @@ if __name__ == '__main__':
         train_accuracy.append(acc_avg)
 
         # update global weights
-        global_weights = average_weights(local_weights)
+        global_weights = strategy.average_weights(local_weights)
 
         # update global weights
         global_model.load_state_dict(global_weights)

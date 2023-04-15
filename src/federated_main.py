@@ -79,7 +79,8 @@ if __name__ == '__main__':
     cv_loss, cv_acc = [], []
     print_every = 2
     val_loss_pre, counter = 0, 0
-
+    
+    local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
     for epoch in tqdm(range(args.epochs)):
         local_weights, local_losses = [], []
         print(f'\n | Global Training Round : {epoch+1} |\n')
@@ -91,11 +92,11 @@ if __name__ == '__main__':
 
         list_acc = []
         for idx in idxs_users:
-            local_model = LocalUpdate(args=args, dataset=train_dataset,
+            local_update = LocalUpdate(args=args, dataset=train_dataset,
                                       idxs=user_groups[idx], logger=run)
-            w, loss = local_model.update_weights(
-                model=copy.deepcopy(global_model), global_round=epoch)
-            acc, loss = local_model.inference(model=w, is_test=False)
+            w, loss = local_update.update_weights(
+                model=local_models[idx], global_round=epoch)
+            acc, loss = local_update.inference(model=w, is_test=False)
             list_acc.append(acc)
             local_weights.append(copy.deepcopy(w.state_dict()))
             local_losses.append(copy.deepcopy(loss))
@@ -109,8 +110,9 @@ if __name__ == '__main__':
         # update global weights
         global_weights = global_update.aggregate_weights(local_weights)
 
-        # update global weights
+        # update models
         global_update.update_global_model(global_model, global_weights)
+        global_update.update_local_models(local_models, global_weights)
 
         loss_avg = sum(local_losses) / len(local_losses)
 
@@ -124,9 +126,9 @@ if __name__ == '__main__':
 
         # Getting the test loss for all users' data of the global model
         for c in idxs_users:
-            local_model = LocalUpdate(args=args, dataset=train_dataset,
+            local_update = LocalUpdate(args=args, dataset=train_dataset,
                                       idxs=user_groups[idx], logger=run)
-            acc, loss = local_model.inference(model=global_model, is_test=True)
+            acc, loss = local_update.inference(model=local_models[c], is_test=True)
             test_accs.append(acc)
             list_loss.append(loss)
             # Uncomment to log to wandb if needed

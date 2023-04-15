@@ -45,17 +45,17 @@ class AbstractGlobalUpdate(ABC):
         :param global_weights: global model state dictionary after aggregation
         """
         global_model.load_state_dict(global_weights)
-    
+
     @staticmethod
     def update_local_models(
         local_models: List[torch.nn.Module], global_weights: Dict[str, torch.Tensor]
     ) -> None:
         """
         Update local models with global weights
-        In this case, updating each local model to be exactly the 
+        In this case, updating each local model to be exactly the
             same as global model
 
-        :param global_model: pytorch global model object
+        :param local_models: list of pytorch local models
         :param global_weights: global model state dictionary after aggregation
         """
         for model in local_models:
@@ -152,7 +152,7 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
         :param global_weights: global model state dictionary after aggregation
         """
         global_model.load_state_dict(global_weights, strict=False)
-    
+
     @staticmethod
     def update_local_models(
         local_models: List[torch.nn.Module], global_weights: Dict[str, torch.Tensor]
@@ -161,7 +161,7 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
         Update local models with global weights
         In this case, updating local models and preserving batch norm layers
 
-        :param global_model: pytorch global model object
+        :param local_models: list of pytorch local models
         :param global_weights: global model state dictionary after aggregation
         """
         for model in local_models:

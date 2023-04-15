@@ -13,7 +13,7 @@ import numpy as np
 from tqdm import tqdm
 
 import wandb
-from averaging_methods import AVG_METHOD_NAME_TO_CLASS
+from global_updates import get_global_update
 from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist
 from options import args_parser
 from update import LocalUpdate, test_inference
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     # copy weights
     global_weights = global_model.state_dict()
 
-    avg_method = AVG_METHOD_NAME_TO_CLASS[args.avg_method_name](global_model)
+    global_update = get_global_update(args.federated_learning_method , global_model)
 
     # Training
     train_loss, train_accuracy, test_accuracy = [], [], []
@@ -107,10 +107,10 @@ if __name__ == '__main__':
         train_accuracy.append(acc_avg)
 
         # update global weights
-        global_weights = avg_method.average_weights(local_weights)
+        global_weights = global_update.aggregate_weights(local_weights)
 
         # update global weights
-        global_model.load_state_dict(global_weights, strict=False)
+        global_update.update_global_model(global_model, global_weights)
 
         loss_avg = sum(local_losses) / len(local_losses)
 

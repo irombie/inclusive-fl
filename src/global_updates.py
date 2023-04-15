@@ -4,12 +4,13 @@ import copy
 from abc import ABC, abstractmethod
 
 
-class AbstractAvgMethod(ABC):
+class AbstractGlobalUpdate(ABC):
     """
-    Abstract class which provides common interface 
-        for implementing averaging methods.
+    Abstract class which provides common interface
+        for implementing global updates, which are methods to
+        update the global model.
 
-    Each averaging method class must have an "average_weights" method
+    Each global update class must have an "aggregate_weights" method
     """
 
     def __init__(self, model: torch.nn.Module):
@@ -19,7 +20,7 @@ class AbstractAvgMethod(ABC):
         pass
 
     @abstractmethod
-    def average_weights(
+    def aggregate_weights(
         self, local_model_weights: List[Dict[str, torch.Tensor]]
     ) -> Dict[str, torch.Tensor]:
         """
@@ -33,15 +34,27 @@ class AbstractAvgMethod(ABC):
         """
         pass
 
+    @staticmethod
+    def update_global_model(
+        global_model: torch.nn.Module, global_weights: Dict[str, torch.Tensor]
+    ) -> None:
+        """
+        Update global model with global weights
 
-class FedAvg(AbstractAvgMethod):
-    """Fed Avg implementation."""
+        :param global_model: pytorch global model object
+        :param global_weights: global model state dictionary after aggregation
+        """
+        global_model.load_state_dict(global_weights)
 
-    def average_weights(
+
+class MeanWeights(AbstractGlobalUpdate):
+    """Aggregate weights by taking the mean, used by FedAvg."""
+
+    def aggregate_weights(
         self, local_model_weights: List[Dict[str, torch.Tensor]]
     ) -> Dict[str, torch.Tensor]:
         """
-        Returns the average of the weights.
+        Returns the mean of the weights.
 
         All local models and global model are assumed to have the
         same architecture, and hence the same keys in the state dict
@@ -60,18 +73,20 @@ class FedAvg(AbstractAvgMethod):
         return w_avg
 
 
-class FedBN(AbstractAvgMethod):
+class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
     """Fed BN method. See https://arxiv.org/abs/2102.07623"""
 
     def __init__(self, model: torch.nn.Module):
         batchnorm_layers = self._find_batchnorm_layers(model)
-        assert len(batchnorm_layers) !=0, "No batch norm layers found, cannot use FedBN."
+        assert (
+            len(batchnorm_layers) != 0
+        ), "No batch norm layers found, cannot use FedBN."
         self.batchnorm_layers = batchnorm_layers
 
     @staticmethod
     def _find_batchnorm_layers(model: torch.nn.Module) -> Tuple[str, ...]:
         """
-        Find the name of layers in model which batch norm layers.
+        Find the name of layers in model which are batch norm layers.
 
         :param model: pytorch model
 
@@ -86,7 +101,7 @@ class FedBN(AbstractAvgMethod):
                 batch_norm_layers.append(module_name)
         return tuple(batch_norm_layers)
 
-    def average_weights(
+    def aggregate_weights(
         self, local_model_weights: List[Dict[str, torch.Tensor]]
     ) -> Dict[str, torch.Tensor]:
         """
@@ -108,8 +123,44 @@ class FedBN(AbstractAvgMethod):
                 w_avg[key] = torch.div(w_avg[key], len(local_model_weights))
         return w_avg
 
+    @staticmethod
+    def update_global_model(
+        global_model: torch.nn.Module, global_weights: Dict[str, torch.Tensor]
+    ) -> None:
+        """
+        Update global model with global weights
 
-AVG_METHOD_NAME_TO_CLASS: Dict[str, Type[AbstractAvgMethod]] = {
-    "FedAvg": FedAvg,
-    "FedBN": FedBN,
+        Due to absense of batch norm keys, strict=False is used in loading
+            of state dict
+
+        :param global_model: pytorch global model object
+        :param global_weights: global model state dictionary after aggregation
+        """
+        global_model.load_state_dict(global_weights, strict=False)
+
+
+NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {
+    "FedAvg": MeanWeights,
+    "FedBN": MeanWeightsNoBatchNorm,
 }
+
+
+def get_global_update(
+    federated_learning_method: str, model: torch.nn.Module
+) -> AbstractGlobalUpdate:
+    """
+    Get global update from federated learning method name
+
+    :param federated_learning_method: name of federated learning method.
+        Currently supports, FedAvg, FedBN
+
+    :param model: global model used for initialising global update class
+
+    :return: initialised global update object
+    """
+    if federated_learning_method in NAME_TO_GLOBAL_UPDATE:
+        return NAME_TO_GLOBAL_UPDATE[federated_learning_method](model)
+    else:
+        raise ValueError(
+            f"Unsupported federated learning method name {federated_learning_method} for global update."
+        )

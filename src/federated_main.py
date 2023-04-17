@@ -16,7 +16,7 @@ import wandb
 from global_updates import get_global_update
 from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist
 from options import args_parser
-from update import LocalUpdate, test_inference
+from update import get_local_update, test_inference
 from utils import exp_details, get_dataset
 
 if __name__ == '__main__':
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     # copy weights
     global_weights = global_model.state_dict()
 
-    global_update = get_global_update(args.federated_learning_method , global_model)
+    global_update = get_global_update(args.fl_method , global_model)
 
     # Training
     train_loss, train_accuracy, test_accuracy = [], [], []
@@ -92,8 +92,9 @@ if __name__ == '__main__':
 
         list_acc = []
         for idx in idxs_users:
-            local_update = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx], logger=run)
+            local_update = get_local_update(args=args, dataset=train_dataset,
+                                      idxs=user_groups[idx], logger=run,
+                                      global_model=global_model)
             w, loss = local_update.update_weights(
                 model=local_models[idx], global_round=epoch)
             acc, loss = local_update.inference(model=w, is_test=False)
@@ -126,8 +127,9 @@ if __name__ == '__main__':
 
         # Getting the test loss for all users' data of the global model
         for c in idxs_users:
-            local_update = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx], logger=run)
+            local_update = get_local_update(args=args, dataset=train_dataset,
+                                      idxs=user_groups[idx], logger=run,
+                                      global_model=global_model)
             acc, loss = local_update.inference(model=local_models[c], is_test=True)
             test_accs.append(acc)
             list_loss.append(loss)

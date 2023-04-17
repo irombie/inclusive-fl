@@ -171,6 +171,7 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
 NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {
     "FedAvg": MeanWeights,
     "FedBN": MeanWeightsNoBatchNorm,
+    "FedProx": MeanWeights,
 }
 
 

@@ -131,6 +131,7 @@ if __name__ == '__main__':
                                       idxs=user_groups[idx], logger=run,
                                       global_model=global_model)
             acc, loss = local_update.inference(model=local_models[c], is_test=True)
+            
             test_accs.append(acc)
             list_loss.append(loss)
             # Uncomment to log to wandb if needed

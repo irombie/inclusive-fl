@@ -123,7 +123,7 @@ if __name__ == '__main__':
         # Getting the test loss for all users' data of the global model
         for c in idxs_users:
             local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx], logger=run)
+                                      idxs=user_groups[c], logger=run)
             acc, loss = local_model.inference(model=global_model, is_test=True)
             test_accs.append(acc)
             list_loss.append(loss)

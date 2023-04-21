@@ -74,35 +74,6 @@ def get_dataset(args):
 
     return train_dataset, test_dataset, user_groups
 
-
-def average_weights(w):
-    """
-    Returns the average of the weights.
-    """
-    w_avg = copy.deepcopy(w[0])
-    for key in w_avg.keys():
-        for i in range(1, len(w)):
-            w_avg[key] += w[i][key]
-        w_avg[key] = torch.div(w_avg[key], len(w))
-    return w_avg
-
-def weighted_average(w, test_losses):
-    """
-    Returns the weighted average of the weights with respect to the test loss.
-    """
-    weights_scalar = np.divide(test_losses, np.sum(test_losses))
-    model_layers = w[0].keys()
-    w_avg = {}
-    # Loop through layers in model
-    for key in model_layers:
-        # Loop through each users losses
-        for i in range(len(w)):
-            if key in w_avg:
-                w_avg[key] += w[i][key] * weights_scalar[i]
-            else:
-                w_avg[key] = w[i][key] * weights_scalar[i]
-    return w_avg
-
 def exp_details(args):
     print('\nExperimental details:')
     print(f'    Model     : {args.model}')

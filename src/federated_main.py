@@ -16,8 +16,8 @@ import wandb
 from global_updates import get_global_update
 from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist
 from options import args_parser
-from update import LocalUpdate, test_inference
-from utils import weighted_average, exp_details, get_dataset
+from update import get_local_update, test_inference
+from utils import exp_details, get_dataset
 
 if __name__ == '__main__':
     start_time = time.time()

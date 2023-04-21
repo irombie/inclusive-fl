@@ -17,7 +17,7 @@ import wandb
 from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist
 from options import args_parser
 from update import LocalUpdate, test_inference
-from utils import average_weights, exp_details, get_dataset
+from utils import weighted_average, exp_details, get_dataset
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -98,20 +98,14 @@ if __name__ == '__main__':
             local_weights.append(copy.deepcopy(w.state_dict()))
             local_losses.append(copy.deepcopy(loss))
             # Uncomment to log to wandb if needed
-            # run.log({f"local model training loss per iteration for user {idx}": loss})
-            # run.log({f"local model training accuracy per iteration for user {idx}": acc})
+            run.log({f"local model training loss per iteration for user {idx}": loss})
+            run.log({f"local model training accuracy per iteration for user {idx}": acc})
 
         acc_avg = sum(list_acc)/len(list_acc)
         train_accuracy.append(acc_avg)
 
-        # update global weights
-        global_weights = average_weights(local_weights)
-
-        # update global weights
-        global_model.load_state_dict(global_weights)
-
         loss_avg = sum(local_losses) / len(local_losses)
-
+       
         train_loss.append(loss_avg)
 
         # Calculate avg training accuracy over all users at every epoch
@@ -128,13 +122,18 @@ if __name__ == '__main__':
             test_accs.append(acc)
             list_loss.append(loss)
             # Uncomment to log to wandb if needed
-            # run.log({f"local model test loss for user {c}": loss})
-            # run.log({f"local model test accuracy for user {c}": acc})
+            run.log({f"local model test loss for user {c}": loss})
+            run.log({f"local model test accuracy for user {c}": acc})
 
         test_loss_avg = sum(list_loss)/len(test_accs)
         test_loss.append(test_loss_avg)
         test_acc_avg = sum(test_accs)/len(test_accs)
         test_accuracy.append(test_acc_avg)
+
+        # Reweighting the weights using the losses' magnitudes
+        local_weights = weighted_average(local_weights, list_loss)
+        # update global weights
+        global_model.load_state_dict(local_weights)
 
         run.log({"Global test accuracy: ": 100*test_accuracy[-1]})
         run.log({"Global train accuracy: ": 100*train_accuracy[-1]})

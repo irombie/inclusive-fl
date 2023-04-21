@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.6
-
-import copy
-import torch
 from torchvision import datasets, transforms
 from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal, distribution_noniid
 from sampling import cifar_iid, cifar_noniid
@@ -76,23 +73,6 @@ def get_dataset(args):
                 user_groups = mnist_noniid(train_dataset, args.num_users)
 
     return train_dataset, test_dataset, user_groups
-
-def weighted_average(w, test_losses):
-    """
-    Returns the weighted average of the weights with respect to the test loss.
-    """
-    weights_scalar = np.divide(test_losses, np.sum(test_losses))
-    model_layers = w[0].keys()
-    w_avg = {}
-    # Loop through layers in model
-    for key in model_layers:
-        # Loop through each users losses
-        for i in range(len(w)):
-            if key in w_avg:
-                w_avg[key] += w[i][key] * weights_scalar[i]
-            else:
-                w_avg[key] = w[i][key] * weights_scalar[i]
-    return w_avg
 
 def exp_details(args):
     print('\nExperimental details:')

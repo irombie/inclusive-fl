@@ -178,7 +178,8 @@ class FedProxLocalUpdate(LocalUpdate):
 NAME_TO_LOCAL_UPDATE: Dict[str, Type[LocalUpdate]] = {
     "FedAvg": LocalUpdate,
     "FedProx": FedProxLocalUpdate,
-    "FebBN": LocalUpdate
+    "FedBN": LocalUpdate,
+    "TestLossWeighted": LocalUpdate
 }
 
 def test_inference(args, model, test_dataset):
@@ -238,5 +239,5 @@ def get_local_update(
         return NAME_TO_LOCAL_UPDATE[args.fl_method](args, dataset, idxs, logger, global_model)
     else:
         raise ValueError(
-            f"Unsupported federated learning method name {args.fl_method} for global update."
+            f"Unsupported federated learning method name {args.fl_method} for local update."
         )

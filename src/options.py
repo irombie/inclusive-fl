@@ -23,6 +23,8 @@ def args_parser():
                         help='learning rate')
     parser.add_argument('--momentum', type=float, default=0.5,
                         help='SGD momentum (default: 0.5)')
+    parser.add_argument("--fl_method", type=str, default="FedAvg", help="Name of federated learning method to use, \
+                        options are FedAvg, FedBN, FedProx, TestLossWeighted")
 
     # model arguments
     parser.add_argument('--model', type=str, default='mlp', help='model name')
@@ -66,5 +68,8 @@ def args_parser():
     parser.add_argument('--verbose', type=int, default=1, help='verbose')
     parser.add_argument('--seed', type=int, default=1, help='random seed')
     parser.add_argument("--wandb_name", type=str, default = "FL", help="wandb project name, please set according to the details of your experiment")
+
+    # arguments for FedProx
+    parser.add_argument('--mu', type=float, default=None, help="mu value for FedProx")
     args = parser.parse_args()
     return args

@@ -10,14 +10,14 @@ import time
 from datetime import datetime
 
 import numpy as np
-import torch
 from tqdm import tqdm
 
 import wandb
+from global_updates import get_global_update
 from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist
 from options import args_parser
-from update import LocalUpdate, test_inference
-from utils import weighted_average, exp_details, get_dataset
+from update import get_local_update, test_inference
+from utils import exp_details, get_dataset
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -71,44 +71,24 @@ if __name__ == '__main__':
     # copy weights
     global_weights = global_model.state_dict()
 
+    global_update = get_global_update(args.fl_method , global_model)
+
     # Training
     train_loss, train_accuracy, test_accuracy = [], [], []
     val_acc_list, net_list = [], []
     cv_loss, cv_acc = [], []
     print_every = 2
     val_loss_pre, counter = 0, 0
-
+    
+    local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
     for epoch in tqdm(range(args.epochs)):
         local_weights, local_losses = [], []
         print(f'\n | Global Training Round : {epoch+1} |\n')
 
-        global_model.train()
         m = max(int(args.frac * args.num_users), 1)
         print(args.num_users)
         idxs_users = np.random.choice(range(args.num_users), m, replace=False)
 
-        list_acc = []
-        for idx in idxs_users:
-            local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx], logger=run)
-            w, loss = local_model.update_weights(
-                model=copy.deepcopy(global_model), global_round=epoch)
-            acc, loss = local_model.inference(model=w, is_test=False)
-            list_acc.append(acc)
-            local_weights.append(copy.deepcopy(w.state_dict()))
-            local_losses.append(copy.deepcopy(loss))
-            # Uncomment to log to wandb if needed
-            run.log({f"local model training loss per iteration for user {idx}": loss})
-            run.log({f"local model training accuracy per iteration for user {idx}": acc})
-
-        acc_avg = sum(list_acc)/len(list_acc)
-        train_accuracy.append(acc_avg)
-
-        loss_avg = sum(local_losses) / len(local_losses)
-       
-        train_loss.append(loss_avg)
-
-        # Calculate avg training accuracy over all users at every epoch
         list_loss = []
         global_model.eval()
 
@@ -116,9 +96,11 @@ if __name__ == '__main__':
 
         # Getting the test loss for all users' data of the global model
         for c in idxs_users:
-            local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[c], logger=run)
-            acc, loss = local_model.inference(model=global_model, is_test=True)
+            local_update = get_local_update(args=args, dataset=train_dataset,
+                                      idxs=user_groups[c], logger=run,
+                                      global_model=global_model)
+            acc, loss = local_update.inference(model=local_models[c], is_test=True)
+            
             test_accs.append(acc)
             list_loss.append(loss)
             # Uncomment to log to wandb if needed
@@ -130,10 +112,34 @@ if __name__ == '__main__':
         test_acc_avg = sum(test_accs)/len(test_accs)
         test_accuracy.append(test_acc_avg)
 
-        # Reweighting the weights using the losses' magnitudes
-        local_weights = weighted_average(local_weights, list_loss)
+        global_model.train()
+        list_acc = []
+        for idx in idxs_users:
+            local_update = get_local_update(args=args, dataset=train_dataset,
+                                      idxs=user_groups[idx], logger=run,
+                                      global_model=global_model)
+            w, loss = local_update.update_weights(
+                model=local_models[idx], global_round=epoch)
+            acc, loss = local_update.inference(model=w, is_test=False)
+            list_acc.append(acc)
+            local_weights.append(copy.deepcopy(w.state_dict()))
+            local_losses.append(copy.deepcopy(loss))
+            # Uncomment to log to wandb if needed
+            run.log({f"local model training loss per iteration for user {idx}": loss})
+            run.log({f"local model training accuracy per iteration for user {idx}": acc})
+
+        acc_avg = sum(list_acc)/len(list_acc)
+        train_accuracy.append(acc_avg)
+
         # update global weights
-        global_model.load_state_dict(local_weights)
+        global_weights = global_update.aggregate_weights(local_weights, list_loss)
+        # update models
+        global_update.update_global_model(global_model, global_weights)
+        global_update.update_local_models(local_models, global_weights)
+
+        loss_avg = sum(local_losses) / len(local_losses)
+
+        train_loss.append(loss_avg)
 
         run.log({"Global test accuracy: ": 100*test_accuracy[-1]})
         run.log({"Global train accuracy: ": 100*train_accuracy[-1]})

@@ -6,6 +6,7 @@ import copy
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
+from dataclasses import dataclass
 from typing import Dict, List, Tuple, Type
 
 class DatasetSplit(Dataset):
@@ -34,7 +35,7 @@ class LocalUpdate:
     this class. If a FedLearn algo requires a different set of steps, it can
     override the methods in this class.
     """
-    def __init__(self, args, dataset, idxs, logger, global_model):
+    def __init__(self, args, dataset, idxs, logger, global_model, num_users):
         self.args = args
         self.logger = logger
         self.trainloader, self.testloader = self.train_test(
@@ -49,6 +50,7 @@ class LocalUpdate:
         self.criterion = nn.NLLLoss().to(self.device)
 
         self.global_model = global_model
+        self.num_users = num_users
 
     def train_test(self, dataset, idxs):
         """
@@ -91,7 +93,7 @@ class LocalUpdate:
         loss = self.criterion(log_probs, labels)
         return loss
 
-    def update_weights(self, model, global_round):
+    def update_weights(self, model, global_round, client_id=None):
         """
         Performs the local updates and returns the updated model.
             :param model: local model
@@ -175,10 +177,78 @@ class FedProxLocalUpdate(LocalUpdate):
         fedprox_term = (self.args.mu / 2) * proximal_term
         return super().calculate_loss(model, images, labels) + fedprox_term
 
+@dataclass
+class ScaffoldParams:
+    """Class for keeping track of Scaffold Parameters."""
+    control: dict
+    delta_control: dict
+    delta_y: dict
+
+class ScaffoldLocalUpdate(LocalUpdate):
+    def __init__(self, args, dataset, idxs, logger, global_model, num_users):
+        super().__init__(args, dataset, idxs, logger, global_model, num_users)
+
+        self.nn = ScaffoldParams({}, {}, {})
+        for k, v in self.global_model.named_parameters():
+            self.nn.control[k] = torch.zeros_like(v.data)
+            self.nn.delta_control[k] = torch.zeros_like(v.data)
+            self.nn.delta_y[k] = torch.zeros_like(v.data)
+        
+        self.nns = []
+        for i in range(self.num_users):
+            temp = copy.deepcopy(self.nn)
+            temp.name = 'client_' + str(i)
+            temp.control = copy.deepcopy(self.nn.control)  # ci
+            temp.delta_control = copy.deepcopy(self.nn.delta_control)  # ci
+            temp.delta_y = copy.deepcopy(self.nn.delta_y)
+            self.nns.append(temp)
+
+    def configure_optimizer(self, model):
+        from optimizers import ScaffoldOptimizer
+
+        return ScaffoldOptimizer(model.parameters(), lr=self.args.lr, weight_decay=1e-4)
+    
+    def update_weights(self, model, global_round, client_id):
+        """
+        Performs the local updates and returns the updated model.
+            :param model: local model
+            :param global_round: the step number of current global round
+        """
+        # Set mode to train model
+        model.train()
+        epoch_loss = []
+
+        # Set optimizer for the local updates
+        optimizer = self.configure_optimizer(model)
+
+        for iter in range(self.args.local_ep):
+            batch_loss = []
+            for batch_idx, (images, labels) in enumerate(self.trainloader):
+                images, labels = images.to(self.device), labels.to(self.device)
+
+                model.zero_grad()
+                loss = self.calculate_loss(model, images, labels)
+                loss.backward()
+                optimizer.step(self.nns[client_id].control, self.nn.control)
+
+                if self.args.verbose and (batch_idx % 10 == 0):
+                    print('| Global Round : {} | Local Epoch : {} | [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                        global_round, iter, batch_idx * len(images),
+                        len(self.trainloader.dataset),
+                        100. * batch_idx / len(self.trainloader), loss.item()))
+                batch_loss.append(loss.item())
+            avg_loss_per_local_training = sum(batch_loss)/len(batch_loss)
+            epoch_loss.append(avg_loss_per_local_training)
+            # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
+
+        return model, sum(epoch_loss) / len(epoch_loss)
+    
+
 NAME_TO_LOCAL_UPDATE: Dict[str, Type[LocalUpdate]] = {
     "FedAvg": LocalUpdate,
     "FedProx": FedProxLocalUpdate,
-    "FebBN": LocalUpdate
+    "FebBN": LocalUpdate,
+    "Scaffold": ScaffoldLocalUpdate,
 }
 
 def test_inference(args, model, test_dataset):
@@ -216,7 +286,7 @@ def test_inference(args, model, test_dataset):
     return accuracy, loss
 
 def get_local_update(
-    args, dataset, idxs, logger, global_model
+    args, dataset, idxs, logger, global_model, num_users
 ) -> LocalUpdate:
     """
         Get local update from federated learning method name and return the
@@ -235,7 +305,7 @@ def get_local_update(
         :return: Local update object
     """
     if args.fl_method in NAME_TO_LOCAL_UPDATE:
-        return NAME_TO_LOCAL_UPDATE[args.fl_method](args, dataset, idxs, logger, global_model)
+        return NAME_TO_LOCAL_UPDATE[args.fl_method](args, dataset, idxs, logger, global_model, num_users)
     else:
         raise ValueError(
             f"Unsupported federated learning method name {args.fl_method} for global update."

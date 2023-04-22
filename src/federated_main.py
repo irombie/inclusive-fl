@@ -94,9 +94,9 @@ if __name__ == '__main__':
         for idx in idxs_users:
             local_update = get_local_update(args=args, dataset=train_dataset,
                                       idxs=user_groups[idx], logger=run,
-                                      global_model=global_model)
+                                      global_model=global_model, num_users=args.num_users)
             w, loss = local_update.update_weights(
-                model=local_models[idx], global_round=epoch)
+                model=local_models[idx], global_round=epoch, client_id=idx)
             acc, loss = local_update.inference(model=w, is_test=False)
             list_acc.append(acc)
             local_weights.append(copy.deepcopy(w.state_dict()))
@@ -129,7 +129,7 @@ if __name__ == '__main__':
         for c in idxs_users:
             local_update = get_local_update(args=args, dataset=train_dataset,
                                       idxs=user_groups[idx], logger=run,
-                                      global_model=global_model)
+                                      global_model=global_model, num_users=args.num_users)
             acc, loss = local_update.inference(model=local_models[c], is_test=True)
             test_accs.append(acc)
             list_loss.append(loss)

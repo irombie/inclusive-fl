@@ -177,31 +177,11 @@ class FedProxLocalUpdate(LocalUpdate):
         fedprox_term = (self.args.mu / 2) * proximal_term
         return super().calculate_loss(model, images, labels) + fedprox_term
 
-@dataclass
-class ScaffoldParams:
-    """Class for keeping track of Scaffold Parameters."""
-    control: dict
-    delta_control: dict
-    delta_y: dict
-
 class ScaffoldLocalUpdate(LocalUpdate):
-    def __init__(self, args, dataset, idxs, logger, global_model, num_users):
+    def __init__(self, args, dataset, idxs, logger, global_model, num_users, server_params, clients_param):
         super().__init__(args, dataset, idxs, logger, global_model, num_users)
-
-        self.nn = ScaffoldParams({}, {}, {})
-        for k, v in self.global_model.named_parameters():
-            self.nn.control[k] = torch.zeros_like(v.data)
-            self.nn.delta_control[k] = torch.zeros_like(v.data)
-            self.nn.delta_y[k] = torch.zeros_like(v.data)
-        
-        self.nns = []
-        for i in range(self.num_users):
-            temp = copy.deepcopy(self.nn)
-            temp.name = 'client_' + str(i)
-            temp.control = copy.deepcopy(self.nn.control)  # ci
-            temp.delta_control = copy.deepcopy(self.nn.delta_control)  # ci
-            temp.delta_y = copy.deepcopy(self.nn.delta_y)
-            self.nns.append(temp)
+        self.server_params = server_params
+        self.clients_param = clients_param
 
     def configure_optimizer(self, model):
         from optimizers import ScaffoldOptimizer
@@ -213,12 +193,15 @@ class ScaffoldLocalUpdate(LocalUpdate):
         Performs the local updates and returns the updated model.
             :param model: local model
             :param global_round: the step number of current global round
+            :param client_id: the id of the client
         """
         # Set mode to train model
         model.train()
         epoch_loss = []
 
         # Set optimizer for the local updates
+        x = copy.deepcopy(model)
+        y = copy.deepcopy(self.clients_param[client_id])
         optimizer = self.configure_optimizer(model)
 
         for iter in range(self.args.local_ep):
@@ -229,7 +212,7 @@ class ScaffoldLocalUpdate(LocalUpdate):
                 model.zero_grad()
                 loss = self.calculate_loss(model, images, labels)
                 loss.backward()
-                optimizer.step(self.nns[client_id].control, self.nn.control)
+                optimizer.step(self.clients_param[client_id].control, self.server_params.control)
 
                 if self.args.verbose and (batch_idx % 10 == 0):
                     print('| Global Round : {} | Local Epoch : {} | [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
@@ -239,6 +222,19 @@ class ScaffoldLocalUpdate(LocalUpdate):
                 batch_loss.append(loss.item())
             avg_loss_per_local_training = sum(batch_loss)/len(batch_loss)
             epoch_loss.append(avg_loss_per_local_training)
+
+            # update c
+            # c+ <- ci - c + 1/(steps * lr) * (x-yi)
+            # save ann
+            temp = {}
+            for k, v in model.named_parameters():
+                temp[k] = v.data.clone()
+
+            for k, v in x.named_parameters():
+                local_steps = self.args.local_ep * len(self.trainloader)
+                self.clients_param[client_id].control[k] = self.clients_param[client_id].control[k] - self.server_params.control[k] + (v.data - temp[k]) / (local_steps * self.args.lr)
+                self.clients_param[client_id].delta_y[k] = temp[k] - v.data
+                self.clients_param[client_id].delta_control[k] = self.clients_param[client_id].control[k] - y.control[k]
             # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
 
         return model, sum(epoch_loss) / len(epoch_loss)
@@ -286,7 +282,7 @@ def test_inference(args, model, test_dataset):
     return accuracy, loss
 
 def get_local_update(
-    args, dataset, idxs, logger, global_model, num_users
+    args, dataset, idxs, logger, global_model, num_users, **kwargs
 ) -> LocalUpdate:
     """
         Get local update from federated learning method name and return the
@@ -305,7 +301,7 @@ def get_local_update(
         :return: Local update object
     """
     if args.fl_method in NAME_TO_LOCAL_UPDATE:
-        return NAME_TO_LOCAL_UPDATE[args.fl_method](args, dataset, idxs, logger, global_model, num_users)
+        return NAME_TO_LOCAL_UPDATE[args.fl_method](args, dataset, idxs, logger, global_model, num_users, **kwargs)
     else:
         raise ValueError(
             f"Unsupported federated learning method name {args.fl_method} for global update."

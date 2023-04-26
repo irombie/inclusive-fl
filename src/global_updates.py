@@ -2,6 +2,7 @@ from typing import Dict, List, Tuple, Type
 import torch
 import copy
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 
 class AbstractGlobalUpdate(ABC):
@@ -34,9 +35,8 @@ class AbstractGlobalUpdate(ABC):
         """
         pass
 
-    @staticmethod
     def update_global_model(
-        global_model: torch.nn.Module, global_weights: Dict[str, torch.Tensor]
+        self, global_model: torch.nn.Module, global_weights: Dict[str, torch.Tensor]
     ) -> None:
         """
         Update global model with global weights
@@ -168,15 +168,68 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
             model.load_state_dict(global_weights, strict=False)
 
 
+@dataclass
+class ScaffoldParams:
+    """Class for keeping track of Scaffold Parameters."""
+    control: dict
+    delta_control: dict
+    delta_y: dict
+
+class ScaffoldMeanWeights(AbstractGlobalUpdate):
+    def __init__(self, model: torch.nn.Module, num_users: int):
+        self.global_model = model
+        self.num_users = num_users
+        
+        self.server_params = ScaffoldParams({}, {}, {})
+        for k, v in self.global_model.named_parameters():
+            self.server_params.control[k] = torch.zeros_like(v.data)
+            self.server_params.delta_control[k] = torch.zeros_like(v.data)
+            self.server_params.delta_y[k] = torch.zeros_like(v.data)
+        
+        self.clients_param = []
+        for i in range(self.num_users):
+            temp = copy.deepcopy(self.server_params)
+            temp.name = 'client_' + str(i)
+            temp.control = copy.deepcopy(self.server_params.control)  # ci
+            temp.delta_control = copy.deepcopy(self.server_params.delta_control)  # ci
+            temp.delta_y = copy.deepcopy(self.server_params.delta_y)
+            self.clients_param.append(temp)
+    
+    def aggregate_weights(self, local_model_weights: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:        
+        # compute
+        self.x = {}
+        self.c = {}
+        
+        # init
+        for k, v in local_model_weights[0].items():
+            self.x[k] = torch.zeros_like(v.data)
+            self.c[k] = torch.zeros_like(v.data)
+
+        for j in range(len(local_model_weights)):
+            for k, v in local_model_weights[j].items():
+                self.x[k] += torch.div(self.clients_param[j].delta_y[k], len(local_model_weights))  # averaging
+                self.c[k] += torch.div(self.clients_param[j].delta_control[k], len(local_model_weights))  # averaging
+
+        # Update server's control variables
+        for k, v in self.global_model.named_parameters():
+            self.server_params.control[k].data += self.c[k].data * (len(local_model_weights) / self.num_users)
+
+        # Update global model weights
+        for k, v in self.global_model.named_parameters():
+            v.data += self.x[k].data  # lr=1
+
+        return self.global_model.state_dict()
+        
+
 NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {
     "FedAvg": MeanWeights,
     "FedBN": MeanWeightsNoBatchNorm,
     "FedProx": MeanWeights,
+    "Scaffold": ScaffoldMeanWeights,
 }
 
-
 def get_global_update(
-    federated_learning_method: str, model: torch.nn.Module
+    federated_learning_method: str, model: torch.nn.Module, **kwargs
 ) -> AbstractGlobalUpdate:
     """
     Get global update from federated learning method name
@@ -189,7 +242,7 @@ def get_global_update(
     :return: initialised global update object
     """
     if federated_learning_method in NAME_TO_GLOBAL_UPDATE:
-        return NAME_TO_GLOBAL_UPDATE[federated_learning_method](model)
+        return NAME_TO_GLOBAL_UPDATE[federated_learning_method](model, **kwargs)
     else:
         raise ValueError(
             f"Unsupported federated learning method name {federated_learning_method} for global update."

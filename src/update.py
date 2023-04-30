@@ -35,7 +35,7 @@ class LocalUpdate:
     this class. If a FedLearn algo requires a different set of steps, it can
     override the methods in this class.
     """
-    def __init__(self, args, dataset, idxs, logger, global_model, num_users):
+    def __init__(self, args, dataset, idxs, logger, global_model, num_users, **kwargs):
         self.args = args
         self.logger = logger
         self.trainloader, self.testloader = self.train_test(

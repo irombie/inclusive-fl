@@ -20,6 +20,8 @@ class AbstractGlobalUpdate(ABC):
         :param model: global model object
         """
         self.args = args
+        self.server_params = None
+        self.clients_param = None
         pass
 
     @abstractmethod

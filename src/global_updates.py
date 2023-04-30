@@ -2,6 +2,7 @@ from typing import Dict, List, Tuple, Type
 import torch
 import copy
 from abc import ABC, abstractmethod
+import numpy as np
 
 import numpy as np
 from dataclasses import dataclass
@@ -178,7 +179,6 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
             model.load_state_dict(global_weights, strict=False)
 
 
-
 @dataclass
 class ScaffoldParams:
     """Class for keeping track of Scaffold Parameters."""
@@ -265,6 +265,7 @@ class AverageWeightsWithTestLoss(AbstractGlobalUpdate):
                 else:
                     w_avg[key] = local_model_weights[i][key] * weights_scalar[i]
         return w_avg
+
 
 NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {
     "FedAvg": MeanWeights,

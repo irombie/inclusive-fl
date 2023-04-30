@@ -52,7 +52,9 @@ The default values for various paramters parsed to the experiment are given in `
 * ```--local_ep:``` Number of local training epochs in each user. Default is 10.
 * ```--local_bs:``` Batch size of local updates in each user. Default is 10.
 * ```--unequal:```  Used in non-iid setting (--iid=0). Option to split the data amongst users equally or unequally. Default set to 0 for equal splits. Set to 1 for unequal splits.
-* ```--dist_noniid:```  Used in non-iid setting (--iid=0). Option to give each user the proportion of each class samples according to Dirichlet distribution. Default set to 0 to omit this option. Set to 1 to select this option. (The default value of other non-IID option for unequal splits --unequal=0 must stay unchanged). 
+* ```--dist_noniid:```  Used in non-iid setting (--iid=0). Option to give each user the proportion of each class samples according to Dirichlet distribution. Default set to 0 to omit this option. Set to 1 to select this option. (The default value of other non-IID option for unequal splits --unequal=0 must stay unchanged).
+* ```--fl_method:``` Name of method to use. Currently supports "FedAvg", "FedProx", "FedBN" and "TestLossWeighted"
+* ```--mu:``` mu value for FedProx
 
 ## Further Readings
 ### Papers:

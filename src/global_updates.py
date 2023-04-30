@@ -97,9 +97,10 @@ class MeanWeights(AbstractGlobalUpdate):
             for i in range(1, len(local_model_weights)):
                 w_avg[key] += local_model_weights[i][key] 
 
-                if self.args.reweight_loss_avg==1:
-                    w_avg[key] *= weights_scalar[i]
-            w_avg[key] = torch.div(w_avg[key], len(local_model_weights))
+            if self.args.reweight_loss_avg==1:
+                w_avg[key] *= weights_scalar[i]
+            else:
+                w_avg[key] = torch.div(w_avg[key], len(local_model_weights))
         return w_avg
 
 
@@ -155,9 +156,10 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
                 for i in range(1, len(local_model_weights)):
                     w_avg[key] += local_model_weights[i][key]
                     
-                    if self.args.reweight_loss_avg==1:
-                        w_avg[key] *= weights_scalar[i]
-                w_avg[key] = torch.div(w_avg[key], len(local_model_weights))
+                if self.args.reweight_loss_avg==1:
+                    w_avg[key] *= weights_scalar[i]
+                else:
+                    w_avg[key] = torch.div(w_avg[key], len(local_model_weights))
         return w_avg
 
     @staticmethod
@@ -233,20 +235,18 @@ class ScaffoldMeanWeights(AbstractGlobalUpdate):
             for k, v in local_model_weights[j].items():
                 self.x[k] += torch.div(self.clients_param[j].delta_y[k], len(local_model_weights))  # averaging
                 self.c[k] += torch.div(self.clients_param[j].delta_control[k], len(local_model_weights))  # averaging
+            
+            if self.args.reweight_loss_avg==1:
+                self.x[k] *= weights_scalar[k]
+                self.c[k] *= weights_scalar[k]
 
         # Update server's control variables
         for k, v in self.global_model.named_parameters():
             self.server_params.control[k].data += self.c[k].data / (len(local_model_weights) / self.num_users)
-            
-            if self.args.reweight_loss_avg==1:
-                self.server_params.control[k].data *= weights_scalar[k]
 
         # Update global model weights
         for k, v in self.global_model.named_parameters():
             v.data += self.x[k].data  # lr=1
-            
-            if self.args.reweight_loss_avg==1:
-                v.data *= weights_scalar[k]
 
         return self.global_model.state_dict()
         

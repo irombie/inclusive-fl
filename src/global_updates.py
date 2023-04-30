@@ -2,8 +2,9 @@ from typing import Dict, List, Tuple, Type
 import torch
 import copy
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 
+import numpy as np
+from dataclasses import dataclass
 
 class AbstractGlobalUpdate(ABC):
     """
@@ -22,7 +23,9 @@ class AbstractGlobalUpdate(ABC):
 
     @abstractmethod
     def aggregate_weights(
-        self, local_model_weights: List[Dict[str, torch.Tensor]]
+        self,
+        local_model_weights: List[Dict[str, torch.Tensor]],
+        test_losses: List[float],
     ) -> Dict[str, torch.Tensor]:
         """
         Method to aggregate local model weights to return global
@@ -30,6 +33,9 @@ class AbstractGlobalUpdate(ABC):
 
         :param local_model_weights: list of state dictionaries, where each element is a state
             dictionary, which maps model attributes to parameter tensors
+
+        :param test_losses: list of local model test losses. Some methods require this,
+            eg weighted average using test loss
 
         :return: global model state dictionary
         """
@@ -66,7 +72,9 @@ class MeanWeights(AbstractGlobalUpdate):
     """Aggregate weights by taking the mean, used by FedAvg."""
 
     def aggregate_weights(
-        self, local_model_weights: List[Dict[str, torch.Tensor]]
+        self,
+        local_model_weights: List[Dict[str, torch.Tensor]],
+        test_losses: List[float],
     ) -> Dict[str, torch.Tensor]:
         """
         Returns the mean of the weights.
@@ -117,7 +125,9 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
         return tuple(batch_norm_layers)
 
     def aggregate_weights(
-        self, local_model_weights: List[Dict[str, torch.Tensor]]
+        self,
+        local_model_weights: List[Dict[str, torch.Tensor]],
+        test_losses: List[float],
     ) -> Dict[str, torch.Tensor]:
         """
         Averaging weights, but ignoring any batch norm layers
@@ -168,6 +178,7 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
             model.load_state_dict(global_weights, strict=False)
 
 
+
 @dataclass
 class ScaffoldParams:
     """Class for keeping track of Scaffold Parameters."""
@@ -191,7 +202,11 @@ class ScaffoldMeanWeights(AbstractGlobalUpdate):
             temp = copy.deepcopy(self.server_params)
             self.clients_param.append(temp)
     
-    def aggregate_weights(self, local_model_weights: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:        
+    def aggregate_weights(
+        self,
+        local_model_weights: List[Dict[str, torch.Tensor]],
+        test_losses: List[float],
+    ) -> Dict[str, torch.Tensor]:        
         # compute
         self.x = {}
         self.c = {}
@@ -217,11 +232,46 @@ class ScaffoldMeanWeights(AbstractGlobalUpdate):
         return self.global_model.state_dict()
         
 
+class AverageWeightsWithTestLoss(AbstractGlobalUpdate):
+    """Aggregate weights by using weighted average based on test loss."""
+
+    def aggregate_weights(
+        self,
+        local_model_weights: List[Dict[str, torch.Tensor]],
+        test_losses: List[float],
+    ) -> Dict[str, torch.Tensor]:
+        """
+        Returns the weighted average of the weights with respect to the test loss.
+
+        All local models and global model are assumed to have the
+        same architecture, and hence the same keys in the state dict
+
+        :param local_model_weights: list of state dictionaries, where each element is a state
+            dictionary, which maps model attributes to parameter tensors
+
+        :param test_losses: list of local model test losses
+
+        :return: global model state dictionary
+        """
+        weights_scalar = np.divide(test_losses, np.sum(test_losses))
+        model_layers = local_model_weights[0].keys()
+        w_avg = {}
+        # Loop through layers in model
+        for key in model_layers:
+            # Loop through each users losses
+            for i in range(len(local_model_weights)):
+                if key in w_avg:
+                    w_avg[key] += local_model_weights[i][key] * weights_scalar[i]
+                else:
+                    w_avg[key] = local_model_weights[i][key] * weights_scalar[i]
+        return w_avg
+
 NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {
     "FedAvg": MeanWeights,
     "FedBN": MeanWeightsNoBatchNorm,
     "FedProx": MeanWeights,
     "Scaffold": ScaffoldMeanWeights,
+    "TestLossWeighted": AverageWeightsWithTestLoss,
 }
 
 def get_global_update(

@@ -189,10 +189,6 @@ class ScaffoldMeanWeights(AbstractGlobalUpdate):
         self.clients_param = []
         for i in range(self.num_users):
             temp = copy.deepcopy(self.server_params)
-            temp.name = 'client_' + str(i)
-            temp.control = copy.deepcopy(self.server_params.control)  # ci
-            temp.delta_control = copy.deepcopy(self.server_params.delta_control)  # ci
-            temp.delta_y = copy.deepcopy(self.server_params.delta_y)
             self.clients_param.append(temp)
     
     def aggregate_weights(self, local_model_weights: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:        
@@ -212,7 +208,7 @@ class ScaffoldMeanWeights(AbstractGlobalUpdate):
 
         # Update server's control variables
         for k, v in self.global_model.named_parameters():
-            self.server_params.control[k].data += self.c[k].data * (len(local_model_weights) / self.num_users)
+            self.server_params.control[k].data += self.c[k].data / (len(local_model_weights) / self.num_users)
 
         # Update global model weights
         for k, v in self.global_model.named_parameters():

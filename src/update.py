@@ -209,7 +209,7 @@ class ScaffoldLocalUpdate(LocalUpdate):
             for batch_idx, (images, labels) in enumerate(self.trainloader):
                 images, labels = images.to(self.device), labels.to(self.device)
 
-                model.zero_grad()
+                optimizer.zero_grad()
                 loss = self.calculate_loss(model, images, labels)
                 loss.backward()
                 optimizer.step(self.clients_param[client_id].control, self.server_params.control)
@@ -223,20 +223,18 @@ class ScaffoldLocalUpdate(LocalUpdate):
             avg_loss_per_local_training = sum(batch_loss)/len(batch_loss)
             epoch_loss.append(avg_loss_per_local_training)
 
-            # update c
-            # c+ <- ci - c + 1/(steps * lr) * (x-yi)
-            # save ann
-            temp = {}
-            for k, v in model.named_parameters():
-                temp[k] = v.data.clone()
+        # update c
+        # c+ <- ci - c + 1/(steps * lr) * (x-yi)
+        # save ann
+        temp = {}
+        for k, v in model.named_parameters():
+            temp[k] = v.data.clone()
 
-            for k, v in x.named_parameters():
-                local_steps = self.args.local_ep * len(self.trainloader)
-                self.clients_param[client_id].control[k] = self.clients_param[client_id].control[k] - self.server_params.control[k] + (v.data - temp[k]) / (local_steps * self.args.lr)
-                self.clients_param[client_id].delta_y[k] = temp[k] - v.data
-                self.clients_param[client_id].delta_control[k] = self.clients_param[client_id].control[k] - y.control[k]
-            # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
-
+        for k, v in x.named_parameters():
+            local_steps = self.args.local_ep * len(self.trainloader)
+            self.clients_param[client_id].control[k] = self.clients_param[client_id].control[k] - self.server_params.control[k] + (v.data - temp[k]) / (local_steps * self.args.lr)
+            self.clients_param[client_id].delta_y[k] = temp[k] - v.data
+            self.clients_param[client_id].delta_control[k] = self.clients_param[client_id].control[k] - y.control[k]
         return model, sum(epoch_loss) / len(epoch_loss)
     
 

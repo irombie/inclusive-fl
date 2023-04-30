@@ -15,10 +15,11 @@ class AbstractGlobalUpdate(ABC):
     Each global update class must have an "aggregate_weights" method
     """
 
-    def __init__(self, model: torch.nn.Module):
+    def __init__(self, args, model: torch.nn.Module, **kwargs):
         """
         :param model: global model object
         """
+        self.args = args
         pass
 
     @abstractmethod
@@ -88,10 +89,14 @@ class MeanWeights(AbstractGlobalUpdate):
         :return: global model state dictionary,
             which is the average of all local models provided
         """
+        weights_scalar = np.divide(test_losses, np.sum(test_losses))
         w_avg = copy.deepcopy(local_model_weights[0])
         for key in w_avg.keys():
             for i in range(1, len(local_model_weights)):
-                w_avg[key] += local_model_weights[i][key]
+                w_avg[key] += local_model_weights[i][key] 
+
+                if self.args.reweight_loss_avg==1:
+                    w_avg[key] *= weights_scalar[i]
             w_avg[key] = torch.div(w_avg[key], len(local_model_weights))
         return w_avg
 
@@ -99,7 +104,8 @@ class MeanWeights(AbstractGlobalUpdate):
 class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
     """Fed BN method. See https://arxiv.org/abs/2102.07623"""
 
-    def __init__(self, model: torch.nn.Module):
+    def __init__(self, args, model: torch.nn.Module):
+        super().__init__(args, model)
         batchnorm_layers = self._find_batchnorm_layers(model)
         assert (
             len(batchnorm_layers) != 0
@@ -137,6 +143,7 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
 
         :return: global model state dictionary,
         """
+        weights_scalar = np.divide(test_losses, np.sum(test_losses))
         w_avg = copy.deepcopy(local_model_weights[0])
         keys = list(w_avg.keys())
         for key in keys:
@@ -145,6 +152,9 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
             else:
                 for i in range(1, len(local_model_weights)):
                     w_avg[key] += local_model_weights[i][key]
+                    
+                    if self.args.reweight_loss_avg==1:
+                        w_avg[key] *= weights_scalar[i]
                 w_avg[key] = torch.div(w_avg[key], len(local_model_weights))
         return w_avg
 
@@ -178,7 +188,6 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
             model.load_state_dict(global_weights, strict=False)
 
 
-
 @dataclass
 class ScaffoldParams:
     """Class for keeping track of Scaffold Parameters."""
@@ -187,7 +196,8 @@ class ScaffoldParams:
     delta_y: dict
 
 class ScaffoldMeanWeights(AbstractGlobalUpdate):
-    def __init__(self, model: torch.nn.Module, num_users: int):
+    def __init__(self, args, model: torch.nn.Module, num_users: int):
+        super().__init__(args, model)
         self.global_model = model
         self.num_users = num_users
         
@@ -208,6 +218,7 @@ class ScaffoldMeanWeights(AbstractGlobalUpdate):
         test_losses: List[float],
     ) -> Dict[str, torch.Tensor]:        
         # compute
+        weights_scalar = np.divide(test_losses, np.sum(test_losses))
         self.x = {}
         self.c = {}
         
@@ -224,10 +235,16 @@ class ScaffoldMeanWeights(AbstractGlobalUpdate):
         # Update server's control variables
         for k, v in self.global_model.named_parameters():
             self.server_params.control[k].data += self.c[k].data / (len(local_model_weights) / self.num_users)
+            
+            if self.args.reweight_loss_avg==1:
+                self.server_params.control[k].data *= weights_scalar[k]
 
         # Update global model weights
         for k, v in self.global_model.named_parameters():
             v.data += self.x[k].data  # lr=1
+            
+            if self.args.reweight_loss_avg==1:
+                v.data *= weights_scalar[k]
 
         return self.global_model.state_dict()
         
@@ -275,7 +292,7 @@ NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {
 }
 
 def get_global_update(
-    federated_learning_method: str, model: torch.nn.Module, **kwargs
+    args, model: torch.nn.Module, **kwargs
 ) -> AbstractGlobalUpdate:
     """
     Get global update from federated learning method name
@@ -287,9 +304,9 @@ def get_global_update(
 
     :return: initialised global update object
     """
-    if federated_learning_method in NAME_TO_GLOBAL_UPDATE:
-        return NAME_TO_GLOBAL_UPDATE[federated_learning_method](model, **kwargs)
+    if args.fl_method in NAME_TO_GLOBAL_UPDATE:
+        return NAME_TO_GLOBAL_UPDATE[args.fl_method](args, model, **kwargs)
     else:
         raise ValueError(
-            f"Unsupported federated learning method name {federated_learning_method} for global update."
+            f"Unsupported federated learning method name {args.fl_method} for global update."
         )

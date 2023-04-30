@@ -71,7 +71,7 @@ if __name__ == '__main__':
     # copy weights
     global_weights = global_model.state_dict()
 
-    global_update = get_global_update(args.fl_method , global_model, num_users=args.num_users)
+    global_update = get_global_update(args, global_model, num_users=args.num_users)
 
     # Training
     train_loss, train_accuracy, test_accuracy = [], [], []

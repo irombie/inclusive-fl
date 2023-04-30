@@ -16,10 +16,12 @@ class AbstractGlobalUpdate(ABC):
     Each global update class must have an "aggregate_weights" method
     """
 
-    def __init__(self, model: torch.nn.Module):
+    def __init__(self, model: torch.nn.Module, **kwargs):
         """
         :param model: global model object
         """
+        self.server_params = None
+        self.clients_param = None
         pass
 
     @abstractmethod
@@ -100,7 +102,7 @@ class MeanWeights(AbstractGlobalUpdate):
 class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
     """Fed BN method. See https://arxiv.org/abs/2102.07623"""
 
-    def __init__(self, model: torch.nn.Module):
+    def __init__(self, model: torch.nn.Module, **kwargs):
         batchnorm_layers = self._find_batchnorm_layers(model)
         assert (
             len(batchnorm_layers) != 0
@@ -187,7 +189,7 @@ class ScaffoldParams:
     delta_y: dict
 
 class ScaffoldMeanWeights(AbstractGlobalUpdate):
-    def __init__(self, model: torch.nn.Module, num_users: int):
+    def __init__(self, model: torch.nn.Module, num_users: int, **kwargs):
         self.global_model = model
         self.num_users = num_users
         

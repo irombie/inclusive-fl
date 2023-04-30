@@ -4,3 +4,5 @@ save/
 data/
 logs/
 wandb/
+.vscode/
+venv/

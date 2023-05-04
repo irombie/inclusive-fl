@@ -3,11 +3,13 @@
 # Python version: 3.6
 
 import copy
+from dataclasses import dataclass
+from typing import Dict, List, Tuple, Type
+
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
-from dataclasses import dataclass
-from typing import Dict, List, Tuple, Type
+
 
 class DatasetSplit(Dataset):
     """An abstract Dataset class wrapped around Pytorch Dataset class.
@@ -212,7 +214,7 @@ class ScaffoldLocalUpdate(LocalUpdate):
                 optimizer.zero_grad()
                 loss = self.calculate_loss(model, images, labels)
                 loss.backward()
-                optimizer.step(self.clients_param[client_id].control, self.server_params.control)
+                optimizer.step(self.server_params.control,self.clients_param[client_id].control)
 
                 if self.args.verbose and (batch_idx % 10 == 0):
                     print('| Global Round : {} | Local Epoch : {} | [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(

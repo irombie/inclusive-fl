@@ -2,7 +2,7 @@ from typing import Dict, List, Tuple, Type
 import torch
 import copy
 from abc import ABC, abstractmethod
-import numpy as np
+from dataclasses import dataclass
 
 
 class AbstractGlobalUpdate(ABC):
@@ -14,7 +14,7 @@ class AbstractGlobalUpdate(ABC):
     Each global update class must have an "aggregate_weights" method
     """
 
-    def __init__(self, model: torch.nn.Module):
+    def __init__(self, model: torch.nn.Module, **kwargs):
         """
         :param model: global model object
         """
@@ -22,9 +22,7 @@ class AbstractGlobalUpdate(ABC):
 
     @abstractmethod
     def aggregate_weights(
-        self,
-        local_model_weights: List[Dict[str, torch.Tensor]],
-        test_losses: List[float],
+        self, local_model_weights: List[Dict[str, torch.Tensor]]
     ) -> Dict[str, torch.Tensor]:
         """
         Method to aggregate local model weights to return global
@@ -33,16 +31,12 @@ class AbstractGlobalUpdate(ABC):
         :param local_model_weights: list of state dictionaries, where each element is a state
             dictionary, which maps model attributes to parameter tensors
 
-        :param test_losses: list of local model test losses. Some methods require this,
-            eg weighted average using test loss
-
         :return: global model state dictionary
         """
         pass
 
-    @staticmethod
     def update_global_model(
-        global_model: torch.nn.Module, global_weights: Dict[str, torch.Tensor]
+        self, global_model: torch.nn.Module, global_weights: Dict[str, torch.Tensor]
     ) -> None:
         """
         Update global model with global weights
@@ -72,9 +66,7 @@ class MeanWeights(AbstractGlobalUpdate):
     """Aggregate weights by taking the mean, used by FedAvg."""
 
     def aggregate_weights(
-        self,
-        local_model_weights: List[Dict[str, torch.Tensor]],
-        test_losses: List[float],
+        self, local_model_weights: List[Dict[str, torch.Tensor]]
     ) -> Dict[str, torch.Tensor]:
         """
         Returns the mean of the weights.
@@ -99,7 +91,7 @@ class MeanWeights(AbstractGlobalUpdate):
 class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
     """Fed BN method. See https://arxiv.org/abs/2102.07623"""
 
-    def __init__(self, model: torch.nn.Module):
+    def __init__(self, model: torch.nn.Module, **kwargs):
         batchnorm_layers = self._find_batchnorm_layers(model)
         assert (
             len(batchnorm_layers) != 0
@@ -125,9 +117,7 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
         return tuple(batch_norm_layers)
 
     def aggregate_weights(
-        self,
-        local_model_weights: List[Dict[str, torch.Tensor]],
-        test_losses: List[float],
+        self, local_model_weights: List[Dict[str, torch.Tensor]]
     ) -> Dict[str, torch.Tensor]:
         """
         Averaging weights, but ignoring any batch norm layers
@@ -178,51 +168,49 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
             model.load_state_dict(global_weights, strict=False)
 
 
-class AverageWeightsWithTestLoss(AbstractGlobalUpdate):
-    """Aggregate weights by using weighted average based on test loss."""
+class ScaffoldMeanWeights(AbstractGlobalUpdate):
+    def __init__(self, model: torch.nn.Module, num_users: int):
+        self.global_model = model
+        self.num_users = num_users
+        
+        for k, v in self.global_model.named_parameters():
+            self.global_model.control[k] = torch.zeros_like(v.data)
+            self.global_model.delta_control[k] = torch.zeros_like(v.data)
+            self.global_model.delta_y[k] = torch.zeros_like(v.data)
 
-    def aggregate_weights(
-        self,
-        local_model_weights: List[Dict[str, torch.Tensor]],
-        test_losses: List[float],
-    ) -> Dict[str, torch.Tensor]:
-        """
-        Returns the weighted average of the weights with respect to the test loss.
+    def aggregate_weights(self, local_models: List[torch.nn.Module]):        
+        # compute
+        self.x = {}
+        self.c = {}
+        
+        # init
+        for k, v in local_models[0].named_parameters():
+            self.x[k] = torch.zeros_like(v.data)
+            self.c[k] = torch.zeros_like(v.data)
 
-        All local models and global model are assumed to have the
-        same architecture, and hence the same keys in the state dict
+        for j in range(len(local_models)):
+            for k, v in local_models[j].named_parameters():
+                self.x[k] += torch.div(local_models[j].delta_y[k], len(local_models))  # averaging weights change
+                self.c[k] += torch.div(local_models[j].delta_control[k], len(local_models))  # averaging controlls change
 
-        :param local_model_weights: list of state dictionaries, where each element is a state
-            dictionary, which maps model attributes to parameter tensors
+        # Update server's weights and controls with aggregated changes                                     
+        for k, v in self.global_model.named_parameters():            
+            v.data += self.x[k].data 
+            self.global_model.control[k].data += self.c[k].data * (len(local_models) / self.num_users) 
+            
+        return self.global_model   
 
-        :param test_losses: list of local model test losses
-
-        :return: global model state dictionary
-        """
-        weights_scalar = np.divide(test_losses, np.sum(test_losses))
-        model_layers = local_model_weights[0].keys()
-        w_avg = {}
-        # Loop through layers in model
-        for key in model_layers:
-            # Loop through each users losses
-            for i in range(len(local_model_weights)):
-                if key in w_avg:
-                    w_avg[key] += local_model_weights[i][key] * weights_scalar[i]
-                else:
-                    w_avg[key] = local_model_weights[i][key] * weights_scalar[i]
-        return w_avg
 
 
 NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {
     "FedAvg": MeanWeights,
     "FedBN": MeanWeightsNoBatchNorm,
     "FedProx": MeanWeights,
-    "TestLossWeighted": AverageWeightsWithTestLoss,
+    "Scaffold": ScaffoldMeanWeights,
 }
 
-
 def get_global_update(
-    federated_learning_method: str, model: torch.nn.Module
+    federated_learning_method: str, model: torch.nn.Module, **kwargs
 ) -> AbstractGlobalUpdate:
     """
     Get global update from federated learning method name
@@ -235,7 +223,7 @@ def get_global_update(
     :return: initialised global update object
     """
     if federated_learning_method in NAME_TO_GLOBAL_UPDATE:
-        return NAME_TO_GLOBAL_UPDATE[federated_learning_method](model)
+        return NAME_TO_GLOBAL_UPDATE[federated_learning_method](model, **kwargs)
     else:
         raise ValueError(
             f"Unsupported federated learning method name {federated_learning_method} for global update."

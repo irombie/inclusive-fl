@@ -382,7 +382,8 @@ if __name__ == "__main__":
     harness_params["batch_size"] = 512
     harness_params["num_classes"] = 10
 
-   # model.load_state_dict(torch.load(harness_params['model_ckpt_path']))
+    model.load_state_dict(torch.load(harness_params['model_ckpt_path']), map_location=torch.device(
+        'cuda') if torch.cuda.is_available() else 'cpu')
     harness_params["model"] = model
 
     test_dataset = CIFAR10('./', train=False, download=True,
@@ -413,4 +414,3 @@ if __name__ == "__main__":
     df = pd.concat([df, df_temp], axis=1)
 
     df.to_csv(csv_path, index=False)
-

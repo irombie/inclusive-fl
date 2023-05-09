@@ -248,6 +248,7 @@ NAME_TO_LOCAL_UPDATE: Dict[str, Type[LocalUpdate]] = {
     "FedProx": FedProxLocalUpdate,
     "FedBN": LocalUpdate,
     "Scaffold": ScaffoldLocalUpdate,
+    "TestLossWeighted": LocalUpdate
 }
 
 def test_inference(args, model, test_dataset):

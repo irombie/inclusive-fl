@@ -93,11 +93,35 @@ if __name__ == '__main__':
         local_weights, local_losses = [], []
         print(f'\n | Global Training Round : {epoch+1} |\n')
 
-        global_model.train()
         m = max(int(args.frac * args.num_users), 1)
         print(args.num_users)
         idxs_users = np.random.choice(range(args.num_users), m, replace=False)
 
+        # Calculate avg training accuracy over all users at every epoch
+        list_loss = []
+        global_model.eval()
+
+        test_accs, test_loss = [], []
+
+        # Getting the test loss for all users' data of the global model 
+        for c in idxs_users:
+            local_update = get_local_update(args=args, dataset=train_dataset,
+                                    idxs=user_groups[c], logger=run,
+                                    global_model=global_model, num_users=args.num_users)
+            acc, loss = local_update.inference(model=local_models[c], is_test=True)
+            test_accs.append(acc)
+            list_loss.append(loss)
+            # Uncomment to log to wandb if needed
+            # run.log({f"local model test loss for user {c}": loss})
+            # run.log({f"local model test accuracy for user {c}": acc})
+
+        test_loss_avg = sum(list_loss)/len(test_accs)
+        test_loss.append(test_loss_avg)
+        test_acc_avg = sum(test_accs)/len(test_accs)
+        test_accuracy.append(test_acc_avg)
+        
+        
+        global_model.train()
         list_acc = []
         for idx in idxs_users:
             local_update = get_local_update(args=args, dataset=train_dataset,
@@ -117,7 +141,10 @@ if __name__ == '__main__':
             local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
 
         else:
-            global_weights = global_update.aggregate_weights(local_weights)
+            if args.fl_method=="TestLossWeighted":
+                global_weights = global_update.aggregate_weights(local_weights, list_loss)
+            else:
+                global_weights = global_update.aggregate_weights(local_weights)
 
             # update models
             global_update.update_global_model(global_model, global_weights)
@@ -127,28 +154,6 @@ if __name__ == '__main__':
 
         train_loss.append(loss_avg)
 
-        # Calculate avg training accuracy over all users at every epoch
-        list_loss = []
-        global_model.eval()
-
-        test_accs, test_loss = [], []
-
-        # Getting the test loss for all users' data of the global model 
-        for c in idxs_users:
-            # local_update = get_local_update(args=args, dataset=train_dataset,
-            #                         idxs=user_groups[c], logger=run,
-            #                         global_model=global_model, num_users=args.num_users)
-            acc, loss = local_update.inference(model=local_models[c], is_test=True)
-            test_accs.append(acc)
-            list_loss.append(loss)
-            # Uncomment to log to wandb if needed
-            # run.log({f"local model test loss for user {c}": loss})
-            # run.log({f"local model test accuracy for user {c}": acc})
-
-        test_loss_avg = sum(list_loss)/len(test_accs)
-        test_loss.append(test_loss_avg)
-        test_acc_avg = sum(test_accs)/len(test_accs)
-        test_accuracy.append(test_acc_avg)
 
         run.log({"Global test accuracy: ": 100*test_accuracy[-1]})
         run.log({"Global train accuracy: ": 100*train_accuracy[-1]})

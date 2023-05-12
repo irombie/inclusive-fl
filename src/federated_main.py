@@ -130,8 +130,11 @@ if __name__ == '__main__':
             w, loss = local_update.update_weights(model=local_models[idx], global_round=epoch, client_id=idx)
             acc, loss = local_update.inference(model=w, is_test=False)
             list_acc.append(acc)
-            local_weights.append(copy.deepcopy(w)) if args.fl_method=="Scaffold" else local_weights.append(copy.deepcopy(w.state_dict())) #!!!!!!!!!!!!! ADDED
+            local_weights.append(copy.deepcopy(w)) if args.fl_method=="Scaffold" else local_weights.append(copy.deepcopy(w.state_dict())) 
             local_losses.append(copy.deepcopy(loss))
+            # Uncomment to log to wandb if needed
+            # run.log({f"local model training loss per iteration for user {idx}": loss})
+            # run.log({f"local model training accuracy per iteration for user {idx}": acc})
 
         acc_avg = sum(list_acc)/len(list_acc)
         train_accuracy.append(acc_avg)

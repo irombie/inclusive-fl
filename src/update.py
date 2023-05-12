@@ -58,7 +58,7 @@ class LocalUpdate:
         to have separate local_update and global_update arguments. In that case, you would have
         """
         # split indexes for train, validation, and test (80, 10, 10)
-        idxs_train = idxs[:int(0.8*len(idxs))]  # 0.9 would be better
+        idxs_train = idxs[:int(0.8*len(idxs))] 
         idxs_test = idxs[int(0.8*len(idxs)):]
 
         trainloader = DataLoader(DatasetSplit(dataset, idxs_train),
@@ -154,6 +154,7 @@ class LocalUpdate:
         accuracy = correct/total
         return accuracy, loss
 
+
 class FedProxLocalUpdate(LocalUpdate):
     """
     FedProx Local Update. This is a subclass of LocalUpdate. It overrides the
@@ -175,6 +176,7 @@ class FedProxLocalUpdate(LocalUpdate):
         
         fedprox_term = (self.args.mu / 2) * proximal_term
         return super().calculate_loss(model, images, labels) + fedprox_term
+
 
 class ScaffoldLocalUpdate(LocalUpdate):
     def __init__(self, args, dataset, idxs, logger, global_model, num_users):
@@ -210,11 +212,13 @@ class ScaffoldLocalUpdate(LocalUpdate):
                 loss = self.calculate_loss(model, images, labels)
                 loss.backward()                
                 optimizer.step()
-                modparams = model.state_dict()
-                for key in modparams:
-                    modparams[key] = modparams[key] - self.args.lr * (self.global_model.control[key] - model.control[key]) 
-                model.load_state_dict(modparams)
-
+                # model_parameters = model.state_dict()
+                # for key in model_parameters:
+                #     model_parameters[key] = model_parameters[key] - self.args.lr * (self.global_model.control[key] - model.control[key]) 
+                # model.load_state_dict(model_parameters)
+                for key,v in model.named_parameters():
+                    v.data -= self.args.lr * (self.global_model.control[key] - model.control[key]) 
+                    
                 if self.args.verbose and (batch_idx % 10 == 0):
                     print('| Global Round : {} | Local Epoch : {} | [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                         global_round, iter, batch_idx * len(images),

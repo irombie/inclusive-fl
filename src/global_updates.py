@@ -1,11 +1,12 @@
-from typing import Dict, List, Tuple, Type
-import torch
 import copy
 from abc import ABC, abstractmethod
-import numpy as np
+from typing import Dict, List, Tuple, Type
 
 import numpy as np
-from dataclasses import dataclass
+import torch
+
+from options import args_parser
+
 
 class AbstractGlobalUpdate(ABC):
     """
@@ -20,15 +21,11 @@ class AbstractGlobalUpdate(ABC):
         """
         :param model: global model object
         """
-        self.server_params = None
-        self.clients_param = None
         pass
 
     @abstractmethod
     def aggregate_weights(
-        self,
-        local_model_weights: List[Dict[str, torch.Tensor]],
-        test_losses: List[float],
+        self, local_model_weights: List[Dict[str, torch.Tensor]]
     ) -> Dict[str, torch.Tensor]:
         """
         Method to aggregate local model weights to return global
@@ -36,9 +33,6 @@ class AbstractGlobalUpdate(ABC):
 
         :param local_model_weights: list of state dictionaries, where each element is a state
             dictionary, which maps model attributes to parameter tensors
-
-        :param test_losses: list of local model test losses. Some methods require this,
-            eg weighted average using test loss
 
         :return: global model state dictionary
         """
@@ -75,9 +69,7 @@ class MeanWeights(AbstractGlobalUpdate):
     """Aggregate weights by taking the mean, used by FedAvg."""
 
     def aggregate_weights(
-        self,
-        local_model_weights: List[Dict[str, torch.Tensor]],
-        test_losses: List[float],
+        self, local_model_weights: List[Dict[str, torch.Tensor]]
     ) -> Dict[str, torch.Tensor]:
         """
         Returns the mean of the weights.
@@ -128,9 +120,7 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
         return tuple(batch_norm_layers)
 
     def aggregate_weights(
-        self,
-        local_model_weights: List[Dict[str, torch.Tensor]],
-        test_losses: List[float],
+        self, local_model_weights: List[Dict[str, torch.Tensor]]
     ) -> Dict[str, torch.Tensor]:
         """
         Averaging weights, but ignoring any batch norm layers
@@ -181,58 +171,40 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
             model.load_state_dict(global_weights, strict=False)
 
 
-@dataclass
-class ScaffoldParams:
-    """Class for keeping track of Scaffold Parameters."""
-    control: dict
-    delta_control: dict
-    delta_y: dict
-
 class ScaffoldMeanWeights(AbstractGlobalUpdate):
-    def __init__(self, model: torch.nn.Module, num_users: int, **kwargs):
+    def __init__(self, model: torch.nn.Module, num_users: int):
         self.global_model = model
         self.num_users = num_users
+        args = args_parser()
+        self.global_lr = args.global_lr
         
-        self.server_params = ScaffoldParams({}, {}, {})
         for k, v in self.global_model.named_parameters():
-            self.server_params.control[k] = torch.zeros_like(v.data)
-            self.server_params.delta_control[k] = torch.zeros_like(v.data)
-            self.server_params.delta_y[k] = torch.zeros_like(v.data)
-        
-        self.clients_param = []
-        for i in range(self.num_users):
-            temp = copy.deepcopy(self.server_params)
-            self.clients_param.append(temp)
-    
-    def aggregate_weights(
-        self,
-        local_model_weights: List[Dict[str, torch.Tensor]],
-        test_losses: List[float],
-    ) -> Dict[str, torch.Tensor]:        
+            self.global_model.control[k] = torch.zeros_like(v.data)
+            self.global_model.delta_control[k] = torch.zeros_like(v.data)
+            self.global_model.delta_y[k] = torch.zeros_like(v.data)
+
+    def aggregate_weights(self, local_models: List[torch.nn.Module]):        
         # compute
         self.x = {}
         self.c = {}
         
         # init
-        for k, v in local_model_weights[0].items():
+        for k, v in local_models[0].named_parameters():
             self.x[k] = torch.zeros_like(v.data)
             self.c[k] = torch.zeros_like(v.data)
 
-        for j in range(len(local_model_weights)):
-            for k, v in local_model_weights[j].items():
-                self.x[k] += torch.div(self.clients_param[j].delta_y[k], len(local_model_weights))  # averaging
-                self.c[k] += torch.div(self.clients_param[j].delta_control[k], len(local_model_weights))  # averaging
+        for j in range(len(local_models)):
+            for k, v in local_models[j].named_parameters():
+                self.x[k] += torch.div(local_models[j].delta_y[k], len(local_models))  # averaging weights change
+                self.c[k] += torch.div(local_models[j].delta_control[k], len(local_models))  # averaging controlls change
 
-        # Update server's control variables
-        for k, v in self.global_model.named_parameters():
-            self.server_params.control[k].data += self.c[k].data / (len(local_model_weights) / self.num_users)
+        # Update server's weights and controls with aggregated changes                                     
+        for k, v in self.global_model.named_parameters():            
+            v.data += self.global_lr* self.x[k].data 
+            self.global_model.control[k].data += self.c[k].data * (len(local_models) / self.num_users) 
+            
+        return self.global_model   
 
-        # Update global model weights
-        for k, v in self.global_model.named_parameters():
-            v.data += self.x[k].data  # lr=1
-
-        return self.global_model.state_dict()
-        
 
 class AverageWeightsWithTestLoss(AbstractGlobalUpdate):
     """Aggregate weights by using weighted average based on test loss."""
@@ -267,7 +239,7 @@ class AverageWeightsWithTestLoss(AbstractGlobalUpdate):
                 else:
                     w_avg[key] = local_model_weights[i][key] * weights_scalar[i]
         return w_avg
-
+    
 
 NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {
     "FedAvg": MeanWeights,

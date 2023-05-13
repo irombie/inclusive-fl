@@ -9,8 +9,8 @@ from torch.optim import Optimizer
 
 
 class ScaffoldOptimizer(Optimizer):
-    def __init__(self, params, lr, weight_decay):
-        defaults = dict(lr=lr, weight_decay=weight_decay)
+    def __init__(self, params, lr):
+        defaults = dict(lr=lr)
         super(ScaffoldOptimizer, self).__init__(params, defaults)
 
     def step(self, server_controls, client_controls):

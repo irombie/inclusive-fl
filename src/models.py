@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
 
 class MLP(nn.Module):
@@ -56,7 +56,7 @@ class CNNFashion_Mnist(nn.Module):
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.MaxPool2d(2))
-        self.fc = nn.Linear(7*7*32, 10)
+        self.fc = nn.Linear(7*7*32, 10)       
 
     def forward(self, x):
         out = self.layer1(x)
@@ -87,7 +87,7 @@ class CNNCifar(nn.Module):
 
 class modelC(nn.Module):
     def __init__(self, input_size, n_classes=10, **kwargs):
-        super(AllConvNet, self).__init__()
+        super(modelC, self).__init__()
         self.conv1 = nn.Conv2d(input_size, 96, 3, padding=1)
         self.conv2 = nn.Conv2d(96, 96, 3, padding=1)
         self.conv3 = nn.Conv2d(96, 96, 3, padding=1, stride=2)
@@ -98,7 +98,8 @@ class modelC(nn.Module):
         self.conv8 = nn.Conv2d(192, 192, 1)
 
         self.class_conv = nn.Conv2d(192, n_classes, 1)
-
+        self.server_params = dict
+        self.clients_param = dict
 
     def forward(self, x):
         x_drop = F.dropout(x, .2)

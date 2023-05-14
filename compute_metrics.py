@@ -20,8 +20,11 @@ from torch.utils.data import Dataset, DataLoader
 # Torchvision
 import torchvision
 from torchvision import transforms
-from torchvision.datasets import CIFAR10, MNIST
+from torchvision.datasets import CIFAR10, MNIST, FashionMNIST
 
+
+### Model imports
+from src.models import CNNCifar, CNNFashion_Mnist, CNNMnist, MLP
 
 # os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 
@@ -186,9 +189,7 @@ class MetricHarness:
                 class_correct = list(0.0 for i in range(self.num_classes))
                 class_total = list(0.0 for i in range(self.num_classes))
                 class_loss = list(0.0 for i in range(self.num_classes))
-                # test_loss = 0.0
-                # test_correct = 0
-                # test_total = 0
+
                 for ims, labels in tqdm.tqdm(testloader):
                     for i in range(self.num_classes):
 
@@ -309,14 +310,6 @@ if __name__ == "__main__":
 
     parser.add_argument('-model_ckpt_path', '--model_ckpt',
                         help='Path to checkpoint', required=True)
-    parser.add_argument("-seed", "--seed",
-                        help="Experiment Seed for dataloading, and other random stuff.", required=True)
-    parser.add_argument("-algo", "--algo",
-                        help='Name of the algorithm used to train the model.', required=True)
-    parser.add_argument("-model_name", "--model_name",
-                        help='Model architecture trained using this model.', required=True)
-    parser.add_argument("-dataset", "--dataset",
-                        help='Name of the dataset the model was trained on.', required=True)
     parser.add_argument('-results_path', '--results_path',
                         help='Path to save the results CSV', required=True)
     parser.add_argument('-compute_accuracy_metrics', '--compute_accuracy',
@@ -329,65 +322,54 @@ if __name__ == "__main__":
                         help='Toggles computation of decision boundary distances', action='store_true')
     parser.add_argument('-compute_robustness_metrics', '--compute_robustness_metrics',
                         help='Toggles computation of robustness metrics', action='store_true')
-    parser.add_argument('-num_classes', '--num_classes',
-                        help='Number of classes in the dataset', required=True, type=int)
+
 
     args = parser.parse_args()
     harness_params = vars(args)
     print(harness_params)
 
-    class SmallCNN(nn.Module):
-        def __init__(self, num_classes):
-            super(SmallCNN, self).__init__()
-            self.features = nn.Sequential(
-                nn.Conv2d(3, 16, kernel_size=3, padding=1),
-                nn.BatchNorm2d(16),
-                nn.ReLU(),
-                nn.MaxPool2d(2, stride=2),
-                nn.Conv2d(16, 32, kernel_size=3, padding=1),
-                nn.BatchNorm2d(32),
-                nn.ReLU(),
-                nn.MaxPool2d(2, stride=2),
-                nn.Conv2d(32, 64, kernel_size=3, padding=1),
-                nn.BatchNorm2d(64),
-                nn.ReLU(),
-                nn.MaxPool2d(2, stride=2),
-                nn.Conv2d(64, 128, kernel_size=3, padding=1),
-                nn.BatchNorm2d(128),
-                nn.ReLU(),
-                nn.MaxPool2d(2, stride=2),
-                nn.Conv2d(128, 256, kernel_size=3, padding=1),
-                nn.BatchNorm2d(256),
-                nn.ReLU(),
-                nn.MaxPool2d(2, stride=2),
-            )
-            self.classifier = nn.Sequential(
-                nn.Linear(256, 256),
-                nn.Dropout(),
-                nn.ReLU(),
-                nn.Linear(256, 256),
-                nn.Dropout(),
-                nn.ReLU(),
-                nn.Linear(256, num_classes),
-            )
-
-        def forward(self, x):
-            x = self.features(x)
-            x = torch.flatten(x, 1)
-            x = self.classifier(x)
-            return x
-    model = SmallCNN(10)
-
     # Experiment Parameters
     harness_params["batch_size"] = 512
-    harness_params["num_classes"] = 10
 
-    model.load_state_dict(torch.load(harness_params['model_ckpt_path']), map_location=torch.device(
-        'cuda') if torch.cuda.is_available() else 'cpu')
+    ckpt = torch.load(harness_params['model_ckpt_path'], map_location=torch.device('cuda') if torch.cuda.is_available() else 'cpu')
+
+    
+    
+    ds_name = ckpt['dataset']
+    arch = ckpt['arch']
+    
+    if ds_name == 'cifar':
+        test_dataset = CIFAR10('./', train=False, download=True,
+                           transform=transforms.ToTensor()) ## to be modified with appropriate transforms
+        num_classes = 10
+        len_in = 3*32*32
+    elif ds_name == 'mnist':
+        test_dataset = MNIST('./', train=False, download=True,  transform=transforms.ToTensor()) ## to be modified with appropriate transforms
+        num_classes = 10
+        len_in = 28*28
+    elif ds_name == 'fmnist':
+        test_dataset = FashionMNIST('./', train=False, download=True,  transform=transforms.ToTensor()) ## to be modified with appropriate transforms
+        num_classes = 10
+        len_in = 28*28
+        
+
+    if arch == 'cnn':
+        if  ds_name == 'cifar':
+            model = CNNCifar(args=args)
+        elif ds_name == 'mnist':
+            model = CNNMnist(args=args)
+        elif ds_name == 'fmnist':
+            model = CNNFashion_Mnist(args=args)
+
+    elif arch == 'mlp':
+        model = MLP(dim_in=len_in, dim_hidden=64,
+                            dim_out=args.num_classes)
+
+    harness_params["num_classes"] = num_classes
+
+    model.load_state_dict(ckpt['state_dict'])
+    
     harness_params["model"] = model
-
-    test_dataset = CIFAR10('./', train=False, download=True,
-                           transform=transforms.ToTensor())
 
     test_dl = DataLoader(
         test_dataset, batch_size=harness_params['batch_size'], shuffle=False)
@@ -396,7 +378,7 @@ if __name__ == "__main__":
     my_table.field_names = ['Algorithm', 'Model Name', 'Dataset Name', 'Seed', 'Compute Accuracy?', 'Compute Grad Norm?',
                             'Compute Hessian Eigenvalues?', 'Compute Decision Boundary Distances?', 'Compute Robustness Metrics?']
 
-    csv_path = f"{harness_params['results_path']}/{harness_params['algo']}_{harness_params['dataset']}_{harness_params['model_name']}.csv"
+    csv_path = f"{harness_params['results_path']}/{ckpt['algo']}_{ds_name}_{arch}.csv"
 
     if not os.path.exists(csv_path):
         df = pd.DataFrame()
@@ -405,7 +387,7 @@ if __name__ == "__main__":
             csv_path, index_col=False
         )
 
-    my_table.add_row([harness_params['algo'], harness_params['model_name'], harness_params['dataset'], harness_params['seed'], harness_params["compute_accuracy"],
+    my_table.add_row([ckpt['algo'], f"{ckpt['arch']}_{ckpt['dataset']}", ckpt['dataset'], ckpt['seed'], harness_params["compute_accuracy"],
                      harness_params["compute_grad_norms"], harness_params["compute_hessian_eigenvalues"], harness_params["compute_decision_boundary_distances"], harness_params["compute_robustness_metrics"]])
     results_list = compute_metrics(harness_params)
 

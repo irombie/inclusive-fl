@@ -59,10 +59,7 @@ if __name__ == '__main__':
     if args.optimizer == 'sgd':
         optimizer = torch.optim.SGD(global_model.parameters(), lr=args.lr,
                                     momentum=0.5)
-    elif args.optimizer == 'adam':
-        optimizer = torch.optim.Adam(global_model.parameters(), lr=args.lr,
-                                     weight_decay=1e-4)
-
+        
     trainloader = DataLoader(train_dataset, batch_size=64, shuffle=True)
     criterion = torch.nn.NLLLoss().to(device)
     epoch_loss = []

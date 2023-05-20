@@ -191,106 +191,10 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
         for model in local_models:
             model.load_state_dict(global_weights, strict=False)
 
-
-@dataclass
-class ScaffoldParams:
-    """Class for keeping track of Scaffold Parameters."""
-    control: dict
-    delta_control: dict
-    delta_y: dict
-
-class ScaffoldMeanWeights(AbstractGlobalUpdate):
-    def __init__(self, args, model: torch.nn.Module, num_users: int):
-        super().__init__(args, model)
-        self.global_model = model
-        self.num_users = num_users
-        
-        self.server_params = ScaffoldParams({}, {}, {})
-        for k, v in self.global_model.named_parameters():
-            self.server_params.control[k] = torch.zeros_like(v.data)
-            self.server_params.delta_control[k] = torch.zeros_like(v.data)
-            self.server_params.delta_y[k] = torch.zeros_like(v.data)
-        
-        self.clients_param = []
-        for i in range(self.num_users):
-            temp = copy.deepcopy(self.server_params)
-            self.clients_param.append(temp)
-    
-    def aggregate_weights(
-        self,
-        local_model_weights: List[Dict[str, torch.Tensor]],
-        test_losses: List[float],
-    ) -> Dict[str, torch.Tensor]:        
-        # compute
-        weights_scalar = np.divide(test_losses, np.sum(test_losses))
-        self.x = {}
-        self.c = {}
-        
-        # init
-        for k, v in local_model_weights[0].items():
-            self.x[k] = torch.zeros_like(v.data)
-            self.c[k] = torch.zeros_like(v.data)
-
-        for j in range(len(local_model_weights)):
-            for k, v in local_model_weights[j].items():
-                self.x[k] += torch.div(self.clients_param[j].delta_y[k], len(local_model_weights))  # averaging
-                self.c[k] += torch.div(self.clients_param[j].delta_control[k], len(local_model_weights))  # averaging
-            
-            if self.args.reweight_loss_avg==1:
-                self.x[k] *= weights_scalar[k]
-                self.c[k] *= weights_scalar[k]
-
-        # Update server's control variables
-        for k, v in self.global_model.named_parameters():
-            self.server_params.control[k].data += self.c[k].data / (len(local_model_weights) / self.num_users)
-
-        # Update global model weights
-        for k, v in self.global_model.named_parameters():
-            v.data += self.x[k].data  # lr=1
-
-        return self.global_model.state_dict()
-        
-
-class AverageWeightsWithTestLoss(AbstractGlobalUpdate):
-    """Aggregate weights by using weighted average based on test loss."""
-
-    def aggregate_weights(
-        self,
-        local_model_weights: List[Dict[str, torch.Tensor]],
-        test_losses: List[float],
-    ) -> Dict[str, torch.Tensor]:
-        """
-        Returns the weighted average of the weights with respect to the test loss.
-
-        All local models and global model are assumed to have the
-        same architecture, and hence the same keys in the state dict
-
-        :param local_model_weights: list of state dictionaries, where each element is a state
-            dictionary, which maps model attributes to parameter tensors
-
-        :param test_losses: list of local model test losses
-
-        :return: global model state dictionary
-        """
-        weights_scalar = np.divide(test_losses, np.sum(test_losses))
-        model_layers = local_model_weights[0].keys()
-        w_avg = {}
-        # Loop through layers in model
-        for key in model_layers:
-            # Loop through each users losses
-            for i in range(len(local_model_weights)):
-                if key in w_avg:
-                    w_avg[key] += local_model_weights[i][key] * weights_scalar[i]
-                else:
-                    w_avg[key] = local_model_weights[i][key] * weights_scalar[i]
-        return w_avg
-
 NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {
     "FedAvg": MeanWeights,
     "FedBN": MeanWeightsNoBatchNorm,
     "FedProx": MeanWeights,
-    "Scaffold": ScaffoldMeanWeights,
-    "TestLossWeighted": AverageWeightsWithTestLoss,
 }
 
 def get_global_update(

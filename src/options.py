@@ -69,6 +69,9 @@ def args_parser():
     parser.add_argument('--seed', type=int, default=1, help='random seed')
     parser.add_argument("--wandb_name", type=str, default = "FL", help="wandb project name, please set according to the details of your experiment")
 
+    # Experimentation Flags
+    parser.add_argument("--reweight_loss_avg", type=int, default=0, help="To enable reweighted loss averaging or not, set to 1 to enable it")
+
     # arguments for FedProx
     parser.add_argument('--mu', type=float, default=None, help="mu value for FedProx")
     args = parser.parse_args()

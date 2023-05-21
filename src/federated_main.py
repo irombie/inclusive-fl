@@ -71,7 +71,7 @@ if __name__ == '__main__':
     # copy weights
     global_weights = global_model.state_dict()
 
-    global_update = get_global_update(args.fl_method , global_model)
+    global_update = get_global_update(args, global_model, num_users=args.num_users)
 
     # Training
     train_loss, train_accuracy, test_accuracy = [], [], []
@@ -117,9 +117,11 @@ if __name__ == '__main__':
         for idx in idxs_users:
             local_update = get_local_update(args=args, dataset=train_dataset,
                                       idxs=user_groups[idx], logger=run,
-                                      global_model=global_model)
+                                      global_model=global_model, num_users=args.num_users,
+                                      server_params=global_update.server_params, 
+                                      clients_param=global_update.clients_param)
             w, loss = local_update.update_weights(
-                model=local_models[idx], global_round=epoch)
+                model=local_models[idx], global_round=epoch, client_id=idx)
             acc, loss = local_update.inference(model=w, is_test=False)
             list_acc.append(acc)
             local_weights.append(copy.deepcopy(w.state_dict()))

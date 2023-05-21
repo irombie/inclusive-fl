@@ -6,6 +6,7 @@ import copy
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
+from dataclasses import dataclass
 from typing import Dict, List, Tuple, Type
 
 class DatasetSplit(Dataset):
@@ -34,7 +35,7 @@ class LocalUpdate:
     this class. If a FedLearn algo requires a different set of steps, it can
     override the methods in this class.
     """
-    def __init__(self, args, dataset, idxs, logger, global_model):
+    def __init__(self, args, dataset, idxs, logger, global_model, num_users, **kwargs):
         self.args = args
         self.logger = logger
         self.trainloader, self.testloader = self.train_test(
@@ -49,6 +50,7 @@ class LocalUpdate:
         self.criterion = nn.NLLLoss().to(self.device)
 
         self.global_model = global_model
+        self.num_users = num_users
 
     def train_test(self, dataset, idxs):
         """
@@ -91,7 +93,7 @@ class LocalUpdate:
         loss = self.criterion(log_probs, labels)
         return loss
 
-    def update_weights(self, model, global_round):
+    def update_weights(self, model, global_round, client_id=None):
         """
         Performs the local updates and returns the updated model.
             :param model: local model
@@ -151,7 +153,7 @@ class LocalUpdate:
             total += len(labels)
 
         accuracy = correct/total
-        return accuracy, loss
+        return accuracy, loss / len(loader)
 
 class FedProxLocalUpdate(LocalUpdate):
     """
@@ -175,11 +177,11 @@ class FedProxLocalUpdate(LocalUpdate):
         fedprox_term = (self.args.mu / 2) * proximal_term
         return super().calculate_loss(model, images, labels) + fedprox_term
 
+
 NAME_TO_LOCAL_UPDATE: Dict[str, Type[LocalUpdate]] = {
     "FedAvg": LocalUpdate,
     "FedProx": FedProxLocalUpdate,
-    "FedBN": LocalUpdate,
-    "TestLossWeighted": LocalUpdate
+    "FebBN": LocalUpdate,
 }
 
 def test_inference(args, model, test_dataset):
@@ -214,10 +216,10 @@ def test_inference(args, model, test_dataset):
         total += len(labels)
 
     accuracy = correct/total
-    return accuracy, loss
+    return accuracy, loss / len(testloader)
 
 def get_local_update(
-    args, dataset, idxs, logger, global_model
+    args, dataset, idxs, logger, global_model, num_users, **kwargs
 ) -> LocalUpdate:
     """
         Get local update from federated learning method name and return the
@@ -236,7 +238,7 @@ def get_local_update(
         :return: Local update object
     """
     if args.fl_method in NAME_TO_LOCAL_UPDATE:
-        return NAME_TO_LOCAL_UPDATE[args.fl_method](args, dataset, idxs, logger, global_model)
+        return NAME_TO_LOCAL_UPDATE[args.fl_method](args, dataset, idxs, logger, global_model, num_users, **kwargs)
     else:
         raise ValueError(
             f"Unsupported federated learning method name {args.fl_method} for local update."

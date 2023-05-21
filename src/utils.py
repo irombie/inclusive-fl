@@ -6,6 +6,7 @@ from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal, distribution
 from sampling import cifar_iid, cifar_noniid
 import numpy as np
 
+
 def get_dataset(args):
     """ Returns train and test datasets and a user group which is a dict where
     the keys are the user index and the values are the corresponding data for

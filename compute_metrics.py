@@ -1,0 +1,398 @@
+from typing import List
+import os
+import random
+import argparse
+
+# Python additional
+import numpy as np
+import tqdm
+from prettytable import PrettyTable
+from pyhessian import hessian
+import pandas as pd
+
+# PyTorch Imports
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch import autograd
+from torch.utils.data import Dataset, DataLoader
+
+# Torchvision
+import torchvision
+from torchvision import transforms
+from torchvision.datasets import CIFAR10, MNIST, FashionMNIST
+
+
+### Model imports
+from src.models import CNNCifar, CNNFashion_Mnist, CNNMnist, MLP
+
+# os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+
+
+def set_seed(seed: int = 42, is_deterministic=False) -> None:
+
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    # When running on the CuDNN backend, two further options must be set
+
+    if is_deterministic:
+        print("This ran")
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        torch.use_deterministic_algorithms(True)
+    # Set a fixed value for the hash seed
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    print(f"Random seed set as {seed}")
+
+
+class MetricHarness:
+    def __init__(self, harness_params):
+        self.harness_params = harness_params
+        self.device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu")
+        self.net = harness_params["model"]
+        self.criterion = nn.CrossEntropyLoss()
+        self.net.to(self.device)
+
+        self.classes = (
+            "plane",
+            "car",
+            "bird",
+            "cat",
+            "deer",
+            "dog",
+            "frog",
+            "horse",
+            "ship",
+            "truck",
+        )
+        # self.num_classes = self.harness_params["num_classes"]
+        self.num_classes = 10
+        # Accuracy Metrics
+
+    def compute_accuracy_metrics(self, testloader):
+        self.net.eval()
+        test_loss = 0.0
+        test_correct = 0
+        test_total = 0
+
+        class_correct = list(0.0 for i in range(self.num_classes))
+        class_total = list(0.0 for i in range(self.num_classes))
+        class_loss = list(0.0 for i in range(self.num_classes))
+
+        with torch.no_grad():
+            for ims, labels in tqdm.tqdm(testloader):
+
+                outputs = self.net(ims)
+                loss = self.criterion(outputs, labels)
+
+                _, pred = torch.max(outputs, 1)
+
+                for i in range(labels.size(0)):
+                    label = labels[i]
+                    class_correct[label] += pred[i].eq(label).item()
+                    class_total[label] += 1
+                    class_loss[label] += self.criterion(
+                        outputs[i].unsqueeze(0), labels[i].unsqueeze(0)
+                    ).item()
+                test_loss += loss.item()
+                test_correct += pred.eq(labels).sum().item()
+                test_total += labels.size(0)
+
+        test_loss /= len(testloader)
+        test_accuracy = (test_correct / test_total) * 100
+        class_accuracy = np.divide(class_correct, class_total) * 100
+        class_loss = np.divide(class_loss, class_total)
+
+        return test_loss, class_loss, test_accuracy, class_accuracy
+
+    def compute_grad_norm(self, testloader):
+        class_total = list(0.0 for i in range(self.num_classes))
+        class_gradnorm = list(0.0 for i in range(self.num_classes))
+
+        self.net.eval()
+        for ims, labels in tqdm.tqdm(testloader):
+
+            outputs = self.net(ims)
+            for i in range(self.num_classes):
+                if len(labels[labels == i]) > 0:
+                    self.net.zero_grad()
+                    group_loss = self.criterion(
+                        outputs[labels == i], labels[labels == i]
+                    )
+                    grads = autograd.grad(
+                        group_loss, self.net.parameters(), retain_graph=True
+                    )
+                    sub_norm = torch.norm(
+                        torch.stack([torch.norm(g)
+                                    for g in grads if g is not None])
+                    ).item()
+                    self.net.zero_grad(set_to_none=True)
+                    class_total[i] += len(labels[labels == i])
+                    class_gradnorm[i] += sub_norm
+
+        return np.divide(class_gradnorm, np.multiply(class_total, len(testloader)))
+
+    def compute_hessian(self, testloader):
+
+        class_total = list(0.0 for i in range(self.num_classes))
+        class_eigen = list(0.0 for i in range(self.num_classes))
+        for ims, labels in tqdm.tqdm(testloader):
+
+            for i in range(self.num_classes):
+                sub_hessian_comp = hessian(
+                    self.net,
+                    self.criterion,
+                    data=(ims[labels == i], labels[labels == i]),
+                    cuda=True if torch.cuda.is_available() else False,
+                )
+                (
+                    top_eigenvalues,
+                    top_eigenvector,
+                ) = sub_hessian_comp.eigenvalues()
+                class_total[i] += len(labels[labels == i])
+                class_eigen[i] += top_eigenvalues[-1]
+
+        return np.divide(class_eigen, np.multiply(class_total, len(testloader)))
+
+    def compute_decision_boundary_distance(self, testloader):
+        self.net.eval()
+        class_total = list(0.0 for i in range(self.num_classes))
+        class_distances = list(0.0 for i in range(self.num_classes))
+
+        with torch.no_grad():
+            for ims, labels in tqdm.tqdm(testloader):
+
+                for i in range(self.num_classes):
+                    if len(labels[labels == i]) > 0:
+                        outputs = self.net(ims[labels == i])
+                        softmax_outputs = torch.sort(
+                            F.softmax(outputs, dim=1), dim=1, descending=True
+                        )[0].cpu()
+                        class_distances[i] += (
+                            (softmax_outputs[:, 0] -
+                             softmax_outputs[:, 1]).sum().cpu()
+                        )
+                        class_total[i] += len(labels[labels == i])
+        return np.divide(class_distances, class_total)
+
+    def compute_robust_loss(self, testloader):
+        noise_list = []
+        noise_std_list = [0.01, 0.05]
+        self.net.eval()
+
+        with torch.no_grad():
+            for noise_std in noise_std_list:
+                noise_dict = {}
+                class_correct = list(0.0 for i in range(self.num_classes))
+                class_total = list(0.0 for i in range(self.num_classes))
+                class_loss = list(0.0 for i in range(self.num_classes))
+
+                for ims, labels in tqdm.tqdm(testloader):
+                    for i in range(self.num_classes):
+
+                        if len(labels[labels == i]) > 0:
+                            class_ims, class_labels = (
+                                ims[labels == i],
+                                labels[labels == i],
+                            )
+                            class_ims += torch.randn_like(class_ims) * \
+                                noise_std
+                            class_outputs = self.net(class_ims)
+
+                            _, class_pred = torch.max(class_outputs, 1)
+
+                            class_correct[i] += class_pred.eq(
+                                class_labels).sum().item()
+                            class_loss[i] += self.criterion(
+                                class_outputs, class_labels
+                            ).item()
+                            class_total[i] += len(class_labels)
+
+                class_accuracy = np.divide(class_correct, class_total) * 100
+                class_loss = np.divide(class_loss, len(testloader))
+                noise_dict[f"{noise_std}_class_accuracy"] = class_accuracy
+                noise_dict[f"{noise_std}_class_loss"] = class_loss
+                noise_list.append(noise_dict)
+        return noise_list
+
+
+def compute_metrics(harness_params):
+    set_seed(int(harness_params['seed']), False)
+
+    testloader = harness_params['testloader']
+    experiment_seed = harness_params['seed']
+    # Model Definition
+    """Model Definition"""
+
+    # Harness init
+    metric_harness = MetricHarness(harness_params)
+
+    results_list = []
+    if harness_params["compute_accuracy"]:
+        print("Computing Accuracy...")
+        print("==" * 100)
+        (
+            test_loss,
+            class_loss,
+            test_accuracy,
+            class_accuracy,
+        ) = metric_harness.compute_accuracy_metrics(testloader)
+
+    if harness_params["compute_grad_norms"]:
+        print("Computing Grad Norms...")
+        print("==" * 100)
+        grad_norms = metric_harness.compute_grad_norm(testloader)
+
+    if harness_params['compute_hessian_eigenvalues']:
+        print("Computing Hessian Eigenvalues...")
+        print("==" * 100)
+        hessians = metric_harness.compute_hessian(testloader)
+
+    if harness_params["compute_decision_boundary_distances"]:
+        print("Computing Decision Boundary Distances...")
+        print("==" * 100)
+        decision_boundary_dists = metric_harness.compute_decision_boundary_distance(
+            testloader
+        )
+
+    if harness_params["compute_robustness_metrics"]:
+        print("Computing Robust Loss and Accuracy...")
+        print("==" * 100)
+        robust_loss = metric_harness.compute_robust_loss(testloader)
+
+    for class_idx in range(harness_params["num_classes"]):
+        class_dict = {}
+        if harness_params["compute_accuracy"]:
+            class_dict["class"] = metric_harness.classes[class_idx]
+            class_dict[f"test_loss_{experiment_seed}"] = test_loss
+            class_dict[f"class_loss_{experiment_seed}"] = class_loss[class_idx]
+            class_dict[f"test_accuracy_{experiment_seed}"] = test_accuracy
+            class_dict[f"class_accuracy_{experiment_seed}"] = class_accuracy[class_idx]
+
+        if harness_params["compute_grad_norms"]:
+            class_dict[f"grad_norms_{experiment_seed}"] = grad_norms[class_idx]
+
+        if harness_params['compute_hessian_eigenvalues']:
+            class_dict[f"hessian_eigen_{experiment_seed}"] = hessians[class_idx]
+
+        if harness_params["compute_decision_boundary_distances"]:
+            class_dict[f"distance_to_decision_{experiment_seed}"] = decision_boundary_dists[
+                class_idx
+            ]
+
+        if harness_params["compute_robustness_metrics"]:
+            class_dict[f"robust_class_loss_0.01_{experiment_seed}"] = robust_loss[0][
+                "0.01_class_loss"
+            ][class_idx]
+            class_dict[f"robust_class_loss_0.05_{experiment_seed}"] = robust_loss[1][
+                "0.05_class_loss"
+            ][class_idx]
+            class_dict[f"robust_class_acc_0.01_{experiment_seed}"] = robust_loss[0][
+                "0.01_class_accuracy"
+            ][class_idx]
+            class_dict[f"robust_class_acc_0.05_{experiment_seed}"] = robust_loss[1][
+                "0.05_class_accuracy"
+            ][class_idx]
+
+        results_list.append(class_dict)
+
+    return results_list
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Experiment for Tooling Fairness")
+
+    parser.add_argument('-model_ckpt_path', '--model_ckpt',
+                        help='Path to checkpoint', required=True)
+    parser.add_argument('-results_path', '--results_path',
+                        help='Path to save the results CSV', required=True)
+    parser.add_argument('-compute_accuracy_metrics', '--compute_accuracy',
+                        help='Toggles computation of accuracy metrics', action='store_true')
+    parser.add_argument('-compute_grad_norms', '--compute_grad_norms',
+                        help='Toggles computation of grad norms', action='store_true')
+    parser.add_argument('-compute_hessian_eigenvalues', '--compute_hessian_eigenvalues',
+                        help='Toggles computation of hessian eigenvalues', action='store_true')
+    parser.add_argument('-compute_decision_boundary_distances', '--compute_decision_boundary_distances',
+                        help='Toggles computation of decision boundary distances', action='store_true')
+    parser.add_argument('-compute_robustness_metrics', '--compute_robustness_metrics',
+                        help='Toggles computation of robustness metrics', action='store_true')
+
+
+    args = parser.parse_args()
+    harness_params = vars(args)
+    print(harness_params)
+
+    # Experiment Parameters
+    harness_params["batch_size"] = 512
+
+    ckpt = torch.load(harness_params['model_ckpt_path'], map_location=torch.device('cuda') if torch.cuda.is_available() else 'cpu')
+
+    
+    
+    ds_name = ckpt['dataset']
+    arch = ckpt['arch']
+    
+    if ds_name == 'cifar':
+        test_dataset = CIFAR10('./', train=False, download=True,
+                           transform=transforms.ToTensor()) ## to be modified with appropriate transforms
+        num_classes = 10
+        len_in = 3*32*32
+    elif ds_name == 'mnist':
+        test_dataset = MNIST('./', train=False, download=True,  transform=transforms.ToTensor()) ## to be modified with appropriate transforms
+        num_classes = 10
+        len_in = 28*28
+    elif ds_name == 'fmnist':
+        test_dataset = FashionMNIST('./', train=False, download=True,  transform=transforms.ToTensor()) ## to be modified with appropriate transforms
+        num_classes = 10
+        len_in = 28*28
+        
+
+    if arch == 'cnn':
+        if  ds_name == 'cifar':
+            model = CNNCifar(args=args)
+        elif ds_name == 'mnist':
+            model = CNNMnist(args=args)
+        elif ds_name == 'fmnist':
+            model = CNNFashion_Mnist(args=args)
+
+    elif arch == 'mlp':
+        model = MLP(dim_in=len_in, dim_hidden=64,
+                            dim_out=args.num_classes)
+
+    harness_params["num_classes"] = num_classes
+
+    model.load_state_dict(ckpt['state_dict'])
+    
+    harness_params["model"] = model
+
+    test_dl = DataLoader(
+        test_dataset, batch_size=harness_params['batch_size'], shuffle=False)
+    harness_params['testloader'] = test_dl
+    my_table = PrettyTable()
+    my_table.field_names = ['Algorithm', 'Model Name', 'Dataset Name', 'Seed', 'Compute Accuracy?', 'Compute Grad Norm?',
+                            'Compute Hessian Eigenvalues?', 'Compute Decision Boundary Distances?', 'Compute Robustness Metrics?']
+
+    csv_path = f"{harness_params['results_path']}/{ckpt['algo']}_{ds_name}_{arch}.csv"
+
+    if not os.path.exists(csv_path):
+        df = pd.DataFrame()
+    else:
+        df = pd.read_csv(
+            csv_path, index_col=False
+        )
+
+    my_table.add_row([ckpt['algo'], f"{ckpt['arch']}_{ckpt['dataset']}", ckpt['dataset'], ckpt['seed'], harness_params["compute_accuracy"],
+                     harness_params["compute_grad_norms"], harness_params["compute_hessian_eigenvalues"], harness_params["compute_decision_boundary_distances"], harness_params["compute_robustness_metrics"]])
+    results_list = compute_metrics(harness_params)
+
+    df_temp = pd.DataFrame(results_list)
+
+    df = pd.concat([df, df_temp], axis=1)
+
+    df.to_csv(csv_path, index=False)

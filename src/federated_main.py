@@ -109,6 +109,7 @@ if __name__ == '__main__':
             local_update = get_local_update(args=args, dataset=train_dataset,
                                       idxs=user_groups[c], logger=run,
                                       global_model=global_model, num_users=args.num_users)
+
             acc, loss = local_update.inference(model=local_models[c], is_test=True)
             
             test_accs.append(acc)

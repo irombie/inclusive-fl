@@ -19,6 +19,8 @@ from options import args_parser
 from update import get_local_update, test_inference
 from utils import exp_details, get_dataset
 
+import torch
+
 if __name__ == '__main__':
     start_time = time.time()
 
@@ -80,6 +82,14 @@ if __name__ == '__main__':
     print_every = 2
     val_loss_pre, counter = 0, 0
     
+    ### ckpt params
+    ckpt_dict = {}
+    ckpt_dict['arch'] = args.model
+    ckpt_dict['dataset'] = args.dataset
+    ckpt_dict['ds_splits'] = user_groups
+    ckpt_dict['iid'] = args.iid
+    ckpt_dict['num_users'] = args.num_users
+
     local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
     for epoch in tqdm(range(args.epochs)):
         local_weights, local_losses = [], []
@@ -98,7 +108,7 @@ if __name__ == '__main__':
         for c in idxs_users:
             local_update = get_local_update(args=args, dataset=train_dataset,
                                       idxs=user_groups[c], logger=run,
-                                      global_model=global_model)
+                                      global_model=global_model, num_users=args.num_users)
             acc, loss = local_update.inference(model=local_models[c], is_test=True)
             
             test_accs.append(acc)
@@ -117,7 +127,7 @@ if __name__ == '__main__':
         for idx in idxs_users:
             local_update = get_local_update(args=args, dataset=train_dataset,
                                       idxs=user_groups[idx], logger=run,
-                                      global_model=global_model)
+                                      global_model=global_model, num_users=args.num_users)
             w, loss = local_update.update_weights(
                 model=local_models[idx], global_round=epoch)
             acc, loss = local_update.inference(model=w, is_test=False)
@@ -136,6 +146,11 @@ if __name__ == '__main__':
         # update models
         global_update.update_global_model(global_model, global_weights)
         global_update.update_local_models(local_models, global_weights)
+        if epoch // int(args.save_every) == 0:
+            ckpt_dict['state_dict'] = global_model.state_dict()
+            if not os.path.exists(args.ckpt_path):
+                os.makedirs(args.ckpt_path)
+            torch.save(ckpt_dict, f'{args.ckpt_path}/{args.fl_method}_{args.model}_{args.dataset}_global_model_{epoch}.pt')
 
         loss_avg = sum(local_losses) / len(local_losses)
 

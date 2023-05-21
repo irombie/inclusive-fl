@@ -21,6 +21,7 @@ from torch.utils.data import Dataset, DataLoader
 import torchvision
 from torchvision import transforms
 from torchvision.datasets import CIFAR10, MNIST, FashionMNIST
+from utils import get_dataset
 
 
 ### Model imports
@@ -45,6 +46,21 @@ def set_seed(seed: int = 42, is_deterministic=False) -> None:
     # Set a fixed value for the hash seed
     os.environ["PYTHONHASHSEED"] = str(seed)
     print(f"Random seed set as {seed}")
+
+class DatasetSplit(Dataset):
+        """An abstract Dataset class wrapped around Pytorch Dataset class.
+        """
+
+        def __init__(self, dataset, idxs):
+            self.dataset = dataset
+            self.idxs = [int(i) for i in idxs]
+
+        def __len__(self):
+            return len(self.idxs)
+
+        def __getitem__(self, item):
+            image, label = self.dataset[self.idxs[item]]
+            return torch.tensor(image), torch.tensor(label)
 
 
 class MetricHarness:
@@ -71,6 +87,25 @@ class MetricHarness:
         # self.num_classes = self.harness_params["num_classes"]
         self.num_classes = 10
         # Accuracy Metrics
+
+        self.args = harness_params['arg_dict']
+        _, test_dataset, num_groups = get_dataset(self.args.dataset, self.args.data_dir)
+
+    def train_test(self, dataset, idxs):
+        """
+        Returns train, validation and test dataloaders for a given dataset. The alternative is 
+        to have separate local_update and global_update arguments. In that case, you would have
+        """
+        # split indexes for train, validation, and test (80, 10, 10)
+        idxs_train = idxs[:int(0.8*len(idxs))]
+        idxs_test = idxs[int(0.8*len(idxs)):]
+
+        trainloader = DataLoader(DatasetSplit(dataset, idxs_train),
+                                 batch_size=self.args.local_bs, shuffle=True)
+        
+        testloader = DataLoader(DatasetSplit(dataset, idxs_test),
+                                batch_size=int(len(idxs_test)/10), shuffle=False)
+        return trainloader, testloader
 
     def compute_accuracy_metrics(self, testloader):
         self.net.eval()
@@ -334,23 +369,24 @@ if __name__ == "__main__":
     ckpt = torch.load(harness_params['model_ckpt_path'], map_location=torch.device('cuda') if torch.cuda.is_available() else 'cpu')
 
     
-    
     ds_name = ckpt['dataset']
     arch = ckpt['arch']
+    user_groups = ckpt['ds_splits']
+    num_users = ckpt['num_users']
+    iid = ckpt['iid']
+    num_classes = 10
     
+    harness_params['arg_dict'] = {'ds_name' : ds_name, 'arch' : arch, 'user_groups' : user_groups, 'num_users' : num_users, 'iid' : iid, 'num_classes' : num_classes}
+
+    
+
     if ds_name == 'cifar':
-        test_dataset = CIFAR10('./', train=False, download=True,
-                           transform=transforms.ToTensor()) ## to be modified with appropriate transforms
-        num_classes = 10
         len_in = 3*32*32
     elif ds_name == 'mnist':
-        test_dataset = MNIST('./', train=False, download=True,  transform=transforms.ToTensor()) ## to be modified with appropriate transforms
-        num_classes = 10
         len_in = 28*28
     elif ds_name == 'fmnist':
-        test_dataset = FashionMNIST('./', train=False, download=True,  transform=transforms.ToTensor()) ## to be modified with appropriate transforms
-        num_classes = 10
         len_in = 28*28
+
         
 
     if arch == 'cnn':
@@ -371,9 +407,6 @@ if __name__ == "__main__":
     
     harness_params["model"] = model
 
-    test_dl = DataLoader(
-        test_dataset, batch_size=harness_params['batch_size'], shuffle=False)
-    harness_params['testloader'] = test_dl
     my_table = PrettyTable()
     my_table.field_names = ['Algorithm', 'Model Name', 'Dataset Name', 'Seed', 'Compute Accuracy?', 'Compute Grad Norm?',
                             'Compute Hessian Eigenvalues?', 'Compute Decision Boundary Distances?', 'Compute Robustness Metrics?']

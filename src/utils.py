@@ -4,6 +4,8 @@
 from torchvision import datasets, transforms
 from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal, distribution_noniid
 from sampling import cifar_iid, cifar_noniid
+import numpy as np
+
 
 def get_dataset(args):
     """ Returns train and test datasets and a user group which is a dict where

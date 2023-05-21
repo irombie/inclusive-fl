@@ -98,9 +98,7 @@ if __name__ == '__main__':
         for c in idxs_users:
             local_update = get_local_update(args=args, dataset=train_dataset,
                                       idxs=user_groups[c], logger=run,
-                                      global_model=global_model, num_users=args.num_users,
-                                      server_params=global_update.server_params, 
-                                      clients_param=global_update.clients_param)
+                                      global_model=global_model)
             acc, loss = local_update.inference(model=local_models[c], is_test=True)
             
             test_accs.append(acc)

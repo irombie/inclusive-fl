@@ -2,6 +2,7 @@ from typing import Dict, List, Tuple, Type
 import torch
 import copy
 from abc import ABC, abstractmethod
+import numpy as np
 
 import numpy as np
 from dataclasses import dataclass
@@ -195,6 +196,7 @@ NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {
     "FedAvg": MeanWeights,
     "FedBN": MeanWeightsNoBatchNorm,
     "FedProx": MeanWeights,
+    "TestLossWeighted": AverageWeightsWithTestLoss,
 }
 
 def get_global_update(

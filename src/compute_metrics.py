@@ -37,7 +37,6 @@ def set_seed(seed: int = 42, is_deterministic=False) -> None:
     # When running on the CuDNN backend, two further options must be set
 
     if is_deterministic:
-        print("This ran")
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
         torch.use_deterministic_algorithms(True)
@@ -339,8 +338,7 @@ def compute_metrics(harness_params):
 
 def train_test(dataset, idxs):
     """
-    Returns train, validation and test dataloaders for a given dataset. The alternative is 
-    to have separate local_update and global_update arguments. In that case, you would have
+    Returns test dataloader for a given dataset, for computing metrics.
     """
     # split indexes for train, validation, and test (80, 10, 10)
     idxs_train = idxs[:int(0.8*len(idxs))]

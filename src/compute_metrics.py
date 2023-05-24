@@ -9,6 +9,7 @@ import tqdm
 from prettytable import PrettyTable
 from pyhessian import hessian
 import pandas as pd
+import wandb
 
 # PyTorch Imports
 import torch
@@ -332,7 +333,7 @@ if __name__ == "__main__":
                         help='Toggles computation of decision boundary distances', action='store_true')
     parser.add_argument('-compute_robustness_metrics', '--compute_robustness_metrics',
                         help='Toggles computation of robustness metrics', action='store_true')
-
+    parser.add_argument('-log_to_wandb', '--log_to_wandb', action='store_true')
 
     args = parser.parse_args()
     harness_params = vars(args)
@@ -356,6 +357,8 @@ if __name__ == "__main__":
     harness_params['arch'] = ckpt['arch']
     harness_params['dataset'] = ckpt['dataset']
     harness_params['arch'] = ckpt['arch']
+    wandb_proj_name = ckpt['wandb_proj_name']
+    wandb_run_name = ckpt['wandb_run_name']
     
     test_user_groups = ckpt['test_ds_splits']
     num_users = ckpt['num_users']
@@ -423,3 +426,7 @@ if __name__ == "__main__":
         df = pd.concat([df, df_temp], axis=1)
 
         df.to_csv(csv_path, index=False)
+        if args.log_to_wandb:
+            run = wandb.init(project=wandb_proj_name, name=wandb_run_name)
+            wandb_table = wandb.Table(dataframe=df)
+            run.log({f'{csv_path.split('/')[-1]}': wandb_table})

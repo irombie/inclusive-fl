@@ -341,10 +341,7 @@ def train_test(dataset, idxs):
     Returns test dataloader for a given dataset, for computing metrics.
     """
     # split indexes for train, validation, and test (80, 10, 10)
-    idxs_train = idxs[:int(0.8*len(idxs))]
-    idxs_test = idxs[int(0.8*len(idxs)):]
-    
-    testloader = DataLoader(DatasetSplit(dataset, idxs_train),
+    testloader = DataLoader(DatasetSplit(dataset, idxs),
                             batch_size=int(len(idxs_test)/10), shuffle=False)
     return testloader
 

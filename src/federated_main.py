@@ -34,8 +34,8 @@ if __name__ == '__main__':
 
     now = datetime.now()    
     dt_string = now.strftime("%d_%m_%Y-%H_%M")
-    project_name = f'{args.fl_method}_{args.dataset}_{args.model}_clients_{args.num_users}_frac_{args.frac}_{args.seed}'
-    run = wandb.init(project=args.wandb_name, config=args, name=project_name)
+    run_name = f'{args.fl_method}_{args.dataset}_{args.model}_clients_{args.num_users}_frac_{args.frac}_{args.seed}'
+    run = wandb.init(project=args.wandb_name, config=args, name=run_name)
 
     if args.gpu and args.device == "cuda":
         device = "cuda"
@@ -105,6 +105,8 @@ if __name__ == '__main__':
     ckpt_dict['dist_non_iid'] = args.dist_noniid
     ckpt_dict['unequal'] = args.unequal
     ckpt_dict['algo'] = args.fl_method
+    ckpt_dict['wandb_project_name'] = args.wandb_name
+    ckpt_dict['wandb_run_name'] = run_name
 
 
     local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]

@@ -99,7 +99,10 @@ class MeanWeights(AbstractGlobalUpdate):
                 w_avg[key] += local_model_weights[i][key] 
 
             if self.args.reweight_loss_avg==1:
-                w_avg[key] *= weights_scalar[i]
+                if w_avg[key].dtype == torch.float32:
+                    w_avg[key] *= weights_scalar[i].astype(np.float64)
+                else:
+                    w_avg[key] *= weights_scalar[i].astype(np.int64)
             else:
                 w_avg[key] = torch.div(w_avg[key], len(local_model_weights))
         return w_avg

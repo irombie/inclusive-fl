@@ -11,6 +11,7 @@ from datetime import datetime
 
 import numpy as np
 from tqdm import tqdm
+import random
 
 import wandb
 from global_updates import get_global_update
@@ -21,7 +22,28 @@ from utils import exp_details, get_dataset
 
 import torch
 
+
+
+def set_seed(seed: int = 42, is_deterministic=False) -> None:
+
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    # When running on the CuDNN backend, two further options must be set
+
+    if is_deterministic:
+        print("This ran")
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        torch.use_deterministic_algorithms(True)
+    # Set a fixed value for the hash seed
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    print(f"Random seed set as {seed}")
+
+
 if __name__ == '__main__':
+
     start_time = time.time()
 
     # define paths
@@ -32,7 +54,8 @@ if __name__ == '__main__':
 
     now = datetime.now()    
     dt_string = now.strftime("%d_%m_%Y-%H_%M")
-    run = wandb.init(project=args.wandb_name, config=args)
+    project_name = f'{args.fl_method}_{args.dataset}_{args.model}_clients_{args.num_users}_frac_{args.frac}_{args.seed}'
+    run = wandb.init(project=args.wandb_name, config=args, name=project_name)
 
     if args.gpu and args.device == "cuda":
         device = "cuda"
@@ -40,6 +63,8 @@ if __name__ == '__main__':
         device = "mps"
     else:
         device = "cpu"
+
+    set_seed(args.seed, False)
 
     # load dataset and user groups
     train_dataset, test_dataset, user_groups = get_dataset(args)
@@ -89,6 +114,17 @@ if __name__ == '__main__':
     ckpt_dict['ds_splits'] = user_groups
     ckpt_dict['iid'] = args.iid
     ckpt_dict['num_users'] = args.num_users
+    ckpt_dict['local_epoch'] = args.local_ep
+    ckpt_dict['local_bs'] = args.local_bs
+    ckpt_dict['local_lr'] = args.lr
+    ckpt_dict['global_lr'] = 1.0
+    ckpt_dict['training_rounds'] = args.epochs
+    ckpt_dict['frac'] = args.frac
+    ckpt_dict['seed'] = args.seed
+    ckpt_dict['dist_non_iid'] = args.dist_noniid
+    ckpt_dict['unequal'] = args.unequal
+    ckpt_dict['algo'] = args.fl_method
+
 
     local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
     for epoch in tqdm(range(args.epochs)):
@@ -136,8 +172,10 @@ if __name__ == '__main__':
             local_weights.append(copy.deepcopy(w.state_dict()))
             local_losses.append(copy.deepcopy(loss))
             # Uncomment to log to wandb if needed
-            run.log({f"local model training loss per iteration for user {idx}": loss})
-            run.log({f"local model training accuracy per iteration for user {idx}": acc})
+            #run.log({f"local model training loss per iteration for user {idx}": loss})
+            #run.log({f"local model training accuracy per iteration for user {idx}": acc})
+        run.log({f'Local Model Stddev of Losses': np.std(np.array(local_losses).flatten())})
+
 
         acc_avg = sum(list_acc)/len(list_acc)
         train_accuracy.append(acc_avg)

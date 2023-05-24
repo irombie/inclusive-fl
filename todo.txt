@@ -1,0 +1,8 @@
+1. Integrate all hyperparams -- done
+1.1 Dump hyperparams to the the csv
+2. Add Random seed - done
+3. Add stddev - done? Needs to be tested
+4. Modify the compute_metrics.py to compute from checkpoint
+5. Test harness/Test stddev
+
+

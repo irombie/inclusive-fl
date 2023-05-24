@@ -21,13 +21,11 @@ from torch.utils.data import Dataset, DataLoader
 import torchvision
 from torchvision import transforms
 from torchvision.datasets import CIFAR10, MNIST, FashionMNIST
-from utils import get_dataset
+from utils import get_dataset_for_metrics
 
 
 ### Model imports
-from src.models import CNNCifar, CNNFashion_Mnist, CNNMnist, MLP
-
-# os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+from models import CNNCifar, CNNFashion_Mnist, CNNMnist, MLP
 
 
 def set_seed(seed: int = 42, is_deterministic=False) -> None:
@@ -72,40 +70,30 @@ class MetricHarness:
         self.criterion = nn.CrossEntropyLoss()
         self.net.to(self.device)
 
-        self.classes = (
-            "plane",
-            "car",
-            "bird",
-            "cat",
-            "deer",
-            "dog",
-            "frog",
-            "horse",
-            "ship",
-            "truck",
-        )
-        # self.num_classes = self.harness_params["num_classes"]
-        self.num_classes = 10
-        # Accuracy Metrics
-
-        self.args = harness_params['arg_dict']
-        _, test_dataset, num_groups = get_dataset(self.args.dataset, self.args.data_dir)
-
-    def train_test(self, dataset, idxs):
-        """
-        Returns train, validation and test dataloaders for a given dataset. The alternative is 
-        to have separate local_update and global_update arguments. In that case, you would have
-        """
-        # split indexes for train, validation, and test (80, 10, 10)
-        idxs_train = idxs[:int(0.8*len(idxs))]
-        idxs_test = idxs[int(0.8*len(idxs)):]
-
-        trainloader = DataLoader(DatasetSplit(dataset, idxs_train),
-                                 batch_size=self.args.local_bs, shuffle=True)
+        if self.harness_params["dataset"] == "cifar":
+            self.classes = (
+                "plane",
+                "car",
+                "bird",
+                "cat",
+                "deer",
+                "dog",
+                "frog",
+                "horse",
+                "ship",
+                "truck",
+            )
         
-        testloader = DataLoader(DatasetSplit(dataset, idxs_test),
-                                batch_size=int(len(idxs_test)/10), shuffle=False)
-        return trainloader, testloader
+        elif self.harness_params["dataset"] == "mnist":
+            self.classes = ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
+        
+        elif self.harness_params["dataset"] == "fmnist":
+            ## classes in fashion mnist
+            self.classes = ("T-shirt/top", "Trouser", "Pullover", "Dress", "Coat", "Sandal", "Shirt",
+                            "Sneaker", "Bag", "Ankle boot")
+        
+        self.num_classes = 10
+               
 
     def compute_accuracy_metrics(self, testloader):
         self.net.eval()
@@ -116,7 +104,7 @@ class MetricHarness:
         class_correct = list(0.0 for i in range(self.num_classes))
         class_total = list(0.0 for i in range(self.num_classes))
         class_loss = list(0.0 for i in range(self.num_classes))
-
+        print('len testloader', len(testloader))
         with torch.no_grad():
             for ims, labels in tqdm.tqdm(testloader):
 
@@ -264,7 +252,7 @@ def compute_metrics(harness_params):
 
     # Harness init
     metric_harness = MetricHarness(harness_params)
-
+    
     results_list = []
     if harness_params["compute_accuracy"]:
         print("Computing Accuracy...")
@@ -300,6 +288,17 @@ def compute_metrics(harness_params):
 
     for class_idx in range(harness_params["num_classes"]):
         class_dict = {}
+        class_dict['global_lr'] = harness_params['global_lr']
+        class_dict['iid'] = harness_params['iid']
+        class_dict['num_users'] = harness_params['num_users']
+        class_dict['local_epoch'] = harness_params['local_ep']
+        class_dict['local_bs'] = harness_params['local_bs']
+        class_dict['local_lr'] = harness_params['local_lr']
+        class_dict['training_rounds'] = harness_params['training_rounds']
+        class_dict['frac'] = harness_params['frac']
+        class_dict['seed'] = harness_params['seed']
+        class_dict['arch'] = harness_params['arch']
+        class_dict['dataset'] = harness_params['dataset']
         if harness_params["compute_accuracy"]:
             class_dict["class"] = metric_harness.classes[class_idx]
             class_dict[f"test_loss_{experiment_seed}"] = test_loss
@@ -336,6 +335,19 @@ def compute_metrics(harness_params):
 
     return results_list
 
+def train_test(dataset, idxs):
+    """
+    Returns train, validation and test dataloaders for a given dataset. The alternative is 
+    to have separate local_update and global_update arguments. In that case, you would have
+    """
+    # split indexes for train, validation, and test (80, 10, 10)
+    idxs_train = idxs[:int(0.8*len(idxs))]
+    idxs_test = idxs[int(0.8*len(idxs)):]
+    
+    testloader = DataLoader(DatasetSplit(dataset, idxs_train),
+                            batch_size=int(len(idxs_test)/10), shuffle=False)
+    return testloader
+
 
 if __name__ == "__main__":
     import argparse
@@ -361,45 +373,63 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     harness_params = vars(args)
+    
     print(harness_params)
 
     # Experiment Parameters
     harness_params["batch_size"] = 512
 
-    ckpt = torch.load(harness_params['model_ckpt_path'], map_location=torch.device('cuda') if torch.cuda.is_available() else 'cpu')
+    ckpt = torch.load(harness_params['model_ckpt'], map_location=torch.device('cuda') if torch.cuda.is_available() else 'cpu')
 
+    harness_params['global_lr'] = ckpt['global_lr']
+    harness_params['iid'] = ckpt['iid']
+    harness_params['num_users'] = ckpt['num_users']
+    harness_params['local_ep'] = ckpt['local_epoch']
+    harness_params['local_bs'] = ckpt['local_bs']
+    harness_params['local_lr'] = ckpt['local_lr']
+    harness_params['training_rounds'] = ckpt['training_rounds']
+    harness_params['frac'] = ckpt['frac']
+    harness_params['seed'] = ckpt['seed']
+    harness_params['arch'] = ckpt['arch']
+    harness_params['dataset'] = ckpt['dataset']
+    harness_params['arch'] = ckpt['arch']
     
-    ds_name = ckpt['dataset']
-    arch = ckpt['arch']
     user_groups = ckpt['ds_splits']
     num_users = ckpt['num_users']
     iid = ckpt['iid']
+    dist_noniid = ckpt['dist_non_iid']
+    unequal = ckpt['unequal']
+
     num_classes = 10
-    
-    harness_params['arg_dict'] = {'ds_name' : ds_name, 'arch' : arch, 'user_groups' : user_groups, 'num_users' : num_users, 'iid' : iid, 'num_classes' : num_classes}
 
-    
+    arg_dict = {'dataset' : harness_params['dataset'], 'arch' : harness_params['arch'], 'user_groups' : user_groups, 'num_users' : num_users, 'iid' : iid, 'num_classes' : num_classes, 'unequal' : unequal, 'dist_noniid' : dist_noniid}
 
-    if ds_name == 'cifar':
+
+
+
+    args.num_classes = 10
+    train_dataset, test_dataset, num_groups = get_dataset_for_metrics(arg_dict)
+    
+    if harness_params['dataset'] == 'cifar':
         len_in = 3*32*32
-    elif ds_name == 'mnist':
+    elif harness_params['dataset'] == 'mnist':
         len_in = 28*28
-    elif ds_name == 'fmnist':
+    elif harness_params['dataset'] == 'fmnist':
         len_in = 28*28
 
         
 
-    if arch == 'cnn':
-        if  ds_name == 'cifar':
+    if harness_params['arch'] == 'cnn':
+        if  harness_params['dataset'] == 'cifar':
             model = CNNCifar(args=args)
-        elif ds_name == 'mnist':
+        elif harness_params['dataset'] == 'mnist':
             model = CNNMnist(args=args)
-        elif ds_name == 'fmnist':
+        elif harness_params['dataset'] == 'fmnist':
             model = CNNFashion_Mnist(args=args)
 
-    elif arch == 'mlp':
+    elif harness_params['arch'] == 'mlp':
         model = MLP(dim_in=len_in, dim_hidden=64,
-                            dim_out=args.num_classes)
+                            dim_out=num_classes)
 
     harness_params["num_classes"] = num_classes
 
@@ -407,25 +437,29 @@ if __name__ == "__main__":
     
     harness_params["model"] = model
 
-    my_table = PrettyTable()
-    my_table.field_names = ['Algorithm', 'Model Name', 'Dataset Name', 'Seed', 'Compute Accuracy?', 'Compute Grad Norm?',
-                            'Compute Hessian Eigenvalues?', 'Compute Decision Boundary Distances?', 'Compute Robustness Metrics?']
+    for group in range(len(num_groups)):
+        testloader = train_test(train_dataset, num_groups[group])
+        harness_params['testloader'] = testloader
+        my_table = PrettyTable()
+        my_table.field_names = ['Algorithm', 'Model Name', 'Dataset Name', 'Seed', 'Compute Accuracy?', 'Compute Grad Norm?',
+                                'Compute Hessian Eigenvalues?', 'Compute Decision Boundary Distances?', 'Compute Robustness Metrics?']
 
-    csv_path = f"{harness_params['results_path']}/{ckpt['algo']}_{ds_name}_{arch}.csv"
+        csv_path = f"{harness_params['results_path']}/FedProx_{harness_params['dataset']}_{harness_params['arch']}_client_{group}.csv"
 
-    if not os.path.exists(csv_path):
-        df = pd.DataFrame()
-    else:
-        df = pd.read_csv(
-            csv_path, index_col=False
-        )
+        if not os.path.exists(csv_path):
+            df = pd.DataFrame()
+        else:
+            df = pd.read_csv(
+                csv_path, index_col=False
+            )
 
-    my_table.add_row([ckpt['algo'], f"{ckpt['arch']}_{ckpt['dataset']}", ckpt['dataset'], ckpt['seed'], harness_params["compute_accuracy"],
-                     harness_params["compute_grad_norms"], harness_params["compute_hessian_eigenvalues"], harness_params["compute_decision_boundary_distances"], harness_params["compute_robustness_metrics"]])
-    results_list = compute_metrics(harness_params)
+        my_table.add_row(['FedProx', f"{harness_params['arch']}", f"{harness_params['dataset']}", ckpt['seed'], harness_params["compute_accuracy"],
+                        harness_params["compute_grad_norms"], harness_params["compute_hessian_eigenvalues"], harness_params["compute_decision_boundary_distances"], harness_params["compute_robustness_metrics"]])
+        print(my_table)
+        results_list = compute_metrics(harness_params)
 
-    df_temp = pd.DataFrame(results_list)
+        df_temp = pd.DataFrame(results_list)
 
-    df = pd.concat([df, df_temp], axis=1)
+        df = pd.concat([df, df_temp], axis=1)
 
-    df.to_csv(csv_path, index=False)
+        df.to_csv(csv_path, index=False)

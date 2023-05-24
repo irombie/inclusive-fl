@@ -21,9 +21,8 @@ from torch.utils.data import Dataset, DataLoader
 import torchvision
 from torchvision import transforms
 from torchvision.datasets import CIFAR10, MNIST, FashionMNIST
-from utils import get_dataset_for_metrics
+from utils import get_dataset_for_metrics, set_seed
 from update import DatasetSplit
-from federated_main import set_seed
 ### Model imports
 from models import CNNCifar, CNNFashion_Mnist, CNNMnist, MLP
 

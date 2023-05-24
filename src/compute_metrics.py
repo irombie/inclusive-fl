@@ -408,7 +408,7 @@ if __name__ == "__main__":
 
 
     args.num_classes = 10
-    train_dataset, test_dataset, num_groups = get_dataset_for_metrics(arg_dict)
+    _, test_dataset, num_groups = get_dataset_for_metrics(arg_dict)
     
     if harness_params['dataset'] == 'cifar':
         len_in = 3*32*32
@@ -438,7 +438,7 @@ if __name__ == "__main__":
     harness_params["model"] = model
 
     for group in range(len(num_groups)):
-        testloader = train_test(train_dataset, num_groups[group])
+        testloader = train_test(test_dataset, num_groups[group])
         harness_params['testloader'] = testloader
         my_table = PrettyTable()
         my_table.field_names = ['Algorithm', 'Model Name', 'Dataset Name', 'Seed', 'Compute Accuracy?', 'Compute Grad Norm?',

@@ -164,18 +164,19 @@ class MetricHarness:
         for ims, labels in tqdm.tqdm(testloader):
 
             for i in range(self.num_classes):
-                sub_hessian_comp = hessian(
-                    self.net,
-                    self.criterion,
-                    data=(ims[labels == i], labels[labels == i]),
-                    cuda=True if torch.cuda.is_available() else False,
-                )
-                (
-                    top_eigenvalues,
-                    top_eigenvector,
-                ) = sub_hessian_comp.eigenvalues()
-                class_total[i] += len(labels[labels == i])
-                class_eigen[i] += top_eigenvalues[-1]
+                if ims[labels == i].shape[0] > 0:
+                    sub_hessian_comp = hessian(
+                        self.net,
+                        self.criterion,
+                        data=(ims[labels == i], labels[labels == i]),
+                        cuda=True if torch.cuda.is_available() else False,
+                    )
+                    (
+                        top_eigenvalues,
+                        top_eigenvector,
+                    ) = sub_hessian_comp.eigenvalues()
+                    class_total[i] += len(labels[labels == i])
+                    class_eigen[i] += top_eigenvalues[-1]
 
         return np.divide(class_eigen, np.multiply(class_total, len(testloader)))
 
@@ -188,6 +189,7 @@ class MetricHarness:
             for ims, labels in tqdm.tqdm(testloader):
 
                 for i in range(self.num_classes):
+                    
                     if len(labels[labels == i]) > 0:
                         outputs = self.net(ims[labels == i])
                         softmax_outputs = torch.sort(
@@ -392,7 +394,7 @@ if __name__ == "__main__":
     harness_params['dataset'] = ckpt['dataset']
     harness_params['arch'] = ckpt['arch']
     
-    user_groups = ckpt['ds_splits']
+    test_user_groups = ckpt['test_ds_splits']
     num_users = ckpt['num_users']
     iid = ckpt['iid']
     dist_noniid = ckpt['dist_non_iid']
@@ -400,13 +402,10 @@ if __name__ == "__main__":
 
     num_classes = 10
 
-    arg_dict = {'dataset' : harness_params['dataset'], 'arch' : harness_params['arch'], 'user_groups' : user_groups, 'num_users' : num_users, 'iid' : iid, 'num_classes' : num_classes, 'unequal' : unequal, 'dist_noniid' : dist_noniid}
-
-
-
+    arg_dict = {'dataset' : harness_params['dataset'], 'arch' : harness_params['arch'], 'test_user_groups' : test_user_groups, 'num_users' : num_users, 'iid' : iid, 'num_classes' : num_classes, 'unequal' : unequal, 'dist_noniid' : dist_noniid}
 
     args.num_classes = 10
-    _, test_dataset, num_groups = get_dataset_for_metrics(arg_dict)
+    _, test_dataset, __, test_num_groups = get_dataset_for_metrics(arg_dict)
     
     if harness_params['dataset'] == 'cifar':
         len_in = 3*32*32
@@ -435,8 +434,8 @@ if __name__ == "__main__":
     
     harness_params["model"] = model
 
-    for group in range(len(num_groups)):
-        testloader = train_test(test_dataset, num_groups[group])
+    for group in range(len(test_num_groups)):
+        testloader = train_test(test_dataset, test_num_groups[group])
         harness_params['testloader'] = testloader
         my_table = PrettyTable()
         my_table.field_names = ['Algorithm', 'Model Name', 'Dataset Name', 'Seed', 'Compute Accuracy?', 'Compute Grad Norm?',

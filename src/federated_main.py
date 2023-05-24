@@ -66,7 +66,7 @@ if __name__ == '__main__':
     set_seed(args.seed, False)
 
     # load dataset and user groups
-    train_dataset, test_dataset, user_groups = get_dataset(args)
+    train_dataset, test_dataset, train_user_groups, test_user_groups = get_dataset(args)
 
     # BUILD MODEL
     if args.model == 'cnn':
@@ -110,7 +110,8 @@ if __name__ == '__main__':
     ckpt_dict = {}
     ckpt_dict['arch'] = args.model
     ckpt_dict['dataset'] = args.dataset
-    ckpt_dict['ds_splits'] = user_groups
+    ckpt_dict['train_ds_splits'] = train_user_groups
+    ckpt_dict['test_ds_splits'] = test_user_groups
     ckpt_dict['iid'] = args.iid
     ckpt_dict['num_users'] = args.num_users
     ckpt_dict['local_epoch'] = args.local_ep
@@ -142,16 +143,16 @@ if __name__ == '__main__':
         # Getting the test loss for all users' data of the global model
         for c in idxs_users:
             local_update = get_local_update(args=args, dataset=train_dataset,
-                                      idxs=user_groups[c], logger=run,
-                                      global_model=global_model, num_users=args.num_users)
+                                      train_idxs = train_user_groups[c], test_idxs = test_user_groups[c],
+                                      logger=run, global_model=global_model, num_users=args.num_users)
 
             acc, loss = local_update.inference(model=local_models[c], is_test=True)
             
             test_accs.append(acc)
             list_loss.append(loss)
             # Uncomment to log to wandb if needed
-            run.log({f"local model test loss for user {c}": loss})
-            run.log({f"local model test accuracy for user {c}": acc})
+            #run.log({f"local model test loss for user {c}": loss})
+            #run.log({f"local model test accuracy for user {c}": acc})
 
         test_loss_avg = sum(list_loss)/len(test_accs)
         test_loss.append(test_loss_avg)
@@ -162,7 +163,7 @@ if __name__ == '__main__':
         list_acc = []
         for idx in idxs_users:
             local_update = get_local_update(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx], logger=run,
+                                      train_idxs=train_user_groups[idx], test_idxs = test_user_groups[idx], logger=run,
                                       global_model=global_model, num_users=args.num_users)
             w, loss = local_update.update_weights(
                 model=local_models[idx], global_round=epoch)

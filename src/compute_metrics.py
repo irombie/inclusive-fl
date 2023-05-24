@@ -22,43 +22,10 @@ import torchvision
 from torchvision import transforms
 from torchvision.datasets import CIFAR10, MNIST, FashionMNIST
 from utils import get_dataset_for_metrics
-
-
+from update import DatasetSplit
+from federated_main import set_seed
 ### Model imports
 from models import CNNCifar, CNNFashion_Mnist, CNNMnist, MLP
-
-
-def set_seed(seed: int = 42, is_deterministic=False) -> None:
-
-    np.random.seed(seed)
-    random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    # When running on the CuDNN backend, two further options must be set
-
-    if is_deterministic:
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-        torch.use_deterministic_algorithms(True)
-    # Set a fixed value for the hash seed
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    print(f"Random seed set as {seed}")
-
-class DatasetSplit(Dataset):
-        """An abstract Dataset class wrapped around Pytorch Dataset class.
-        """
-
-        def __init__(self, dataset, idxs):
-            self.dataset = dataset
-            self.idxs = [int(i) for i in idxs]
-
-        def __len__(self):
-            return len(self.idxs)
-
-        def __getitem__(self, item):
-            image, label = self.dataset[self.idxs[item]]
-            return torch.tensor(image), torch.tensor(label)
-
 
 class MetricHarness:
     def __init__(self, harness_params):

@@ -18,28 +18,9 @@ from global_updates import get_global_update
 from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist
 from options import args_parser
 from update import get_local_update, test_inference
-from utils import exp_details, get_dataset
+from utils import exp_details, get_dataset, set_seed
 
 import torch
-
-
-
-def set_seed(seed: int = 42, is_deterministic=False) -> None:
-
-    np.random.seed(seed)
-    random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    # When running on the CuDNN backend, two further options must be set
-
-    if is_deterministic:
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-        torch.use_deterministic_algorithms(True)
-    # Set a fixed value for the hash seed
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    print(f"Random seed set as {seed}")
-
 
 if __name__ == '__main__':
 

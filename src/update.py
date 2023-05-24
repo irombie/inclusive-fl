@@ -58,9 +58,9 @@ class LocalUpdate:
         Returns train, validation and test dataloaders for a given dataset. The alternative is 
         to have separate local_update and global_update arguments. In that case, you would have
         """
-        # split indexes for train, validation, and test (80, 10, 10)
-        #idxs_train = idxs[:int(0.8*len(idxs))]
-        #idxs_test = idxs[int(0.8*len(idxs)):]
+        #   split indexes for train, validation, and test (80, 10, 10)
+        #   idxs_train = idxs[:int(0.8*len(idxs))]
+        #   idxs_test = idxs[int(0.8*len(idxs)):]
 
         trainloader = DataLoader(DatasetSplit(dataset, idxs_train),
                                  batch_size=self.args.local_bs, shuffle=True)

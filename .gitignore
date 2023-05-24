@@ -8,3 +8,5 @@ wandb/
 venv/
 checkpoints/
 *.pt
+*.csv 
+*.txt

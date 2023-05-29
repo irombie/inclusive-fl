@@ -309,7 +309,7 @@ def train_test(dataset, idxs):
     """
     # split indexes for train, validation, and test (80, 10, 10)
     testloader = DataLoader(DatasetSplit(dataset, idxs),
-                            batch_size=int(len(idxs_test)/10), shuffle=False)
+                            batch_size=int(len(idxs)/10), shuffle=False)
     return testloader
 
 

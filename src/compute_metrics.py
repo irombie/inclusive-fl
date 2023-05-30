@@ -429,4 +429,4 @@ if __name__ == "__main__":
         if args.log_to_wandb:
             run = wandb.init(project=wandb_proj_name, name=wandb_run_name)
             wandb_table = wandb.Table(dataframe=df)
-            run.log({f'{csv_path.split('/')[-1]}': wandb_table})
+            run.log({f'{csv_path.split("/")[-1]}': wandb_table})

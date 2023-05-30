@@ -1,31 +1,27 @@
-from typing import List
-import os
-import random
 import argparse
+import os
 
 # Python additional
 import numpy as np
-import tqdm
-from prettytable import PrettyTable
-from pyhessian import hessian
 import pandas as pd
-import wandb
-
 # PyTorch Imports
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import autograd
-from torch.utils.data import Dataset, DataLoader
-
 # Torchvision
 import torchvision
-from torchvision import transforms
-from torchvision.datasets import CIFAR10, MNIST, FashionMNIST
-from utils import get_dataset_for_metrics, set_seed
-from update import DatasetSplit
+import tqdm
+from prettytable import PrettyTable
+from pyhessian import hessian
+from torch import autograd
+from torch.utils.data import DataLoader
+
+import wandb
 ### Model imports
-from models import CNNCifar, CNNFashion_Mnist, CNNMnist, MLP
+from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist
+from update import DatasetSplit
+from utils import get_dataset_for_metrics, set_seed
+
 
 class MetricHarness:
     def __init__(self, harness_params):

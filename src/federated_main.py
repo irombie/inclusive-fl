@@ -166,11 +166,11 @@ if __name__ == '__main__':
         # update models
         global_update.update_global_model(global_model, global_weights)
         global_update.update_local_models(local_models, global_weights)
-        if epoch // int(args.save_every) == 0:
+        if epoch % int(args.save_every) == 0:
             ckpt_dict['state_dict'] = global_model.state_dict()
             if not os.path.exists(args.ckpt_path):
                 os.makedirs(args.ckpt_path)
-            torch.save(ckpt_dict, f'{args.ckpt_path}/{args.fl_method}_{args.model}_{args.dataset}_global_model_{epoch}.pt')
+            torch.save(ckpt_dict, f'{args.ckpt_path}/{args.fl_method}_{args.model}_{args.dataset}_global_model_{epoch}_{dt_string}.pt')
 
         loss_avg = sum(local_losses) / len(local_losses)
 

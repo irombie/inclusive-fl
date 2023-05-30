@@ -10,8 +10,8 @@ import time
 from datetime import datetime
 
 import numpy as np
+import torch
 from tqdm import tqdm
-import random
 
 import wandb
 from global_updates import get_global_update
@@ -19,8 +19,6 @@ from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist
 from options import args_parser
 from update import get_local_update, test_inference
 from utils import exp_details, get_dataset, set_seed
-
-import torch
 
 if __name__ == '__main__':
 

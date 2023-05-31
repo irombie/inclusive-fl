@@ -261,7 +261,7 @@ def compute_metrics(harness_params):
         class_dict['training_rounds'] = harness_params['training_rounds']
         class_dict['frac'] = harness_params['frac']
         class_dict['seed'] = harness_params['seed']
-        class_dict['arch'] = harness_params['arch']
+        class_dict['model'] = harness_params['model']
         class_dict['dataset'] = harness_params['dataset']
         if harness_params["compute_accuracy"]:
             class_dict["class"] = metric_harness.classes[class_idx]
@@ -352,7 +352,7 @@ if __name__ == "__main__":
     harness_params['seed'] = ckpt['seed']
     harness_params['model'] = ckpt['model']
     harness_params['dataset'] = ckpt['dataset']
-    harness_params['arch'] = ckpt['arch']
+    harness_params['model'] = ckpt['model']
     wandb_proj_name = ckpt['wandb_proj_name']
     wandb_run_name = ckpt['wandb_run_name']
     
@@ -364,7 +364,7 @@ if __name__ == "__main__":
 
     num_classes = 10
 
-    arg_dict = {'dataset' : harness_params['dataset'], 'arch' : harness_params['arch'], 'test_user_groups' : test_user_groups, 'num_users' : num_users, 'iid' : iid, 'num_classes' : num_classes, 'unequal' : unequal, 'dist_noniid' : dist_noniid}
+    arg_dict = {'dataset' : harness_params['dataset'], 'model' : harness_params['model'], 'test_user_groups' : test_user_groups, 'num_users' : num_users, 'iid' : iid, 'num_classes' : num_classes, 'unequal' : unequal, 'dist_noniid' : dist_noniid}
 
     args.num_classes = 10
     _, test_dataset, __, test_num_groups = get_dataset_for_metrics(arg_dict)
@@ -403,7 +403,7 @@ if __name__ == "__main__":
         my_table.field_names = ['Algorithm', 'Model Name', 'Dataset Name', 'Seed', 'Compute Accuracy?', 'Compute Grad Norm?',
                                 'Compute Hessian Eigenvalues?', 'Compute Decision Boundary Distances?', 'Compute Robustness Metrics?']
 
-        csv_path = f"{harness_params['results_path']}/FedProx_{harness_params['dataset']}_{harness_params['arch']}_client_{group}.csv"
+        csv_path = f"{harness_params['results_path']}/FedProx_{harness_params['dataset']}_{harness_params['model']}_client_{group}.csv"
 
         if not os.path.exists(csv_path):
             df = pd.DataFrame()
@@ -412,7 +412,7 @@ if __name__ == "__main__":
                 csv_path, index_col=False
             )
 
-        my_table.add_row(['FedProx', f"{harness_params['arch']}", f"{harness_params['dataset']}", ckpt['seed'], harness_params["compute_accuracy"],
+        my_table.add_row(['FedProx', f"{harness_params['model']}", f"{harness_params['dataset']}", ckpt['seed'], harness_params["compute_accuracy"],
                         harness_params["compute_grad_norms"], harness_params["compute_hessian_eigenvalues"], harness_params["compute_decision_boundary_distances"], harness_params["compute_robustness_metrics"]])
         print(my_table)
         results_list = compute_metrics(harness_params)

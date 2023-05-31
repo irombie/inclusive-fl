@@ -86,24 +86,11 @@ if __name__ == '__main__':
     val_loss_pre, counter = 0, 0
     
     ### ckpt params
-    ckpt_dict = {}
-    ckpt_dict['arch'] = args.model
-    ckpt_dict['dataset'] = args.dataset
+    ckpt_dict = dict()
+    ckpt_dict.update(vars(args))
     ckpt_dict['train_ds_splits'] = train_user_groups
     ckpt_dict['test_ds_splits'] = test_user_groups
-    ckpt_dict['iid'] = args.iid
-    ckpt_dict['num_users'] = args.num_users
-    ckpt_dict['local_epoch'] = args.local_ep
-    ckpt_dict['local_bs'] = args.local_bs
-    ckpt_dict['local_lr'] = args.lr
     ckpt_dict['global_lr'] = 1.0
-    ckpt_dict['training_rounds'] = args.epochs
-    ckpt_dict['frac'] = args.frac
-    ckpt_dict['seed'] = args.seed
-    ckpt_dict['dist_non_iid'] = args.dist_noniid
-    ckpt_dict['unequal'] = args.unequal
-    ckpt_dict['algo'] = args.fl_method
-    ckpt_dict['wandb_project_name'] = args.wandb_name
     ckpt_dict['wandb_run_name'] = run_name
 
 

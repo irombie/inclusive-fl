@@ -6,3 +6,7 @@ logs/
 wandb/
 .vscode/
 venv/
+checkpoints/
+*.pt
+*.csv 
+*.txt

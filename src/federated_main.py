@@ -10,6 +10,7 @@ import time
 from datetime import datetime
 
 import numpy as np
+import torch
 from tqdm import tqdm
 
 import wandb
@@ -17,9 +18,10 @@ from global_updates import get_global_update
 from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist
 from options import args_parser
 from update import get_local_update, test_inference
-from utils import exp_details, get_dataset
+from utils import exp_details, get_dataset, set_seed
 
 if __name__ == '__main__':
+
     start_time = time.time()
 
     # define paths
@@ -30,7 +32,8 @@ if __name__ == '__main__':
 
     now = datetime.now()    
     dt_string = now.strftime("%d_%m_%Y-%H_%M")
-    run = wandb.init(project=args.wandb_name, config=args)
+    run_name = f'{args.fl_method}_{args.dataset}_{args.model}_clients_{args.num_users}_frac_{args.frac}_{args.seed}'
+    run = wandb.init(project=args.wandb_name, config=args, name=run_name)
 
     if args.gpu and args.device == "cuda":
         device = "cuda"
@@ -39,8 +42,10 @@ if __name__ == '__main__':
     else:
         device = "cpu"
 
+    set_seed(args.seed, False)
+
     # load dataset and user groups
-    train_dataset, test_dataset, user_groups = get_dataset(args)
+    train_dataset, test_dataset, train_user_groups, test_user_groups = get_dataset(args)
 
     # BUILD MODEL
     if args.model == 'cnn':
@@ -80,6 +85,15 @@ if __name__ == '__main__':
     print_every = 2
     val_loss_pre, counter = 0, 0
     
+    ### ckpt params
+    ckpt_dict = dict()
+    ckpt_dict.update(vars(args))
+    ckpt_dict['train_ds_splits'] = train_user_groups
+    ckpt_dict['test_ds_splits'] = test_user_groups
+    ckpt_dict['global_lr'] = 1.0
+    ckpt_dict['wandb_run_name'] = run_name
+
+
     local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
     for epoch in tqdm(range(args.epochs)):
         local_weights, local_losses = [], []
@@ -97,15 +111,16 @@ if __name__ == '__main__':
         # Getting the test loss for all users' data of the global model
         for c in idxs_users:
             local_update = get_local_update(args=args, dataset=train_dataset,
-                                      idxs=user_groups[c], logger=run,
-                                      global_model=global_model)
+                                      train_idxs = train_user_groups[c], test_idxs = test_user_groups[c],
+                                      logger=run, global_model=global_model, num_users=args.num_users)
+
             acc, loss = local_update.inference(model=local_models[c], is_test=True)
             
             test_accs.append(acc)
             list_loss.append(loss)
             # Uncomment to log to wandb if needed
-            run.log({f"local model test loss for user {c}": loss})
-            run.log({f"local model test accuracy for user {c}": acc})
+            #run.log({f"local model test loss for user {c}": loss})
+            #run.log({f"local model test accuracy for user {c}": acc})
 
         test_loss_avg = sum(list_loss)/len(test_accs)
         test_loss.append(test_loss_avg)
@@ -116,19 +131,19 @@ if __name__ == '__main__':
         list_acc = []
         for idx in idxs_users:
             local_update = get_local_update(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx], logger=run,
-                                      global_model=global_model, num_users=args.num_users,
-                                      server_params=global_update.server_params, 
-                                      clients_param=global_update.clients_param)
+                                      train_idxs=train_user_groups[idx], test_idxs = test_user_groups[idx], logger=run,
+                                      global_model=global_model, num_users=args.num_users)
             w, loss = local_update.update_weights(
-                model=local_models[idx], global_round=epoch, client_id=idx)
+                model=local_models[idx], global_round=epoch)
             acc, loss = local_update.inference(model=w, is_test=False)
             list_acc.append(acc)
             local_weights.append(copy.deepcopy(w.state_dict()))
             local_losses.append(copy.deepcopy(loss))
             # Uncomment to log to wandb if needed
-            run.log({f"local model training loss per iteration for user {idx}": loss})
-            run.log({f"local model training accuracy per iteration for user {idx}": acc})
+            #run.log({f"local model training loss per iteration for user {idx}": loss})
+            #run.log({f"local model training accuracy per iteration for user {idx}": acc})
+        run.log({f'Local Model Stddev of Losses': np.std(np.array(local_losses).flatten())})
+
 
         acc_avg = sum(list_acc)/len(list_acc)
         train_accuracy.append(acc_avg)
@@ -138,6 +153,11 @@ if __name__ == '__main__':
         # update models
         global_update.update_global_model(global_model, global_weights)
         global_update.update_local_models(local_models, global_weights)
+        if epoch % int(args.save_every) == 0:
+            ckpt_dict['state_dict'] = global_model.state_dict()
+            if not os.path.exists(args.ckpt_path):
+                os.makedirs(args.ckpt_path)
+            torch.save(ckpt_dict, f'{args.ckpt_path}/{args.fl_method}_{args.model}_{args.dataset}_global_model_{epoch}_{dt_string}.pt')
 
         loss_avg = sum(local_losses) / len(local_losses)
 

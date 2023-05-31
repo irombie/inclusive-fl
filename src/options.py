@@ -66,9 +66,10 @@ def args_parser():
     parser.add_argument('--stopping_rounds', type=int, default=10,
                         help='rounds of early stopping')
     parser.add_argument('--verbose', type=int, default=1, help='verbose')
-    parser.add_argument('--seed', type=int, default=1, help='random seed')
+    parser.add_argument('--seed', type=int, help='random seed', required=True)
     parser.add_argument("--wandb_name", type=str, default = "FL", help="wandb project name, please set according to the details of your experiment")
-
+    parser.add_argument('--save_every', type=int, default=2, help='save model every x rounds')
+    parser.add_argument('--ckpt_path', type=str, default='./checkpoints/', help='path to save checkpoints')
     # Experimentation Flags
     parser.add_argument("--reweight_loss_avg", type=int, default=0, help="To enable reweighted loss averaging or not, set to 1 to enable it")
 

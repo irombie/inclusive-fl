@@ -28,7 +28,7 @@ class MetricHarness:
         self.harness_params = harness_params
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")
-        self.net = harness_params["model"]
+        self.net = harness_params["model_backbone"]
         self.criterion = nn.CrossEntropyLoss()
         self.net.to(self.device)
 
@@ -350,7 +350,7 @@ if __name__ == "__main__":
     harness_params['training_rounds'] = ckpt['training_rounds']
     harness_params['frac'] = ckpt['frac']
     harness_params['seed'] = ckpt['seed']
-    harness_params['arch'] = ckpt['arch']
+    harness_params['model'] = ckpt['model']
     harness_params['dataset'] = ckpt['dataset']
     harness_params['arch'] = ckpt['arch']
     wandb_proj_name = ckpt['wandb_proj_name']
@@ -378,7 +378,7 @@ if __name__ == "__main__":
 
         
 
-    if harness_params['arch'] == 'cnn':
+    if harness_params['model'] == 'cnn':
         if  harness_params['dataset'] == 'cifar':
             model = CNNCifar(args=args)
         elif harness_params['dataset'] == 'mnist':
@@ -386,7 +386,7 @@ if __name__ == "__main__":
         elif harness_params['dataset'] == 'fmnist':
             model = CNNFashion_Mnist(args=args)
 
-    elif harness_params['arch'] == 'mlp':
+    elif harness_params['model'] == 'mlp':
         model = MLP(dim_in=len_in, dim_hidden=64,
                             dim_out=num_classes)
 
@@ -394,7 +394,7 @@ if __name__ == "__main__":
 
     model.load_state_dict(ckpt['state_dict'])
     
-    harness_params["model"] = model
+    harness_params["model_backbone"] = model
 
     for group in range(len(test_num_groups)):
         testloader = train_test(test_dataset, test_num_groups[group])

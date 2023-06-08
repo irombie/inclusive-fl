@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.6
-from torchvision import datasets, transforms
-from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal, distribution_noniid
-from sampling import cifar_iid, cifar_noniid
-import numpy as np
-import random
-import torch
 import os
+import random
+
+import numpy as np
+import torch
+from torchvision import datasets, transforms
+
+from sampling import (cifar_iid, cifar_noniid, distribution_noniid, mnist_iid,
+                      mnist_noniid, mnist_noniid_unequal)
+
 
 def get_dataset(args):
     """ Returns train and test datasets and a user group which is a dict where
@@ -77,8 +80,8 @@ def get_dataset(args):
                 test_user_groups = mnist_noniid_unequal(test_dataset, args.num_users)
             elif args.dist_noniid:
                 # users receive unequal data within classes
-                train_user_groups = distribution_noniid(train_dataset.train_labels, args.num_users)
-                test_user_groups = distribution_noniid(test_dataset.test_labels, args.num_users)
+                train_user_groups = distribution_noniid(train_dataset.train_labels, args.num_users, beta=float(args.dist_noniid))
+                test_user_groups = distribution_noniid(test_dataset.test_labels, args.num_users, beta=float(args.dist_noniid))
             else:
                 # Chose euqal splits for every user
                 train_user_groups = mnist_noniid(train_dataset, args.num_users)

@@ -127,6 +127,9 @@ if __name__ == '__main__':
         test_acc_avg = sum(test_accs)/len(test_accs)
         test_accuracy.append(test_acc_avg)
 
+        run.log({f'Local Model Stddev of Test Losses': np.std(np.array(list_loss).flatten())})
+
+
         global_model.train()
         list_acc = []
         for idx in idxs_users:
@@ -142,8 +145,8 @@ if __name__ == '__main__':
             # Uncomment to log to wandb if needed
             #run.log({f"local model training loss per iteration for user {idx}": loss})
             #run.log({f"local model training accuracy per iteration for user {idx}": acc})
-        run.log({f'Local Model Stddev of Losses': np.std(np.array(local_losses).flatten())})
-
+        run.log({f'Local Model Stddev of Train Losses': np.std(np.array(local_losses).flatten())})
+        
 
         acc_avg = sum(list_acc)/len(list_acc)
         train_accuracy.append(acc_avg)

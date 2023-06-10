@@ -45,8 +45,8 @@ def get_dataset(args):
                 raise NotImplementedError()
             elif args.dist_noniid:
                 # users receive unequal data within classes
-                train_user_groups = distribution_noniid(train_dataset.targets, args.num_users)
-                test_user_groups = distribution_noniid(test_dataset.targets, args.num_users)
+                train_user_groups = distribution_noniid(train_dataset.targets, args.num_users, beta=float(args.dist_noniid))
+                test_user_groups = distribution_noniid(test_dataset.targets, args.num_users, beta=float(args.dist_noniid))
             else:
                 # Chose euqal splits for every user
                 train_user_groups = cifar_noniid(train_dataset, args.num_users)

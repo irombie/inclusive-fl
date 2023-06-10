@@ -71,7 +71,8 @@ def get_dataset(args):
         # sample training data amongst users
         if args.iid:
             # Sample IID user data from Mnist
-            user_groups = mnist_iid(train_dataset, args.num_users)
+            train_user_groups = mnist_iid(train_dataset, args.num_users)
+            test_user_groups = mnist_iid(test_dataset, args.num_users)
         else:
             # Sample Non-IID user data from Mnist
             if args.unequal:

@@ -1,13 +1,12 @@
 #!/bin/bash
 
-poetry shell
 # Parameters
 local_epochs=("5")
 client_sampling_ratios=("0.4" "1")
 mu_fedprox=("0.001")
 alpha=("0.3" "0.5") # Set to 1 for iid 
 dataset="cifar"
-fl_methods="FedProx"
+fl_method="FedProx"
 reweight=("0")
 
 max_parallel_tasks=5  # Maximum number of background tasks

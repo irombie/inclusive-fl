@@ -1,6 +1,5 @@
 #!/bin/bash
 
-poetry shell
 # Parameters
 local_epochs=("2" "5")
 client_sampling_ratios=("0.4" "1")
@@ -38,7 +37,7 @@ for le in ${local_epochs[@]}; do
 				--local_bs=10 \
 				--unequal=0 \
 				--dist_noniid=$a \
-				--fl_method=$fl_method
+				--fl_method=$fl_method &
 
 				if [[ $current_tasks -eq $max_parallel_tasks ]]; then
 					wait  # Wait for the background tasks to finish

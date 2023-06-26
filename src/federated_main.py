@@ -110,9 +110,9 @@ if __name__ == '__main__':
 
         # Getting the test loss for all users' data of the global model
         for c in idxs_users:
-            local_update = get_local_update(args=args, dataset=train_dataset,
+            local_update = get_local_update(args=args, train_dataset=train_dataset, test_dataset=test_dataset,
                                       train_idxs = train_user_groups[c], test_idxs = test_user_groups[c],
-                                      logger=run, global_model=global_model, num_users=args.num_users)
+                                      logger=run, global_model=global_model)
 
             acc, loss = local_update.inference(model=local_models[c], is_test=True)
             
@@ -133,9 +133,9 @@ if __name__ == '__main__':
         global_model.train()
         list_acc = []
         for idx in idxs_users:
-            local_update = get_local_update(args=args, dataset=train_dataset,
+            local_update = get_local_update(args=args, train_dataset=train_dataset, test_dataset=test_dataset,
                                       train_idxs=train_user_groups[idx], test_idxs = test_user_groups[idx], logger=run,
-                                      global_model=global_model, num_users=args.num_users)
+                                      global_model=global_model)
             w, loss = local_update.update_weights(
                 model=local_models[idx], global_round=epoch)
             acc, loss = local_update.inference(model=w, is_test=False)

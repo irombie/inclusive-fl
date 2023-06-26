@@ -35,12 +35,15 @@ class LocalUpdate:
     this class. If a FedLearn algo requires a different set of steps, it can
     override the methods in this class.
     """
-    def __init__(self, args, dataset, train_idxs, test_idxs, logger, global_model, num_users, **kwargs):
+    def __init__(self, args, train_dataset, test_dataset, train_idxs, test_idxs, logger, global_model):
         self.args = args
         self.logger = logger
         self.train_idxs = train_idxs
         self.test_idxs = test_idxs
-        self.trainloader, self.testloader = self.train_test(dataset, self.train_idxs, self.test_idxs)
+        self.trainloader = DataLoader(DatasetSplit(train_dataset, train_idxs),
+                                 batch_size=self.args.local_bs, shuffle=True)
+        self.testloader =  DataLoader(DatasetSplit(test_dataset, test_idxs),
+                                batch_size=self.args.local_bs, shuffle=False)
         if args.gpu and args.device == "cuda":
             self.device = "cuda"
         elif args.gpu and args.device == "mps":
@@ -51,23 +54,6 @@ class LocalUpdate:
         self.criterion = nn.NLLLoss().to(self.device)
 
         self.global_model = global_model
-        self.num_users = num_users
-
-    def train_test(self, dataset, idxs_train, idxs_test):
-        """
-        Returns train, validation and test dataloaders for a given dataset. The alternative is 
-        to have separate local_update and global_update arguments. In that case, you would have
-        """
-        #   split indexes for train, validation, and test (80, 10, 10)
-        #   idxs_train = idxs[:int(0.8*len(idxs))]
-        #   idxs_test = idxs[int(0.8*len(idxs)):]
-
-        trainloader = DataLoader(DatasetSplit(dataset, idxs_train),
-                                 batch_size=self.args.local_bs, shuffle=True)
-        
-        testloader = DataLoader(DatasetSplit(dataset, idxs_test),
-                                batch_size=self.args.local_bs, shuffle=False)
-        return trainloader, testloader
 
     def configure_optimizer(self, model):
         """
@@ -221,7 +207,7 @@ def test_inference(args, model, test_dataset):
     return accuracy, loss / len(testloader)
 
 def get_local_update(
-    args, dataset, train_idxs, test_idxs, logger, global_model, num_users, **kwargs
+    args, train_dataset, test_dataset, train_idxs, test_idxs, logger, global_model,
 ) -> LocalUpdate:
     """
         Get local update from federated learning method name and return the
@@ -230,7 +216,8 @@ def get_local_update(
         :param args: Arguments object containing configurations passed 
                         as arguments to the program call
 
-        :param dataset: Dataset object containing the training data
+        :param train_dataset: Dataset object containing the training data
+        :param test_dataset: Dataset object containing the test data
 
         :param idxs: List of indices of the training data assigned to the
                         local update
@@ -240,7 +227,7 @@ def get_local_update(
         :return: Local update object
     """
     if args.fl_method in NAME_TO_LOCAL_UPDATE:
-        return NAME_TO_LOCAL_UPDATE[args.fl_method](args, dataset, train_idxs, test_idxs, logger, global_model, num_users, **kwargs)
+        return NAME_TO_LOCAL_UPDATE[args.fl_method](args=args, train_dataset=train_dataset, test_dataset=test_dataset, train_idxs=train_idxs, test_idxs=test_idxs, logger=logger, global_model=global_model)
     else:
         raise ValueError(
             f"Unsupported federated learning method name {args.fl_method} for local update."

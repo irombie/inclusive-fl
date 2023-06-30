@@ -189,58 +189,26 @@ def cifar_noniid(dataset, num_users):
     return dict_users
 
 
-def distribution_noniid(dataset_labels, num_users, num_classes=10, beta=0.5):
-    """
-    Sample non-I.I.D client data from provided dataset labels
-    :param dataset_labels: data labels with equal sized classes
-    :param num_users: number of users
-    :param num_classes: number of all available classes
-    :param beta: takes value between 0 and 1. Lower beta causes higher imbalance.
-    :return dict_users: dictionary with each clients 
-    index as key and image indexes list as value
-    """
+def distribution_noniid(dataset, num_clients, num_classes=10, alpha=0.5):
+    idx = [torch.where(dataset.targets == i) for i in range(num_classes)]
+    data = [dataset.data[idx[i][0]] for i in range(num_classes)]
     
-    # MNIST: dataset.train_labels or CIFAR: dataset.targets
-    labels = np.array(dataset_labels)                 
-    data_size = labels.shape[0]  # len(dataset)
-    idxs = np.arange(data_size)
-
-    if num_users*num_classes > data_size:
-        raise ValueError("Not enough data. Provided data size must be at least num_users*num_classes: {}".format(num_users*num_classes))
-
-    idxs_labels = np.vstack((idxs, labels))
-    idxs_labels = idxs_labels[:, idxs_labels[1, :].argsort()]
-
-    required_min_items_per_user = 10    
-    min_item_user = 0    
-                                         
-    class_per_user = idxs_labels[0, :].reshape(num_classes, int(data_size/num_classes)) 
-    filter = np.ones((num_classes, num_users))
-    selected_users = [[] for i in range(num_users)] 
-
-    def maxitem_per_user(users, filters, portions):
-      for i, k in enumerate(users):                     
-        if len(k) > data_size / num_users :
-          filters[:, i] = filters[:, i]*0
-      return filters * portions, filters                
-
-    while min_item_user < required_min_items_per_user:   
-
-        np.random.shuffle(np.transpose(class_per_user))
-
-        class_portions_peruser = np.repeat(np.random.dirichlet(np.repeat(beta, num_users)), num_classes).reshape(num_classes, num_users) 
-        class_portions_peruser, filter = maxitem_per_user(selected_users, filter, class_portions_peruser)
-        ##if filter.all() == np.zeros((num_classes, num_users)).all(): break
-        class_portions_peruser = np.divide(class_portions_peruser, np.sum(class_portions_peruser, axis=1).reshape(-1,1))
-        class_portions_peruser = (np.cumsum(class_portions_peruser, axis=1) * class_per_user.shape[1]).astype(int)[:, :-1]  
-
+    s = np.random.dirichlet(np.ones(num_classes) * alpha, num_clients)
+    
+    data_dist = np.zeros((num_clients, num_classes))
+    for j in range(num_clients):
+        data_dist[j] = ((s[j] * len(data[0])).astype('int') / (s[j] * len(data[0])).astype('int').sum() * len(data[0])).astype('int')
+        data_num = data_dist[j].sum()
+        data_dist[j][np.random.randint(low=0, high=num_classes)] += (len(data[0]) - data_num)
+        data_dist = data_dist.astype('int')
+    
+    dict_users = {}
+    for j in range(num_clients):
+        dict_users[j] = []
         for i in range(num_classes):
-            selected_users = [user_i + user_ix.tolist() for user_i, user_ix in zip(selected_users, np.split(class_per_user[i], class_portions_peruser[i]))]
-  
-        min_item_user = min([len(user_i) for user_i in selected_users]) 
-
-    dict_users = {k: np.random.permutation(v).tolist() for k, v in enumerate(selected_users)} 
-
+            d_index = np.random.choice(idx[i][0], size=data_dist[j][i], replace=False)
+            dict_users[j].extend(d_index.tolist())
+    
     return dict_users
 
 

@@ -4,7 +4,7 @@
 
 from torch import nn
 import torch.nn.functional as F
-
+from torchvision.models import vgg19, resnet18, resnet50
 
 class MLP(nn.Module):
     def __init__(self, dim_in, dim_hidden, dim_out):
@@ -118,3 +118,36 @@ class modelC(nn.Module):
         pool_out.squeeze_(-1)
         pool_out.squeeze_(-1)
         return pool_out
+
+class VGG(nn.Module):
+    def __init__(self, num_classes: int) -> None:
+        super().__init__()
+        self.vgg = vgg19(pretrained=True)
+        self.classifier = nn.Linear(1000, num_classes)
+
+    def forward(self, x):
+        x = self.vgg(x)
+        x = self.classifier(x)
+        return x
+    
+class ResNet18(nn.Module):
+    def __init__(self, num_classes: int) -> None:
+        super().__init__()
+        self.resnet = resnet18(pretrained=True)
+        self.classifier = nn.Linear(1000, num_classes)
+
+    def forward(self, x):
+        x = self.resnet(x)
+        x = self.classifier(x)
+        return x
+    
+class ResNet50(nn.Module):
+    def __init__(self, num_classes: int) -> None:
+        super().__init__()
+        self.resnet = resnet50(pretrained=True)
+        self.classifier = nn.Linear(1000, num_classes)
+
+    def forward(self, x):
+        x = self.resnet(x)
+        x = self.classifier(x)
+        return x

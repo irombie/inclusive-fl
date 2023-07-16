@@ -50,11 +50,12 @@ def main():
         configs["epochs"],
         configs["fl_method"]
     ))
+    timestamp = time.time()
 
     # Parse command-line arguments
 
     # Launch experiments
-    for i, combination in tqdm(enumerate(parameter_combinations)):
+    for i, combination in enumerate(tqdm(parameter_combinations)):
         lr, local_ep, frac, iid, dist_noniid, mu, dataset, reweight_test_loss, seed, num_users, epochs, fl_method = combination
 
         # Apply conditionals
@@ -73,7 +74,7 @@ def main():
         '--model=cnn',
         f'--num_users={num_users}',
         f'--epochs={epochs}',
-        f'--wandb_name=test_suite_{time.time()}',
+        f'--wandb_name=test_suite_{timestamp}',
         f'--lr={lr}',
         f'--local_ep={local_ep}',
         f'--frac={frac}',

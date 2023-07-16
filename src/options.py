@@ -65,7 +65,7 @@ def args_parser():
                         non-i.i.d setting (use 0 for equal splits)')
     parser.add_argument('--stopping_rounds', type=int, default=10,
                         help='rounds of early stopping')
-    parser.add_argument('--verbose', type=int, default=1, help='verbose')
+    parser.add_argument('--verbose', type=int, default=0, help='verbose')
     parser.add_argument('--seed', type=int, help='random seed', required=True)
     parser.add_argument("--wandb_name", type=str, default = "FL", help="wandb project name, please set according to the details of your experiment")
     parser.add_argument('--save_every', type=int, default=2, help='save model every x rounds')

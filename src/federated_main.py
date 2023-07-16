@@ -100,7 +100,6 @@ if __name__ == '__main__':
         print(f'\n | Global Training Round : {epoch+1} |\n')
 
         m = max(int(args.frac * args.num_users), 1)
-        print(args.num_users)
         idxs_users = np.random.choice(range(args.num_users), m, replace=False)
 
         list_loss = []

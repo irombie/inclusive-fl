@@ -1,4 +1,4 @@
-name: fl_env2
+name: fl_env
 channels:
   - conda-forge
 dependencies:

@@ -20,8 +20,8 @@ from options import args_parser
 from update import get_local_update, test_inference
 from utils import exp_details, get_dataset, set_seed
 
-if __name__ == '__main__':
 
+def main():
     start_time = time.time()
 
     # define paths
@@ -32,8 +32,12 @@ if __name__ == '__main__':
 
     now = datetime.now()    
     dt_string = now.strftime("%d_%m_%Y-%H_%M")
-    run_name = f'{args.fl_method}_{args.dataset}_{args.model}_clients_{args.num_users}_frac_{args.frac}_{args.seed}'
-    run = wandb.init(project=args.wandb_name, config=args, name=run_name)
+    run_name = f'{args.fl_method}_{args.dataset}_clients_{args.num_users}_frac_{args.frac}_{args.seed}_{time.time()}'
+    args_dict = vars(args)
+    tag_list = []
+    for k in args_dict:
+        tag_list.append(f"{k}:{args_dict[k]}")
+    run = wandb.init(project=args.wandb_name, config=args, name=run_name, tags=tag_list)
 
     if args.gpu and args.device == "cuda":
         device = "cuda"
@@ -241,3 +245,7 @@ if __name__ == '__main__':
     # plt.savefig('../save/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_acc.png'.
     #             format(args.dataset, args.model, args.epochs, args.frac,
     #                    args.iid, args.local_ep, args.local_bs))
+
+
+if __name__ == '__main__':
+    main()

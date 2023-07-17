@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 # Define the parameter combinations
 
+
 def parse_yml(path: str = "scripts/configs.yml"):
     with open(path, "r") as stream:
         try:
@@ -14,6 +15,7 @@ def parse_yml(path: str = "scripts/configs.yml"):
         except yaml.YAMLError as exc:
             print(exc)
             return None
+
 
 def main():
     gpu = None
@@ -36,27 +38,42 @@ def main():
         raise Exception("Unable to read config file!")
 
     # Generate all parameter combinations
-    parameter_combinations = list(itertools.product(
-        configs["lr"],
-        configs["local_ep"],
-        configs["frac"],
-        configs["iid"],
-        configs["dist_noniid"],
-        configs["mu"],
-        configs["dataset"],
-        configs["reweight_loss_avg"],
-        configs["seed"],
-        configs["num_users"],
-        configs["epochs"],
-        configs["fl_method"]
-    ))
+    parameter_combinations = list(
+        itertools.product(
+            configs["lr"],
+            configs["local_ep"],
+            configs["frac"],
+            configs["iid"],
+            configs["dist_noniid"],
+            configs["mu"],
+            configs["dataset"],
+            configs["reweight_loss_avg"],
+            configs["seed"],
+            configs["num_users"],
+            configs["epochs"],
+            configs["fl_method"],
+        )
+    )
     timestamp = time.time()
 
     # Parse command-line arguments
 
     # Launch experiments
     for i, combination in enumerate(tqdm(parameter_combinations)):
-        lr, local_ep, frac, iid, dist_noniid, mu, dataset, reweight_test_loss, seed, num_users, epochs, fl_method = combination
+        (
+            lr,
+            local_ep,
+            frac,
+            iid,
+            dist_noniid,
+            mu,
+            dataset,
+            reweight_test_loss,
+            seed,
+            num_users,
+            epochs,
+            fl_method,
+        ) = combination
 
         # Apply conditionals
         if iid == 0:
@@ -67,29 +84,30 @@ def main():
             mu = 0
         # Generate command-line arguments
         command = [
-        'python3',
-        'src/federated_main.py',
-        f'--gpu={gpu}',
-        f'--device={device}',
-        '--model=cnn',
-        f'--num_users={num_users}',
-        f'--epochs={epochs}',
-        f'--wandb_name=test_suite_{timestamp}',
-        f'--lr={lr}',
-        f'--local_ep={local_ep}',
-        f'--frac={frac}',
-        f'--iid={iid}',
-        f'--dist_noniid={dist_noniid}',
-        f'--mu={mu}',
-        f'--dataset={dataset}',
-        f'--fl_method={fl_method}',
-        f'--reweight_loss_avg={reweight_test_loss}',
-        f'--seed={seed}'
-    ]
-
+            "python3",
+            "src/federated_main.py",
+            f"--gpu={gpu}",
+            f"--device={device}",
+            "--model=cnn",
+            f"--num_users={num_users}",
+            f"--epochs={epochs}",
+            f"--wandb_name=test_suite_{timestamp}",
+            f"--lr={lr}",
+            f"--local_ep={local_ep}",
+            f"--frac={frac}",
+            f"--iid={iid}",
+            f"--dist_noniid={dist_noniid}",
+            f"--mu={mu}",
+            f"--dataset={dataset}",
+            f"--fl_method={fl_method}",
+            f"--reweight_loss_avg={reweight_test_loss}",
+            f"--seed={seed}",
+        ]
 
         # Launch the experiment as a subprocess
-        print(f'Launching experiment {i+1}/{len(parameter_combinations)}: {" ".join(command)}')
+        print(
+            f'Launching experiment {i+1}/{len(parameter_combinations)}: {" ".join(command)}'
+        )
         subprocess.run(command)
 
 if __name__ == "__main__":

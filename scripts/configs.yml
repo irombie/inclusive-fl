@@ -1,4 +1,4 @@
-num_users: [10, 25, 50, 100]
+num_users: [10, 50, 100]
 dataset: ["mnist", "cifar", "fashionmnist"]
 epochs: [30]
 lr: [0.01, 0.001, 0.0005]

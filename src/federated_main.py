@@ -73,7 +73,7 @@ if __name__ == '__main__':
         elif args.dataset == 'utkface':
             global_model = VGG(num_classes=4)
         elif args.dataset == 'celeba':
-            global_model = VGG(num_classes=2)
+            global_model = VGG(num_classes=40)
     
     elif args.model == 'resnet18':
         if args.dataset == 'cifar' or args.dataset == 'fmnist' or args.dataset == 'mnist':
@@ -81,7 +81,7 @@ if __name__ == '__main__':
         elif args.dataset == 'utkface':
             global_model = ResNet18(num_classes=4)
         elif args.dataset == 'celeba':
-            global_model = ResNet18(num_classes=2)
+            global_model = ResNet18(num_classes=40)
 
     elif args.model == 'resnet50':
         if args.dataset == 'cifar' or args.dataset == 'fmnist' or args.dataset == 'mnist':
@@ -89,7 +89,7 @@ if __name__ == '__main__':
         elif args.dataset == 'utkface':
             global_model = ResNet50(num_classes=4)
         elif args.dataset == 'celeba':
-            global_model = ResNet50(num_classes=2)
+            global_model = ResNet50(num_classes=40)
 
     else:
         exit('Error: unrecognized model')

@@ -57,6 +57,7 @@ if __name__ == '__main__':
         elif args.dataset == 'cifar':
             global_model = CNNCifar(args=args)
 
+
     elif args.model == 'mlp':
         # Multi-layer preceptron
         img_size = train_dataset[0][0].shape
@@ -67,28 +68,28 @@ if __name__ == '__main__':
                                dim_out=args.num_classes)
     
     elif args.model == 'vgg19':
-        if args.dataset == 'cifar':
+        if args.dataset == 'cifar' or args.dataset == 'fmnist' or args.dataset == 'mnist':
             global_model = VGG(num_classes=10)
-        elif args.dataset == 'fmnist':
-            global_model = VGG(num_classes=10)
-        elif args.dataset == 'mnist':
-            global_model = VGG(num_classes=10)
+        elif args.dataset == 'utkface':
+            global_model = VGG(num_classes=4)
+        elif args.dataset == 'celeba':
+            global_model = VGG(num_classes=2)
     
     elif args.model == 'resnet18':
-        if args.dataset == 'cifar':
+        if args.dataset == 'cifar' or args.dataset == 'fmnist' or args.dataset == 'mnist':
             global_model = ResNet18(num_classes=10)
-        elif args.dataset == 'fmnist':
-            global_model = ResNet18(num_classes=10)
-        elif args.dataset == 'mnist':
-            global_model = ResNet18(num_classes=10)
+        elif args.dataset == 'utkface':
+            global_model = ResNet18(num_classes=4)
+        elif args.dataset == 'celeba':
+            global_model = ResNet18(num_classes=2)
 
     elif args.model == 'resnet50':
-        if args.dataset == 'cifar':
+        if args.dataset == 'cifar' or args.dataset == 'fmnist' or args.dataset == 'mnist':
             global_model = ResNet50(num_classes=10)
-        elif args.dataset == 'fmnist':
-            global_model = ResNet50(num_classes=10)
-        elif args.dataset == 'mnist':
-            global_model = ResNet50(num_classes=10)
+        elif args.dataset == 'utkface':
+            global_model = ResNet50(num_classes=4)
+        elif args.dataset == 'celeba':
+            global_model = ResNet50(num_classes=2)
 
     else:
         exit('Error: unrecognized model')

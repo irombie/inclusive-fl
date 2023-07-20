@@ -20,7 +20,7 @@ import wandb
 ### Model imports
 from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist
 from update import DatasetSplit
-from utils import get_dataset_for_metrics, set_seed
+from utils import get_dataset, set_seed
 
 
 class MetricHarness:
@@ -367,7 +367,7 @@ if __name__ == "__main__":
     arg_dict = {'dataset' : harness_params['dataset'], 'model' : harness_params['model'], 'test_user_groups' : test_user_groups, 'num_users' : num_users, 'iid' : iid, 'num_classes' : num_classes, 'unequal' : unequal, 'dist_noniid' : dist_noniid}
 
     args.num_classes = 10
-    _, test_dataset, __, test_num_groups = get_dataset_for_metrics(arg_dict)
+    _, test_dataset, __, test_num_groups = get_dataset(arg_dict)
     
     if harness_params['dataset'] == 'cifar':
         len_in = 3*32*32

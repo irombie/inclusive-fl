@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from torchvision import datasets, transforms
 
-from sampling import cifar_iid, distribution_noniid, mnist_iid
+from sampling import get_iid, distribution_noniid
 
 
 def get_dataset(args):
@@ -32,16 +32,6 @@ def get_dataset(args):
         test_dataset = datasets.CIFAR10(data_dir, train=False, download=True,
                                       transform=apply_transform)
 
-        # sample training data amongst users
-        if args.iid:
-            # Sample IID user data from Mnist
-            train_user_groups = cifar_iid(train_dataset, args.num_users)
-            test_user_groups = cifar_iid(test_dataset, args.num_users)
-        elif args.dist_noniid:
-            # users receive unequal data within classes
-            train_user_groups = distribution_noniid(train_dataset.targets, args.num_users, beta=float(args.dist_noniid))
-            test_user_groups = distribution_noniid(test_dataset.targets, args.num_users, beta=float(args.dist_noniid))
-
     elif args.dataset == 'mnist' or 'fmnist':
         if args.dataset == 'mnist':
             data_dir = '../data/mnist/'
@@ -58,16 +48,15 @@ def get_dataset(args):
         test_dataset = datasets.MNIST(data_dir, train=False, download=True,
                                       transform=apply_transform)
 
-        # sample training data amongst users
-        if args.iid:
-            # Sample IID user data from Mnist
-            train_user_groups = mnist_iid(train_dataset, args.num_users)
-            test_user_groups = mnist_iid(test_dataset, args.num_users)
-            
-        elif args.dist_noniid:
-            # users receive unequal data within classes
-            train_user_groups = distribution_noniid(train_dataset.train_labels, args.num_users, beta=float(args.dist_noniid))
-            test_user_groups = distribution_noniid(test_dataset.test_labels, args.num_users, beta=float(args.dist_noniid))
+    # sample training data amongst users
+    if args.iid:
+        train_user_groups = get_iid(train_dataset, args.num_users)
+        test_user_groups = get_iid(test_dataset, args.num_users)
+        
+    elif args.dist_noniid:
+        # users receive unequal data within classes
+        train_user_groups = distribution_noniid(train_dataset.targets, args.num_users, beta=float(args.dist_noniid))
+        test_user_groups = distribution_noniid(test_dataset.targets, args.num_users, beta=float(args.dist_noniid))
             
 
     return train_dataset, test_dataset, train_user_groups, test_user_groups
@@ -107,17 +96,6 @@ def get_dataset_for_metrics(param_dict):
         test_dataset = datasets.CIFAR10(data_dir, train=False, download=True,
                                       transform=apply_transform)
 
-        # sample training data amongst users
-        if param_dict['iid']:
-            # Sample IID user data from Mnist
-            train_user_groups = cifar_iid(train_dataset, param_dict['num_users'])
-            test_user_groups = cifar_iid(test_dataset, param_dict['num_users'])
-
-        elif param_dict['dist_noniid']:
-            # users receive unequal data within classes
-            train_user_groups = distribution_noniid(train_dataset.targets, param_dict['num_users'])
-            test_user_groups = distribution_noniid(test_dataset.targets, param_dict['num_users'])
-
     elif param_dict['dataset'] == 'mnist' or 'fmnist':
         if param_dict['dataset']== 'mnist':
             data_dir = '../data/mnist/'
@@ -134,15 +112,14 @@ def get_dataset_for_metrics(param_dict):
         test_dataset = datasets.MNIST(data_dir, train=False, download=True,
                                       transform=apply_transform)
 
-        # sample training data amongst users
-        if param_dict['iid']:
-            # Sample IID user data from Mnist
-            train_user_groups = mnist_iid(train_dataset, param_dict['num_users'])
-            test_user_groups = mnist_iid(test_dataset, param_dict['num_users'])
-        elif param_dict['dist_noniid']:
-            # users receive unequal data within classes
-            train_user_groups = distribution_noniid(train_dataset.train_labels, param_dict['num_users'])
-            test_user_groups = distribution_noniid(test_dataset.test_labels, param_dict['num_users'])
+    # sample training data amongst users
+    if param_dict['iid']:
+        train_user_groups = get_iid(train_dataset, param_dict['num_users'])
+        test_user_groups = get_iid(test_dataset, param_dict['num_users'])
+    elif param_dict['dist_noniid']:
+        # users receive unequal data within classes
+        train_user_groups = distribution_noniid(train_dataset.targets, param_dict['num_users'])
+        test_user_groups = distribution_noniid(test_dataset.targets, param_dict['num_users'])
 
     return train_dataset, test_dataset, train_user_groups, test_user_groups
 

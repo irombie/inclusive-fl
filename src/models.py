@@ -130,7 +130,7 @@ class VGG(nn.Module):
     def forward(self, x):
         x = self.vgg(x)
         x = self.classifier(x)
-        if self.dataset != "celeb":
+        if self.dataset != "celeba":
             return x
         else:
             return torch.sigmoid(x)
@@ -145,7 +145,7 @@ class ResNet18(nn.Module):
     def forward(self, x):
         x = self.resnet(x)
         x = self.classifier(x)
-        if self.dataset != "celeb":
+        if self.dataset != "celeba":
             return x
         else:
             return torch.sigmoid(x)
@@ -160,7 +160,7 @@ class ResNet50(nn.Module):
     def forward(self, x):
         x = self.resnet(x)
         x = self.classifier(x)
-        if self.dataset != "celeb":
+        if self.dataset != "celeba":
             return x
         else:
             return torch.sigmoid(x)

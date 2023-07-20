@@ -3,9 +3,12 @@
 # Python version: 3.6
 
 
+from collections import defaultdict
 import numpy as np
+import torch
+from typing import Union, List, Dict
 
-def get_iid(dataset, num_users):
+def get_iid_partition(dataset, num_users):
     """
     Sample I.I.D. client data from dataset
     :param dataset:
@@ -20,57 +23,62 @@ def get_iid(dataset, num_users):
         all_idxs = list(set(all_idxs) - dict_users[i])
     return dict_users
 
-def distribution_noniid(dataset_labels, num_users, num_classes=10, beta=0.5):
+def paramaterise_noniid_distribution(
+        num_users:int, 
+        num_classes:int, 
+        dataset_labels:Union[torch.Tensor,List], 
+        beta:float, 
+        min_proportion:float=0
+    ):
     """
-    Sample non-I.I.D client data from provided dataset labels
-    :param dataset_labels: data labels with equal sized classes
+    Sample from dirichlet distribution to give non-iid distribution for users.
+
     :param num_users: number of users
-    :param num_classes: number of all available classes
-    :param beta: takes value between 0 and 1. Lower beta causes higher imbalance.
-    :return dict_users: dictionary with each clients 
-    index as key and image indexes list as value
+    :param num_classes: number of classes
+    :param dataset_labels: list or tensor of shape (num_samples,)
+    :param beta: determines amount of non-iid
+    :param min_proportion: minimum proportion of the dataset per user
+
+    :return: array of shape (num_classes, num_users), where each row is a distribution
+        over the users for a specific class
     """
+    if isinstance(dataset_labels, list):
+            dataset_labels = torch.tensor(dataset_labels)
+    class_weights = np.zeros((num_classes,))
+    for class_number in range(num_classes):
+        class_weights[class_number] = (dataset_labels == class_number).sum()/len(dataset_labels)
     
-    # MNIST: dataset.train_labels or CIFAR: dataset.targets
-    labels = np.array(dataset_labels)                 
-    data_size = labels.shape[0]  # len(dataset)
-    idxs = np.arange(data_size)
+    if min_proportion >= 1/num_users:
+        return ValueError(f'min_proportion per user must be less than {1/num_users} for a dataset with {num_users} in it')
+    class_sample_distribution = np.zeros((num_classes, num_users))
+    dataset_proportion_per_user = np.zeros(num_users)
+    while dataset_proportion_per_user.min() <= min_proportion:
+        class_sample_distribution = np.random.dirichlet(np.repeat(beta, num_users), num_classes)
+        dataset_proportion_per_user = (class_weights@class_sample_distribution)/(class_weights.sum())
 
-    if num_users*num_classes > data_size:
-        raise ValueError("Not enough data. Provided data size must be at least num_users*num_classes: {}".format(num_users*num_classes))
+    return class_sample_distribution
 
-    idxs_labels = np.vstack((idxs, labels))
-    idxs_labels = idxs_labels[:, idxs_labels[1, :].argsort()]
+def get_noniid_partition(dataset_labels:torch.Tensor, distribution:Union[torch.Tensor,List]
+                         ) -> Dict[int, List[int]]:
+    """
+    Get samples assigned to each user
 
-    required_min_items_per_user = 10    
-    min_item_user = 0    
-                                         
-    class_per_user = idxs_labels[0, :].reshape(num_classes, int(data_size/num_classes)) 
-    filter = np.ones((num_classes, num_users))
-    selected_users = [[] for i in range(num_users)] 
+    :param dataset_labels: list or tensor of shape (num_samples,)
+    :param distribution: array of shape (num_classes, num_users), where each row is a distribution
+        over the users for a specific class
+    
+    :return: dictionary where each key is a user index, and each item is a list of sample idxs
+        for that user
+    """
+    if isinstance(dataset_labels, list):
+            dataset_labels = torch.tensor(dataset_labels)
+    num_classes, num_users = distribution.shape
+    sample_idxs = [torch.where(dataset_labels == i)[0] for i in range(num_classes)]
+    users_data = defaultdict(list)
+    for i in range(num_classes):
+        num_class_samples = len(sample_idxs[i])
+        sample_user_idx = np.random.choice(num_users, num_class_samples, p=distribution[i])
+        for user_idx, sample_idx in zip(sample_user_idx, sample_idxs[i]):
+            users_data[user_idx].append(sample_idx.item())
 
-    def maxitem_per_user(users, filters, portions):
-      for i, k in enumerate(users):                     
-        if len(k) > data_size / num_users :
-          filters[:, i] = filters[:, i]*0
-      return filters * portions, filters                
-
-    while min_item_user < required_min_items_per_user:   
-
-        np.random.shuffle(np.transpose(class_per_user))
-
-        class_portions_peruser = np.repeat(np.random.dirichlet(np.repeat(beta, num_users)), num_classes).reshape(num_classes, num_users) 
-        class_portions_peruser, filter = maxitem_per_user(selected_users, filter, class_portions_peruser)
-        ##if filter.all() == np.zeros((num_classes, num_users)).all(): break
-        class_portions_peruser = np.divide(class_portions_peruser, np.sum(class_portions_peruser, axis=1).reshape(-1,1))
-        class_portions_peruser = (np.cumsum(class_portions_peruser, axis=1) * class_per_user.shape[1]).astype(int)[:, :-1]  
-
-        for i in range(num_classes):
-            selected_users = [user_i + user_ix.tolist() for user_i, user_ix in zip(selected_users, np.split(class_per_user[i], class_portions_peruser[i]))]
-  
-        min_item_user = min([len(user_i) for user_i in selected_users]) 
-
-    dict_users = {k: np.random.permutation(v).tolist() for k, v in enumerate(selected_users)} 
-
-    return dict_users
-
+    return users_data

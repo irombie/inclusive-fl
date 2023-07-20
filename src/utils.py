@@ -4,17 +4,17 @@
 from argparse import Namespace
 import os
 import random
-from typing import Tuple, Union, Dict, Any
+from typing import Tuple, Union, Dict, List
 
 import numpy as np
 import torch
 from torchvision import datasets, transforms
 
-from sampling import get_iid, distribution_noniid
+from sampling import get_iid_partition, get_noniid_partition, paramaterise_noniid_distribution
 
 
 def get_dataset(args: Union[Namespace, Dict]
-                ) -> Tuple[datasets.VisionDataset, datasets.VisionDataset, Dict[int, Any] , Dict[int, Any]]:
+                ) -> Tuple[datasets.VisionDataset, datasets.VisionDataset, Dict[int, List[int]] , Dict[int, List[int]]]:
     """ Returns train and test datasets and a user group which is a dict where
     the keys are the user index and the values are the corresponding data for
     each of those users.
@@ -54,14 +54,14 @@ def get_dataset(args: Union[Namespace, Dict]
 
     # sample training data amongst users
     if args['iid']:
-        train_user_groups = get_iid(train_dataset, args['num_users'])
-        test_user_groups = get_iid(test_dataset, args['num_users'])
+        train_user_groups = get_iid_partition(train_dataset, args['num_users'])
+        test_user_groups = get_iid_partition(test_dataset, args['num_users'])
         
     elif args['dist_noniid']:
         # users receive unequal data within classes
-        train_user_groups = distribution_noniid(train_dataset.targets, args['num_users'], beta=float(args['dist_noniid']))
-        test_user_groups = distribution_noniid(test_dataset.targets, args['num_users'], beta=float(args['dist_noniid']))
-            
+        distribution = paramaterise_noniid_distribution(args['num_users'], args['num_classes'], train_dataset.targets, float(args['dist_noniid']), args['min_proportion'])
+        train_user_groups = get_noniid_partition(train_dataset.targets,distribution)
+        test_user_groups = get_noniid_partition(test_dataset.targets, distribution)
 
     return train_dataset, test_dataset, train_user_groups, test_user_groups
 

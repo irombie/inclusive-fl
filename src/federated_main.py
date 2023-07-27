@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 import wandb
 from global_updates import get_global_update
-from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist
+from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist, VGG, ResNet18, ResNet50
 from options import args_parser
 from update import get_local_update, test_inference
 from utils import exp_details, get_dataset, set_seed
@@ -57,6 +57,7 @@ if __name__ == '__main__':
         elif args.dataset == 'cifar':
             global_model = CNNCifar(args=args)
 
+
     elif args.model == 'mlp':
         # Multi-layer preceptron
         img_size = train_dataset[0][0].shape
@@ -65,6 +66,31 @@ if __name__ == '__main__':
             len_in *= x
             global_model = MLP(dim_in=len_in, dim_hidden=64,
                                dim_out=args.num_classes)
+    
+    elif args.model == 'vgg19':
+        if args.dataset == 'cifar' or args.dataset == 'fmnist' or args.dataset == 'mnist':
+            global_model = VGG(num_classes=10, args = args)
+        elif args.dataset == 'utkface':
+            global_model = VGG(num_classes=4, args = args)
+        elif args.dataset == 'celeba':
+            global_model = VGG(num_classes=40, args = args)
+    
+    elif args.model == 'resnet18':
+        if args.dataset == 'cifar' or args.dataset == 'fmnist' or args.dataset == 'mnist':
+            global_model = ResNet18(num_classes=10, args = args)
+        elif args.dataset == 'utkface':
+            global_model = ResNet18(num_classes=4, args = args)
+        elif args.dataset == 'celeba':
+            global_model = ResNet18(num_classes=40, args = args)
+
+    elif args.model == 'resnet50':
+        if args.dataset == 'cifar' or args.dataset == 'fmnist' or args.dataset == 'mnist':
+            global_model = ResNet50(num_classes=10, args = args)
+        elif args.dataset == 'utkface':
+            global_model = ResNet50(num_classes=4, args = args)
+        elif args.dataset == 'celeba':
+            global_model = ResNet50(num_classes=40, args = args)
+
     else:
         exit('Error: unrecognized model')
 

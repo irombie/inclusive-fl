@@ -36,20 +36,18 @@ def get_dataset(args: Union[Namespace, Dict]
         test_dataset = datasets.CIFAR10(data_dir, train=False, download=True,
                                       transform=apply_transform)
 
-    elif args['dataset'] == 'mnist' or 'fmnist':
-        if args['dataset'] == 'mnist':
-            data_dir = '../data/mnist/'
-        else:
-            data_dir = '../data/fmnist/'
+    elif args['dataset'] == 'fashionmnist':
+        
+        data_dir = '../data/fashionmnist/'
 
         apply_transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.1307,), (0.3081,))])
 
-        train_dataset = datasets.MNIST(data_dir, train=True, download=True,
+        train_dataset = datasets.FashionMNIST(data_dir, train=True, download=True,
                                        transform=apply_transform)
 
-        test_dataset = datasets.MNIST(data_dir, train=False, download=True,
+        test_dataset = datasets.FashionMNIST(data_dir, train=False, download=True,
                                       transform=apply_transform)
 
     # sample training data amongst users

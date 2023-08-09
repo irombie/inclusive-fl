@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 import wandb
 from global_updates import get_global_update
-from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist, VGG, ResNet18, ResNet50
+from models import MLP, CNNCifar, CNNFashion_Mnist, VGG, ResNet18, ResNet50
 from options import args_parser
 from update import get_local_update, test_inference
 from utils import exp_details, get_dataset, set_seed
@@ -50,9 +50,7 @@ if __name__ == '__main__':
     # BUILD MODEL
     if args.model == 'cnn':
         # Convolutional neural netork
-        if args.dataset == 'mnist':
-            global_model = CNNMnist(args=args)
-        elif args.dataset == 'fmnist':
+        if args.dataset == 'fashionmnist':
             global_model = CNNFashion_Mnist(args=args)
         elif args.dataset == 'cifar':
             global_model = CNNCifar(args=args)
@@ -68,7 +66,7 @@ if __name__ == '__main__':
                                dim_out=args.num_classes)
     
     elif args.model == 'vgg19':
-        if args.dataset == 'cifar' or args.dataset == 'fmnist' or args.dataset == 'mnist':
+        if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
             global_model = VGG(num_classes=10, args = args)
         elif args.dataset == 'utkface':
             global_model = VGG(num_classes=4, args = args)
@@ -76,7 +74,7 @@ if __name__ == '__main__':
             global_model = VGG(num_classes=40, args = args)
     
     elif args.model == 'resnet18':
-        if args.dataset == 'cifar' or args.dataset == 'fmnist' or args.dataset == 'mnist':
+        if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
             global_model = ResNet18(num_classes=10, args = args)
         elif args.dataset == 'utkface':
             global_model = ResNet18(num_classes=4, args = args)
@@ -84,7 +82,7 @@ if __name__ == '__main__':
             global_model = ResNet18(num_classes=40, args = args)
 
     elif args.model == 'resnet50':
-        if args.dataset == 'cifar' or args.dataset == 'fmnist' or args.dataset == 'mnist':
+        if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
             global_model = ResNet50(num_classes=10, args = args)
         elif args.dataset == 'utkface':
             global_model = ResNet50(num_classes=4, args = args)

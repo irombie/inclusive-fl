@@ -4,7 +4,7 @@
 local_epochs=("2" "5")
 client_sampling_ratios=("0.4" "1")
 alpha=("0.3")  # Set to 1 for iid 
-dataset="fmnist"
+dataset="fashionmnist"
 fl_method="FedAvg"
 reweight=("0")
 

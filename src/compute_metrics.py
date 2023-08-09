@@ -49,7 +49,7 @@ class MetricHarness:
         elif self.harness_params["dataset"] == "mnist":
             self.classes = ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
         
-        elif self.harness_params["dataset"] == "fmnist":
+        elif self.harness_params["dataset"] == "fashionmnist":
             ## classes in fashion mnist
             self.classes = ("T-shirt/top", "Trouser", "Pullover", "Dress", "Coat", "Sandal", "Shirt",
                             "Sneaker", "Bag", "Ankle boot")
@@ -373,7 +373,7 @@ if __name__ == "__main__":
         len_in = 3*32*32
     elif harness_params['dataset'] == 'mnist':
         len_in = 28*28
-    elif harness_params['dataset'] == 'fmnist':
+    elif harness_params['dataset'] == 'fashionmnist':
         len_in = 28*28
 
         
@@ -383,7 +383,7 @@ if __name__ == "__main__":
             model = CNNCifar(args=args)
         elif harness_params['dataset'] == 'mnist':
             model = CNNMnist(args=args)
-        elif harness_params['dataset'] == 'fmnist':
+        elif harness_params['dataset'] == 'fashionmnist':
             model = CNNFashion_Mnist(args=args)
 
     elif harness_params['model'] == 'mlp':

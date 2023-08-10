@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
-import copy
+from typing import Dict, OrderedDict, Type
+
+import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
-from dataclasses import dataclass
-from typing import Dict, List, Tuple, Type
+
 
 class DatasetSplit(Dataset):
     """An abstract Dataset class wrapped around Pytorch Dataset class.
@@ -114,6 +115,20 @@ class LocalUpdate:
             # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
 
         return model, sum(epoch_loss) / len(epoch_loss)
+    
+    def updateFromNumpyFlatArray(self, arr):
+        self.flat = arr
+        start = 0
+        new_glob = OrderedDict()
+        for k in self.w_glob.keys():
+            size = 1
+            for dim in self.w_glob[k].shape:
+                size *= dim
+            shaped = np.reshape(arr[start : start + size].copy(), self.w_glob[k].shape)
+            new_glob[k] = torch.from_numpy(shaped)
+            start = start + size
+        self.w_glob = new_glob
+        self.net_glob.load_state_dict(self.w_glob)
 
     def inference(self, model, is_test):
         """ Returns the inference accuracy and loss.

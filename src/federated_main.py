@@ -75,7 +75,6 @@ def main():
     # Set the model to train and send it to device.
     global_model.to(device)
     global_model.train()
-    print(global_model)
 
     # copy weights
     global_weights = global_model.state_dict()
@@ -84,10 +83,7 @@ def main():
 
     # Training
     train_loss, train_accuracy, test_accuracy = [], [], []
-    val_acc_list, net_list = [], []
-    cv_loss, cv_acc = [], []
     print_every = 2
-    val_loss_pre, counter = 0, 0
     
     ### ckpt params
     ckpt_dict = dict()

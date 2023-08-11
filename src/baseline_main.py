@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from utils import get_dataset
 from options import args_parser
 from update import test_inference
-from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar
+from models import MLP, CNNFashion_Mnist, CNNCifar
 
 
 if __name__ == '__main__':
@@ -32,9 +32,7 @@ if __name__ == '__main__':
     # BUILD MODEL
     if args.model == 'cnn':
         # Convolutional neural netork
-        if args.dataset == 'mnist':
-            global_model = CNNMnist(args=args)
-        elif args.dataset == 'fmnist':
+        if args.dataset == 'fashionmnist':
             global_model = CNNFashion_Mnist(args=args)
         elif args.dataset == 'cifar':
             global_model = CNNCifar(args=args)

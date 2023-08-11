@@ -1,6 +1,6 @@
 # Inclusive Federated Learning (PyTorch)
 
-Experiments are produced on MNIST, Fashion MNIST and CIFAR10 (both IID and non-IID). In case of non-IID, the data amongst the users can be split equally or unequally.
+Experiments are produced on Fashion MNIST and CIFAR10 (both IID and non-IID). In case of non-IID, the data amongst the users can be split equally or unequally.
 
 
 ## Setup
@@ -37,7 +37,7 @@ You can change the default values of other parameters to simulate different cond
 ## Options
 The default values for various paramters parsed to the experiment are given in ```options.py```. Details are given some of those parameters:
 
-* ```--dataset:```  Default: 'mnist'. Options: 'mnist', 'fmnist', 'cifar'
+* ```--dataset:```  Default: 'fashionmnist'. Options: 'fashionmnist', 'cifar'
 * ```--model:```    Default: 'mlp'. Options: 'mlp', 'cnn'
 * ```--gpu:```      Default: None (runs on CPU). Can also be set to the specific gpu id.
 * ```--epochs:```   Number of rounds of training.

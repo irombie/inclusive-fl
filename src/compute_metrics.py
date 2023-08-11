@@ -20,7 +20,7 @@ import wandb
 ### Model imports
 from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist
 from update import DatasetSplit
-from utils import get_dataset_for_metrics, set_seed
+from utils import get_dataset, set_seed
 
 
 class MetricHarness:
@@ -49,7 +49,7 @@ class MetricHarness:
         elif self.harness_params["dataset"] == "mnist":
             self.classes = ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
         
-        elif self.harness_params["dataset"] == "fmnist":
+        elif self.harness_params["dataset"] == "fashionmnist":
             ## classes in fashion mnist
             self.classes = ("T-shirt/top", "Trouser", "Pullover", "Dress", "Coat", "Sandal", "Shirt",
                             "Sneaker", "Bag", "Ankle boot")
@@ -367,13 +367,13 @@ if __name__ == "__main__":
     arg_dict = {'dataset' : harness_params['dataset'], 'model' : harness_params['model'], 'test_user_groups' : test_user_groups, 'num_users' : num_users, 'iid' : iid, 'num_classes' : num_classes, 'unequal' : unequal, 'dist_noniid' : dist_noniid}
 
     args.num_classes = 10
-    _, test_dataset, __, test_num_groups = get_dataset_for_metrics(arg_dict)
+    _, test_dataset, __, test_num_groups = get_dataset(arg_dict)
     
     if harness_params['dataset'] == 'cifar':
         len_in = 3*32*32
     elif harness_params['dataset'] == 'mnist':
         len_in = 28*28
-    elif harness_params['dataset'] == 'fmnist':
+    elif harness_params['dataset'] == 'fashionmnist':
         len_in = 28*28
 
         
@@ -383,7 +383,7 @@ if __name__ == "__main__":
             model = CNNCifar(args=args)
         elif harness_params['dataset'] == 'mnist':
             model = CNNMnist(args=args)
-        elif harness_params['dataset'] == 'fmnist':
+        elif harness_params['dataset'] == 'fashionmnist':
             model = CNNFashion_Mnist(args=args)
 
     elif harness_params['model'] == 'mlp':

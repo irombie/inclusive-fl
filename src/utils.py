@@ -5,10 +5,12 @@ from argparse import Namespace
 import os
 import random
 from typing import Tuple, Union, Dict, List
+import os, wget, zipfile
 
 import numpy as np
 import torch
 from torchvision import datasets, transforms
+from dataloader_utils import get_celeba, CelebaDataset, get_utkface, UTKFaceDataset
 
 from sampling import get_iid_partition, get_noniid_partition, paramaterise_noniid_distribution
 
@@ -28,7 +30,10 @@ def get_dataset(args: Union[Namespace, Dict]
         data_dir = '../data/cifar/'
         apply_transform = transforms.Compose(
             [transforms.ToTensor(),
-             transforms.Normalize((0.49139968, 0.48215827 ,0.44653124), (0.24703233, 0.24348505, 0.26158768))])
+             transforms.Normalize(
+                (0.49139968, 0.48215827 ,0.44653124), 
+                (0.24703233, 0.24348505, 0.26158768))]
+             )
 
         train_dataset = datasets.CIFAR10(data_dir, train=True, download=True,
                                        transform=apply_transform)
@@ -50,6 +55,48 @@ def get_dataset(args: Union[Namespace, Dict]
         test_dataset = datasets.FashionMNIST(data_dir, train=False, download=True,
                                       transform=apply_transform)
 
+    elif args['dataset'] == "utkface":
+        data_dir = 'data/UTKFace'
+
+        apply_transform = transforms.Compose([
+            transforms.Resize((128, 128)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.49,), (0.23,))
+        ])
+
+        # train_dataset, test_dataset, valid_dataset = get_utkface(data_dir, apply_transform)
+        train_dataset, test_dataset, valid_dataset = get_utkface(
+            data_dir=data_dir, 
+            zfile='data/utkface.tar.gz', 
+            extract_dir='data', 
+            apply_transform=apply_transform
+        )
+
+    elif args['dataset'] == "celeba":
+
+        data_dir = 'data/celeba'
+
+        mean = [0.485, 0.456, 0.406]  # mean of the ImageNet dataset for normalizing
+        std = [0.229, 0.224, 0.225]  # std of the ImageNet dataset for normalizing
+
+        apply_transform = transforms.Compose(
+            [
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean, std),
+            ]
+        )
+
+        if "label_type" not in args:
+            raise ValueError("celebA label-type is missing. Please use 'gender' or 'smiling'.")
+
+        if args["label_type"] not in ["gender", "smiling"]:
+            raise ValueError("celebA label-type is wrong. Please use 'gender' or 'smiling'.")
+
+        label_type = args["label_type"]
+        train_dataset, test_dataset, valid_dataset = get_celeba(data_dir, label_type, apply_transform)
+
+
     # sample training data amongst users
     if args['iid']:
         train_user_groups = get_iid_partition(train_dataset, args['num_users'])
@@ -65,6 +112,7 @@ def get_dataset(args: Union[Namespace, Dict]
 
 def exp_details(args):
     print('\nExperimental details:')
+    print(f'    Dataset.  : {args.dataset}')
     print(f'    Model     : {args.model}')
     print(f'    Optimizer : {args.optimizer}')
     print(f'    Learning  : {args.lr}')

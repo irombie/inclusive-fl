@@ -74,5 +74,8 @@ def args_parser():
 
     # arguments for FedProx
     parser.add_argument('--mu', type=float, default=None, help="mu value for FedProx")
+
+    # arguments for dataset
+    parser.add_argument('--label_type', type=str, default=None, help="label type for dataset")
     args = parser.parse_args()
     return args

@@ -69,25 +69,25 @@ if __name__ == '__main__':
         if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
             global_model = VGG(num_classes=10, args = args)
         elif args.dataset == 'utkface':
-            global_model = VGG(num_classes=4, args = args)
+            global_model = VGG(num_classes=7, args = args)
         elif args.dataset == 'celeba':
-            global_model = VGG(num_classes=40, args = args)
+            global_model = VGG(num_classes=1, args = args)
     
     elif args.model == 'resnet18':
         if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
             global_model = ResNet18(num_classes=10, args = args)
         elif args.dataset == 'utkface':
-            global_model = ResNet18(num_classes=4, args = args)
+            global_model = ResNet18(num_classes=7, args = args)
         elif args.dataset == 'celeba':
-            global_model = ResNet18(num_classes=40, args = args)
+            global_model = ResNet18(num_classes=1, args = args)
 
     elif args.model == 'resnet50':
         if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
             global_model = ResNet50(num_classes=10, args = args)
         elif args.dataset == 'utkface':
-            global_model = ResNet50(num_classes=4, args = args)
+            global_model = ResNet50(num_classes=7, args = args)
         elif args.dataset == 'celeba':
-            global_model = ResNet50(num_classes=40, args = args)
+            global_model = ResNet50(num_classes=1, args = args)
 
     else:
         exit('Error: unrecognized model')
@@ -138,8 +138,7 @@ if __name__ == '__main__':
                                       train_idxs = train_user_groups[c], test_idxs = test_user_groups[c],
                                       logger=run, global_model=global_model)
 
-            acc, loss = local_update.inference(model=local_models[c], is_test=True)
-            
+            acc, loss = local_update.inference(model=local_models[c], is_test=True)            
             test_accs.append(acc)
             list_loss.append(loss)
             # Uncomment to log to wandb if needed

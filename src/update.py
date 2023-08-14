@@ -2,9 +2,8 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
-from typing import Dict, OrderedDict, Type
+from typing import Dict, Type
 
-import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
@@ -115,7 +114,7 @@ class LocalUpdate:
             # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
 
         return model, sum(epoch_loss) / len(epoch_loss)
-    
+
     def inference(self, model, is_test):
         """ Returns the inference accuracy and loss.
         """

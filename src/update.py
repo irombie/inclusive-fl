@@ -116,20 +116,6 @@ class LocalUpdate:
 
         return model, sum(epoch_loss) / len(epoch_loss)
     
-    def updateFromNumpyFlatArray(self, arr):
-        self.flat = arr
-        start = 0
-        new_glob = OrderedDict()
-        for k in self.w_glob.keys():
-            size = 1
-            for dim in self.w_glob[k].shape:
-                size *= dim
-            shaped = np.reshape(arr[start : start + size].copy(), self.w_glob[k].shape)
-            new_glob[k] = torch.from_numpy(shaped)
-            start = start + size
-        self.w_glob = new_glob
-        self.net_glob.load_state_dict(self.w_glob)
-
     def inference(self, model, is_test):
         """ Returns the inference accuracy and loss.
         """

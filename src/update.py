@@ -2,16 +2,18 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
-import copy
+from typing import Dict, Type
+
+import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
-from dataclasses import dataclass
-from typing import Dict, List, Tuple, Type
+
+import utils
+
 
 class DatasetSplit(Dataset):
-    """An abstract Dataset class wrapped around Pytorch Dataset class.
-    """
+    """An abstract Dataset class wrapped around Pytorch Dataset class."""
 
     def __init__(self, dataset, idxs):
         self.dataset = dataset
@@ -35,15 +37,31 @@ class LocalUpdate:
     this class. If a FedLearn algo requires a different set of steps, it can
     override the methods in this class.
     """
-    def __init__(self, args, train_dataset, test_dataset, train_idxs, test_idxs, logger, global_model):
+
+    def __init__(
+        self,
+        args,
+        train_dataset,
+        test_dataset,
+        train_idxs,
+        test_idxs,
+        logger,
+        global_model,
+    ):
         self.args = args
         self.logger = logger
         self.train_idxs = train_idxs
         self.test_idxs = test_idxs
-        self.trainloader = DataLoader(DatasetSplit(train_dataset, train_idxs),
-                                 batch_size=self.args.local_bs, shuffle=True)
-        self.testloader =  DataLoader(DatasetSplit(test_dataset, test_idxs),
-                                batch_size=self.args.local_bs, shuffle=False)
+        self.trainloader = DataLoader(
+            DatasetSplit(train_dataset, train_idxs),
+            batch_size=self.args.local_bs,
+            shuffle=True,
+        )
+        self.testloader = DataLoader(
+            DatasetSplit(test_dataset, test_idxs),
+            batch_size=self.args.local_bs,
+            shuffle=False,
+        )
         if args.gpu and args.device == "cuda":
             self.device = "cuda"
         elif args.gpu and args.device == "mps":
@@ -59,14 +77,16 @@ class LocalUpdate:
         """
         Configures the optimizer for the local updates.
         """
-        if self.args.optimizer == 'sgd':
-            optimizer = torch.optim.SGD(model.parameters(), lr=self.args.lr,
-                                        momentum=0.5)
-        elif self.args.optimizer == 'adam':
-            optimizer = torch.optim.Adam(model.parameters(), lr=self.args.lr,
-                                         weight_decay=1e-4)
+        if self.args.optimizer == "sgd":
+            optimizer = torch.optim.SGD(
+                model.parameters(), lr=self.args.lr, momentum=0.5
+            )
+        elif self.args.optimizer == "adam":
+            optimizer = torch.optim.Adam(
+                model.parameters(), lr=self.args.lr, weight_decay=1e-4
+            )
         return optimizer
-    
+
     def calculate_loss(self, model, images, labels):
         """
         Calculates the loss for the local updates.
@@ -80,7 +100,7 @@ class LocalUpdate:
         loss = self.criterion(log_probs, labels)
         return loss
 
-    def update_weights(self, model, global_round, client_id=None):
+    def update_weights(self, model, global_round, client_id=None, sparse_ratio=0.2):
         """
         Performs the local updates and returns the updated model.
             :param model: local model
@@ -92,6 +112,7 @@ class LocalUpdate:
 
         # Set optimizer for the local updates
         optimizer = self.configure_optimizer(model)
+        glob_flat = utils.flatten(model)
 
         for iter in range(self.args.local_ep):
             batch_loss = []
@@ -104,20 +125,32 @@ class LocalUpdate:
                 optimizer.step()
 
                 if self.args.verbose and (batch_idx % 10 == 0):
-                    print('| Global Round : {} | Local Epoch : {} | [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                        global_round, iter, batch_idx * len(images),
-                        len(self.trainloader.dataset),
-                        100. * batch_idx / len(self.trainloader), loss.item()))
+                    print(
+                        "| Global Round : {} | Local Epoch : {} | [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
+                            global_round,
+                            iter,
+                            batch_idx * len(images),
+                            len(self.trainloader.dataset),
+                            100.0 * batch_idx / len(self.trainloader),
+                            loss.item(),
+                        )
+                    )
                 batch_loss.append(loss.item())
-            avg_loss_per_local_training = sum(batch_loss)/len(batch_loss)
+            avg_loss_per_local_training = sum(batch_loss) / len(batch_loss)
             epoch_loss.append(avg_loss_per_local_training)
             # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
 
-        return model, sum(epoch_loss) / len(epoch_loss)
+        flat = utils.flatten(model)
+
+        bitmask = np.random.choice(
+            [0, 1], size=(len(flat),), p=[sparse_ratio, 1 - sparse_ratio]
+        )
+        diff_flat = glob_flat - flat
+        diff_flat *= bitmask
+        return model, diff_flat, bitmask, sum(epoch_loss) / len(epoch_loss)
 
     def inference(self, model, is_test):
-        """ Returns the inference accuracy and loss.
-        """
+        """Returns the inference accuracy and loss."""
         if is_test:
             loader = self.testloader
         else:
@@ -139,28 +172,32 @@ class LocalUpdate:
             correct += torch.sum(torch.eq(pred_labels, labels)).item()
             total += len(labels)
 
-        accuracy = correct/total
+        accuracy = correct / total
         return accuracy, loss / len(loader)
+
 
 class FedProxLocalUpdate(LocalUpdate):
     """
     FedProx Local Update. This is a subclass of LocalUpdate. It overrides the
-    calculate_loss method to include the proximal term. 
+    calculate_loss method to include the proximal term.
     """
+
     def calculate_loss(self, model, images, labels):
         """
-        The proximal term is added to the loss function. The proximal term is 
-        calculated as: 
+        The proximal term is added to the loss function. The proximal term is
+        calculated as:
             proximal_term = Σ(||w - w_t||^2)
         """
         if self.args.mu is None:
-            raise ValueError("mu argument must be passed as arugument for fl_method=FedProx")
+            raise ValueError(
+                "mu argument must be passed as arugument for fl_method=FedProx"
+            )
         fedprox_term = 0.0
         proximal_term = 0.0
 
         for w, w_t in zip(model.parameters(), self.global_model.parameters()):
             proximal_term += (w - w_t).norm(2)
-        
+
         fedprox_term = (self.args.mu / 2) * proximal_term
         return super().calculate_loss(model, images, labels) + fedprox_term
 
@@ -169,12 +206,12 @@ NAME_TO_LOCAL_UPDATE: Dict[str, Type[LocalUpdate]] = {
     "FedAvg": LocalUpdate,
     "FedProx": FedProxLocalUpdate,
     "FedBN": LocalUpdate,
-    "TestLossWeighted": LocalUpdate
+    "TestLossWeighted": LocalUpdate,
 }
 
+
 def test_inference(args, model, test_dataset):
-    """ Returns the test accuracy and loss.
-    """
+    """Returns the test accuracy and loss."""
 
     model.eval()
     loss, total, correct = 0.0, 0.0, 0.0
@@ -186,8 +223,7 @@ def test_inference(args, model, test_dataset):
     else:
         device = "cpu"
     criterion = nn.NLLLoss().to(device)
-    testloader = DataLoader(test_dataset, batch_size=128,
-                            shuffle=False)
+    testloader = DataLoader(test_dataset, batch_size=128, shuffle=False)
 
     for batch_idx, (images, labels) in enumerate(testloader):
         images, labels = images.to(device), labels.to(device)
@@ -203,31 +239,46 @@ def test_inference(args, model, test_dataset):
         correct += torch.sum(torch.eq(pred_labels, labels)).item()
         total += len(labels)
 
-    accuracy = correct/total
+    accuracy = correct / total
     return accuracy, loss / len(testloader)
 
+
 def get_local_update(
-    args, train_dataset, test_dataset, train_idxs, test_idxs, logger, global_model,
+    args,
+    train_dataset,
+    test_dataset,
+    train_idxs,
+    test_idxs,
+    logger,
+    global_model,
 ) -> LocalUpdate:
     """
-        Get local update from federated learning method name and return the
-        local update object.
+    Get local update from federated learning method name and return the
+    local update object.
 
-        :param args: Arguments object containing configurations passed 
-                        as arguments to the program call
+    :param args: Arguments object containing configurations passed
+                    as arguments to the program call
 
-        :param train_dataset: Dataset object containing the training data
-        :param test_dataset: Dataset object containing the test data
+    :param train_dataset: Dataset object containing the training data
+    :param test_dataset: Dataset object containing the test data
 
-        :param idxs: List of indices of the training data assigned to the
-                        local update
-        
-        :param logger: Logger object to log the local update
+    :param idxs: List of indices of the training data assigned to the
+                    local update
 
-        :return: Local update object
+    :param logger: Logger object to log the local update
+
+    :return: Local update object
     """
     if args.fl_method in NAME_TO_LOCAL_UPDATE:
-        return NAME_TO_LOCAL_UPDATE[args.fl_method](args=args, train_dataset=train_dataset, test_dataset=test_dataset, train_idxs=train_idxs, test_idxs=test_idxs, logger=logger, global_model=global_model)
+        return NAME_TO_LOCAL_UPDATE[args.fl_method](
+            args=args,
+            train_dataset=train_dataset,
+            test_dataset=test_dataset,
+            train_idxs=train_idxs,
+            test_idxs=test_idxs,
+            logger=logger,
+            global_model=global_model,
+        )
     else:
         raise ValueError(
             f"Unsupported federated learning method name {args.fl_method} for local update."

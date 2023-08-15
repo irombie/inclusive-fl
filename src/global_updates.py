@@ -1,11 +1,13 @@
-from typing import Dict, List, Tuple, Type
-import torch
 import copy
 from abc import ABC, abstractmethod
-import numpy as np
+from dataclasses import dataclass
+from typing import Dict, List, Tuple, Type
 
 import numpy as np
-from dataclasses import dataclass
+import torch
+
+import utils
+
 
 class AbstractGlobalUpdate(ABC):
     """
@@ -78,7 +80,9 @@ class MeanWeights(AbstractGlobalUpdate):
     def aggregate_weights(
         self,
         local_model_weights: List[Dict[str, torch.Tensor]],
-        test_losses: List[float],
+        local_bitmasks,
+        global_model,
+        test_losses: List[float], # was needed for reweighting; now reweighting will done during sparsification
     ) -> Dict[str, torch.Tensor]:
         """
         Returns the mean of the weights.
@@ -92,20 +96,13 @@ class MeanWeights(AbstractGlobalUpdate):
         :return: global model state dictionary,
             which is the average of all local models provided
         """
-        weights_scalar = np.divide(test_losses, np.sum(test_losses))
-        w_avg = copy.deepcopy(local_model_weights[0])
-        for key in w_avg.keys():
-            for i in range(1, len(local_model_weights)):
-                w_avg[key] += local_model_weights[i][key] 
-
-            if self.args.reweight_loss_avg==1:
-                if w_avg[key].dtype == torch.float32:
-                    w_avg[key] *= weights_scalar[i].astype(np.float64)
-                else:
-                    w_avg[key] *= weights_scalar[i].astype(np.int64)
-            else:
-                w_avg[key] = torch.div(w_avg[key], len(local_model_weights))
-        return w_avg
+        weighted_local_models = []
+        for model, bitmask in zip(local_model_weights, local_bitmasks):
+            weighted_local_models = np.multiply(model, bitmask)  
+        sum_bitmask = np.sum(local_bitmasks, axis=0)
+        weigted_local_model_sum = np.divide(weighted_local_models, sum_bitmask, out=np.zeros_like(weighted_local_models), where=sum_bitmask!=0)
+        flat_glob = utils.flatten(global_model)
+        return flat_glob + weigted_local_model_sum
 
 
 class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):

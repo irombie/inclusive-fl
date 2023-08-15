@@ -15,10 +15,10 @@ from tqdm import tqdm
 
 import wandb
 from global_updates import get_global_update
-from models import MLP, CNNCifar, CNNFashion_Mnist, VGG, ResNet18, ResNet50
+from models import MLP, VGG, CNNCifar, CNNFashion_Mnist, ResNet18, ResNet50
 from options import args_parser
 from update import get_local_update, test_inference
-from utils import exp_details, get_dataset, set_seed
+from utils import exp_details, get_dataset, set_seed, updateFromNumpyFlatArray
 
 if __name__ == '__main__':
 
@@ -95,7 +95,6 @@ if __name__ == '__main__':
     # Set the model to train and send it to device.
     global_model.to(device)
     global_model.train()
-    print(global_model)
 
     # copy weights
     global_weights = global_model.state_dict()
@@ -120,7 +119,7 @@ if __name__ == '__main__':
 
     local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
     for epoch in tqdm(range(args.epochs)):
-        local_weights, local_losses = [], []
+        local_weights, local_losses, local_bitmasks = [], [], []
         print(f'\n | Global Training Round : {epoch+1} |\n')
 
         m = max(int(args.frac * args.num_users), 1)
@@ -160,11 +159,12 @@ if __name__ == '__main__':
             local_update = get_local_update(args=args, train_dataset=train_dataset, test_dataset=test_dataset,
                                       train_idxs=train_user_groups[idx], test_idxs = test_user_groups[idx], logger=run,
                                       global_model=global_model)
-            w, loss = local_update.update_weights(
+            w, flat_update, bitmask, loss = local_update.update_weights(
                 model=local_models[idx], global_round=epoch)
             acc, loss = local_update.inference(model=w, is_test=False)
             list_acc.append(acc)
-            local_weights.append(copy.deepcopy(w.state_dict()))
+            local_weights.append(copy.deepcopy(flat_update))
+            local_bitmasks.append(bitmask)
             local_losses.append(copy.deepcopy(loss))
             # Uncomment to log to wandb if needed
             #run.log({f"local model training loss per iteration for user {idx}": loss})
@@ -176,10 +176,12 @@ if __name__ == '__main__':
         train_accuracy.append(acc_avg)
 
         # update global weights
-        global_weights = global_update.aggregate_weights(local_weights, list_loss)
+        global_w = global_update.aggregate_weights(local_weights, local_bitmasks, global_model, list_loss)
+        global_weights = global_model.state_dict()
         # update models
-        global_update.update_global_model(global_model, global_weights)
-        global_update.update_local_models(local_models, global_weights)
+        updateFromNumpyFlatArray(global_w, global_weights, global_model)
+        for loc_model in local_models:
+            updateFromNumpyFlatArray(global_w, global_weights, loc_model)
         if epoch % int(args.save_every) == 0:
             ckpt_dict['state_dict'] = global_model.state_dict()
             if not os.path.exists(args.ckpt_path):

@@ -100,7 +100,7 @@ class LocalUpdate:
         loss = self.criterion(log_probs, labels)
         return loss
 
-    def update_weights(self, model, global_round, client_id=None, sparse_ratio=0.2):
+    def update_weights(self, model, global_round, client_id=None, sparse_ratio=0):
         """
         Performs the local updates and returns the updated model.
             :param model: local model
@@ -147,6 +147,8 @@ class LocalUpdate:
         )
         diff_flat = glob_flat - flat
         diff_flat *= bitmask
+        num=5
+        # print(f"glob_flat={glob_flat[:num]}\nbitmask[10]")
         return model, diff_flat, bitmask, sum(epoch_loss) / len(epoch_loss)
 
     def inference(self, model, is_test):

@@ -145,7 +145,7 @@ class LocalUpdate:
         bitmask = np.random.choice(
             [0, 1], size=(len(flat),), p=[sparse_ratio, 1 - sparse_ratio]
         )
-        diff_flat = glob_flat - flat
+        diff_flat =  flat - glob_flat
         diff_flat *= bitmask
         return model, diff_flat, bitmask, sum(epoch_loss) / len(epoch_loss)
 

@@ -98,7 +98,7 @@ class MeanWeights(AbstractGlobalUpdate):
         """
         sum_bitmask = np.sum(local_bitmasks, axis=0)
         sum_update = np.sum(local_model_weights, axis=0)
-        weigted_local_model_sum = np.divide(sum_update, sum_bitmask, out=np.copy(sum_update), where=sum_bitmask!=0)
+        weigted_local_model_sum = np.divide(sum_update, sum_bitmask, out=0, where=sum_bitmask!=0)
         flat_glob = utils.flatten(global_model)
         return flat_glob + weigted_local_model_sum
 

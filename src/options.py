@@ -71,6 +71,7 @@ def args_parser():
     parser.add_argument('--ckpt_path', type=str, default='./checkpoints/', help='path to save checkpoints')
     # Experimentation Flags
     parser.add_argument("--reweight_loss_avg", type=int, default=0, help="To enable reweighted loss averaging or not, set to 1 to enable it")
+    parser.add_argument("--sparsification_ratio", type=float, default=1, help="the percentage of model parameters that will be sent")
 
     # arguments for FedProx
     parser.add_argument('--mu', type=float, default=None, help="mu value for FedProx")

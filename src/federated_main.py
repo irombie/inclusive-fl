@@ -160,7 +160,7 @@ if __name__ == '__main__':
                                       train_idxs=train_user_groups[idx], test_idxs = test_user_groups[idx], logger=run,
                                       global_model=global_model)
             w, flat_update, bitmask, loss = local_update.update_weights(
-                model=local_models[idx], global_round=epoch)
+                model=local_models[idx], global_round=epoch, sparse_ratio=args.sparsification_ratio)
             acc, loss = local_update.inference(model=w, is_test=False)
             list_acc.append(acc)
             local_weights.append(copy.deepcopy(flat_update))

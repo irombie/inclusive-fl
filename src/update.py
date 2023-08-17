@@ -100,7 +100,7 @@ class LocalUpdate:
         loss = self.criterion(log_probs, labels)
         return loss
 
-    def update_weights(self, model, global_round, client_id=None, sparse_ratio=0):
+    def update_weights(self, model, global_round, client_id=None, sparse_ratio=1):
         """
         Performs the local updates and returns the updated model.
             :param model: local model
@@ -143,7 +143,7 @@ class LocalUpdate:
         flat = utils.flatten(model)
 
         bitmask = np.random.choice(
-            [0, 1], size=(len(flat),), p=[sparse_ratio, 1 - sparse_ratio]
+            [0, 1], size=(len(flat),), p=[1 - sparse_ratio, sparse_ratio]
         )
         diff_flat =  flat - glob_flat
         diff_flat *= bitmask

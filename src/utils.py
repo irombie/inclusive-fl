@@ -129,9 +129,10 @@ def flatten(model):
     return flat
 
 
-def updateFromNumpyFlatArray(flat_arr, model_dict, model):
+def updateFromNumpyFlatArray(flat_arr, model):
     start = 0
     new_glob = OrderedDict()
+    model_dict = model.state_dict()
     for k in model_dict.keys():
         size = 1
         for dim in model_dict[k].shape:

@@ -177,11 +177,9 @@ if __name__ == '__main__':
 
         # update global weights
         global_w = global_update.aggregate_weights(local_weights, local_bitmasks, global_model, list_loss)
-        global_weights = global_model.state_dict()
         # update models
-        updateFromNumpyFlatArray(global_w, global_weights, global_model)
-        for loc_model in local_models:
-            updateFromNumpyFlatArray(global_w, global_weights, loc_model)
+        updateFromNumpyFlatArray(global_w, global_model)
+        local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
         if epoch % int(args.save_every) == 0:
             ckpt_dict['state_dict'] = global_model.state_dict()
             if not os.path.exists(args.ckpt_path):

@@ -96,11 +96,9 @@ class MeanWeights(AbstractGlobalUpdate):
         :return: global model state dictionary,
             which is the average of all local models provided
         """
-        weighted_local_models = []
-        for model, bitmask in zip(local_model_weights, local_bitmasks):
-            weighted_local_models = np.multiply(model, bitmask)  
         sum_bitmask = np.sum(local_bitmasks, axis=0)
-        weigted_local_model_sum = np.divide(weighted_local_models, sum_bitmask, out=np.zeros_like(weighted_local_models), where=sum_bitmask!=0)
+        sum_update = np.sum(local_model_weights, axis=0)
+        weigted_local_model_sum = np.nan_to_num(np.divide(sum_update, sum_bitmask))
         flat_glob = utils.flatten(global_model)
         return flat_glob + weigted_local_model_sum
 

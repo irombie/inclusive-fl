@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader, Dataset
 
 import utils
 
+
 class DatasetSplit(Dataset):
     """An abstract Dataset class wrapped around Pytorch Dataset class."""
 
@@ -166,7 +167,7 @@ class LocalUpdate:
         accuracy = correct / total
         return accuracy, loss / len(loader)
 
-      
+
 class LocalUpdateSparsified(LocalUpdate):
     def __init__(
         self,
@@ -240,6 +241,7 @@ class LocalUpdateSparsified(LocalUpdate):
         diff_flat = flat - glob_flat
         diff_flat *= bitmask
         return model, diff_flat, bitmask, sum(epoch_loss) / len(epoch_loss)
+
 
 class FedProxLocalUpdate(LocalUpdate):
     """
@@ -321,16 +323,14 @@ def get_local_update(
     """
     Get local update from federated learning method name and return the
     local update object.
-    
+
     :param args: Arguments object containing configurations passed
                     as arguments to the program call
 
     :param train_dataset: Dataset object containing the training data
     :param test_dataset: Dataset object containing the test data
-
     :param idxs: List of indices of the training data assigned to the
                     local update
-
     :param logger: Logger object to log the local update
     :return: Local update object
     """

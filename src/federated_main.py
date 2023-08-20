@@ -209,9 +209,11 @@ if __name__ == "__main__":
             )
             # update models
             updateFromNumpyFlatArray(global_w, global_model)
+            local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
         else: 
             global_weights = global_update.aggregate_weights(local_weights, list_loss)
-        local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
+            global_update.update_global_model(global_model, global_weights)
+            global_update.update_local_models(local_models, global_weights)
         
         if epoch % int(args.save_every) == 0:
             ckpt_dict["state_dict"] = global_model.state_dict()

@@ -119,7 +119,6 @@ def set_seed(seed: int = 42, is_deterministic=False) -> None:
     os.environ["PYTHONHASHSEED"] = str(seed)
     print(f"Random seed set as {seed}")
 
-
 def flatten(model):
     weights = model.state_dict()
     # create flat array

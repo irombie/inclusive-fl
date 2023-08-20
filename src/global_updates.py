@@ -7,7 +7,6 @@ import torch
 
 import utils
 
-
 class AbstractGlobalUpdate(ABC):
     """
     Abstract class which provides common interface

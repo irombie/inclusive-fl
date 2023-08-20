@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
-import copy
+from typing import Dict, Type
+
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
-from dataclasses import dataclass
-from typing import Dict, List, Tuple, Type
+
 
 class DatasetSplit(Dataset):
     """An abstract Dataset class wrapped around Pytorch Dataset class.

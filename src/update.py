@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
-import copy
-from dataclasses import dataclass
-from typing import Dict, List, Tuple, Type
+from typing import Dict, Type
 
 import torch
 from torch import nn

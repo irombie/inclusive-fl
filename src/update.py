@@ -328,9 +328,12 @@ def get_local_update(
                     as arguments to the program call
 
     :param train_dataset: Dataset object containing the training data
+    
     :param test_dataset: Dataset object containing the test data
+    
     :param idxs: List of indices of the training data assigned to the
                     local update
+             
     :param logger: Logger object to log the local update
     :return: Local update object
     """

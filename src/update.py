@@ -100,6 +100,75 @@ class LocalUpdate:
         loss = self.criterion(log_probs, labels)
         return loss
 
+    def update_weights(self, model, global_round, client_id=None):
+        """
+        Performs the local updates and returns the updated model.
+            :param model: local model
+            :param global_round: the step number of current global round
+        """
+        # Set mode to train model
+        model.train()
+        epoch_loss = []
+
+        # Set optimizer for the local updates
+        optimizer = self.configure_optimizer(model)
+
+        for iter in range(self.args.local_ep):
+            batch_loss = []
+            for batch_idx, (images, labels) in enumerate(self.trainloader):
+                images, labels = images.to(self.device), labels.to(self.device)
+
+                model.zero_grad()
+                loss = self.calculate_loss(model, images, labels)
+                loss.backward()
+                optimizer.step()
+
+                if self.args.verbose and (batch_idx % 10 == 0):
+                    print(
+                        "| Global Round : {} | Local Epoch : {} | [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
+                            global_round,
+                            iter,
+                            batch_idx * len(images),
+                            len(self.trainloader.dataset),
+                            100.0 * batch_idx / len(self.trainloader),
+                            loss.item(),
+                        )
+                    )
+                batch_loss.append(loss.item())
+            avg_loss_per_local_training = sum(batch_loss) / len(batch_loss)
+            epoch_loss.append(avg_loss_per_local_training)
+            # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
+
+        return model, sum(epoch_loss) / len(epoch_loss)
+
+    def inference(self, model, is_test):
+        """Returns the inference accuracy and loss."""
+        if is_test:
+            loader = self.testloader
+        else:
+            loader = self.trainloader
+        model.eval()
+        loss, total, correct = 0.0, 0.0, 0.0
+
+        for batch_idx, (images, labels) in enumerate(loader):
+            images, labels = images.to(self.device), labels.to(self.device)
+
+            # Inference
+            outputs = model(images)
+            batch_loss = self.criterion(outputs, labels)
+            loss += batch_loss.item()
+
+            # Prediction
+            _, pred_labels = torch.max(outputs, 1)
+            pred_labels = pred_labels.view(-1)
+            correct += torch.sum(torch.eq(pred_labels, labels)).item()
+            total += len(labels)
+
+        accuracy = correct / total
+        return accuracy, loss / len(loader)
+
+
+class LocalUpdateSparsified(LocalUpdate):
     def update_weights(self, model, global_round, client_id=None, sparse_ratio=1):
         """
         Performs the local updates and returns the updated model.
@@ -145,35 +214,9 @@ class LocalUpdate:
         bitmask = np.random.choice(
             [0, 1], size=(len(flat),), p=[1 - sparse_ratio, sparse_ratio]
         )
-        diff_flat =  flat - glob_flat
+        diff_flat = flat - glob_flat
         diff_flat *= bitmask
         return model, diff_flat, bitmask, sum(epoch_loss) / len(epoch_loss)
-
-    def inference(self, model, is_test):
-        """Returns the inference accuracy and loss."""
-        if is_test:
-            loader = self.testloader
-        else:
-            loader = self.trainloader
-        model.eval()
-        loss, total, correct = 0.0, 0.0, 0.0
-
-        for batch_idx, (images, labels) in enumerate(loader):
-            images, labels = images.to(self.device), labels.to(self.device)
-
-            # Inference
-            outputs = model(images)
-            batch_loss = self.criterion(outputs, labels)
-            loss += batch_loss.item()
-
-            # Prediction
-            _, pred_labels = torch.max(outputs, 1)
-            pred_labels = pred_labels.view(-1)
-            correct += torch.sum(torch.eq(pred_labels, labels)).item()
-            total += len(labels)
-
-        accuracy = correct / total
-        return accuracy, loss / len(loader)
 
 
 class FedProxLocalUpdate(LocalUpdate):

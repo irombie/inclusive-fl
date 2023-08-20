@@ -169,7 +169,28 @@ class LocalUpdate:
 
 
 class LocalUpdateSparsified(LocalUpdate):
-    def update_weights(self, model, global_round, client_id=None, sparse_ratio=1):
+    def __init__(
+        self,
+        args,
+        train_dataset,
+        test_dataset,
+        train_idxs,
+        test_idxs,
+        logger,
+        global_model,
+    ):
+        super().__init__(
+            args,
+            train_dataset,
+            test_dataset,
+            train_idxs,
+            test_idxs,
+            logger,
+            global_model,
+        )
+        self.sparsification_ratio = args.sparsification_ratio
+
+    def update_weights(self, model, global_round, client_id=None):
         """
         Performs the local updates and returns the updated model.
             :param model: local model
@@ -210,10 +231,13 @@ class LocalUpdateSparsified(LocalUpdate):
             # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
 
         flat = utils.flatten(model)
-
-        bitmask = np.random.choice(
-            [0, 1], size=(len(flat),), p=[1 - sparse_ratio, sparse_ratio]
-        )
+        bitmask = utils.get_bitmask_per_method(
+            flat_model=flat,
+            sparse_ratio=self.sparsification_ratio,
+            sparsification_type="randk",
+        )  # because we will be using a single sparsification technique for now,
+        # i will not make this into a global arg but if we decide to compare with other sparsification techniques,
+        #  sparsification_type needs to be become a global arg
         diff_flat = flat - glob_flat
         diff_flat *= bitmask
         return model, diff_flat, bitmask, sum(epoch_loss) / len(epoch_loss)
@@ -250,6 +274,7 @@ NAME_TO_LOCAL_UPDATE: Dict[str, Type[LocalUpdate]] = {
     "FedProx": FedProxLocalUpdate,
     "FedBN": LocalUpdate,
     "TestLossWeighted": LocalUpdate,
+    "FedSyn": LocalUpdateSparsified,
 }
 
 

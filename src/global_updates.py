@@ -1,6 +1,5 @@
 import copy
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Dict, List, Tuple, Type
 
 import numpy as np
@@ -111,13 +110,17 @@ class MeanWeights(AbstractGlobalUpdate):
 
 
 class MeanWeightsSparsified(AbstractGlobalUpdate):
-    """Aggregate weights by taking the mean, used by FedAvg."""
+    """Aggregate weights by taking the mean, used by FedSyn."""
+
+    def __init__(self, args, model: torch.nn.Module, **kwargs):
+        super().__init__(args, model)
+        self.global_learning_rate = args.global_lr
 
     def aggregate_weights(
         self,
         local_model_weights: List[Dict[str, torch.Tensor]],
-        local_bitmasks,
         global_model,
+        local_bitmasks,
     ) -> Dict[str, torch.Tensor]:
         """
         Returns the mean of the weights.
@@ -140,7 +143,7 @@ class MeanWeightsSparsified(AbstractGlobalUpdate):
             where=sum_bitmask != 0,
         )
         flat_glob = utils.flatten(global_model)
-        return flat_glob + weigted_local_model_sum
+        return flat_glob + self.global_learning_rate * weigted_local_model_sum
 
 
 class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
@@ -271,6 +274,7 @@ NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {
     "FedBN": MeanWeightsNoBatchNorm,
     "FedProx": MeanWeights,
     "TestLossWeighted": AverageWeightsWithTestLoss,
+    "FedSyn": MeanWeightsSparsified,
 }
 
 

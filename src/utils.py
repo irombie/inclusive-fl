@@ -140,5 +140,16 @@ def updateFromNumpyFlatArray(flat_arr, model):
         shaped = np.reshape(flat_arr[start : start + size].copy(), model_dict[k].shape)
         new_glob[k] = torch.from_numpy(shaped)
         start = start + size
-    
+
     model.load_state_dict(new_glob)
+
+
+def get_bitmask_per_method(
+    flat_model: np.ndarray, sparse_ratio: float = 1, sparsification_type: str = "randk"
+):
+    if sparsification_type == "randk":
+        return np.random.choice(
+            [0, 1], size=(len(flat_model),), p=[1 - sparse_ratio, sparse_ratio]
+        )
+    else:
+        raise ValueError("Unrecognized sparsification method!")

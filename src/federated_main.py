@@ -21,7 +21,6 @@ from update import get_local_update, test_inference
 from utils import exp_details, get_dataset, set_seed
 
 
-
 def main():
     start_time = time.time()
 
@@ -34,13 +33,12 @@ def main():
     now = datetime.now()
     dt_string = now.strftime("%d_%m_%Y-%H_%M")
 
-    run_name = f'{args.fl_method}_{args.dataset}_clients_{args.num_users}_frac_{args.frac}_{args.seed}_{time.time()}'
+    run_name = f"{args.fl_method}_{args.dataset}_clients_{args.num_users}_frac_{args.frac}_{args.seed}_{time.time()}"
     args_dict = vars(args)
     tag_list = []
     for k in args_dict:
         tag_list.append(f"{k}:{args_dict[k]}")
     run = wandb.init(project=args.wandb_name, config=args, name=run_name, tags=tag_list)
-
 
     if args.gpu and args.device == "cuda":
         device = "cuda"
@@ -273,5 +271,5 @@ def main():
     #                    args.iid, args.local_ep, args.local_bs))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

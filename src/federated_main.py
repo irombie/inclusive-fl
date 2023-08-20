@@ -15,24 +15,23 @@ from tqdm import tqdm
 
 import wandb
 from global_updates import get_global_update
-from models import MLP, CNNCifar, CNNFashion_Mnist, VGG, ResNet18, ResNet50
+from models import MLP, VGG, CNNCifar, CNNFashion_Mnist, ResNet18, ResNet50
 from options import args_parser
 from update import get_local_update, test_inference
 from utils import exp_details, get_dataset, set_seed
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     start_time = time.time()
 
     # define paths
-    path_project = os.path.abspath('..')
-    
+    path_project = os.path.abspath("..")
+
     args = args_parser()
     exp_details(args)
 
-    now = datetime.now()    
+    now = datetime.now()
     dt_string = now.strftime("%d_%m_%Y-%H_%M")
-    run_name = f'{args.fl_method}_{args.dataset}_{args.model}_clients_{args.num_users}_frac_{args.frac}_{args.seed}'
+    run_name = f"{args.fl_method}_{args.dataset}_{args.model}_clients_{args.num_users}_frac_{args.frac}_{args.seed}"
     run = wandb.init(project=args.wandb_name, config=args, name=run_name)
 
     if args.gpu and args.device == "cuda":
@@ -48,49 +47,47 @@ if __name__ == '__main__':
     train_dataset, test_dataset, train_user_groups, test_user_groups = get_dataset(args)
 
     # BUILD MODEL
-    if args.model == 'cnn':
+    if args.model == "cnn":
         # Convolutional neural netork
-        if args.dataset == 'fashionmnist':
+        if args.dataset == "fashionmnist":
             global_model = CNNFashion_Mnist(args=args)
-        elif args.dataset == 'cifar':
+        elif args.dataset == "cifar":
             global_model = CNNCifar(args=args)
 
-
-    elif args.model == 'mlp':
+    elif args.model == "mlp":
         # Multi-layer preceptron
         img_size = train_dataset[0][0].shape
         len_in = 1
         for x in img_size:
             len_in *= x
-            global_model = MLP(dim_in=len_in, dim_hidden=64,
-                               dim_out=args.num_classes)
-    
-    elif args.model == 'vgg19':
-        if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
-            global_model = VGG(num_classes=10, args = args)
-        elif args.dataset == 'utkface':
-            global_model = VGG(num_classes=4, args = args)
-        elif args.dataset == 'celeba':
-            global_model = VGG(num_classes=40, args = args)
-    
-    elif args.model == 'resnet18':
-        if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
-            global_model = ResNet18(num_classes=10, args = args)
-        elif args.dataset == 'utkface':
-            global_model = ResNet18(num_classes=4, args = args)
-        elif args.dataset == 'celeba':
-            global_model = ResNet18(num_classes=40, args = args)
+            global_model = MLP(dim_in=len_in, dim_hidden=64, dim_out=args.num_classes)
 
-    elif args.model == 'resnet50':
-        if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
-            global_model = ResNet50(num_classes=10, args = args)
-        elif args.dataset == 'utkface':
-            global_model = ResNet50(num_classes=4, args = args)
-        elif args.dataset == 'celeba':
-            global_model = ResNet50(num_classes=40, args = args)
+    elif args.model == "vgg19":
+        if args.dataset == "cifar" or args.dataset == "fashionmnist":
+            global_model = VGG(num_classes=10, args=args)
+        elif args.dataset == "utkface":
+            global_model = VGG(num_classes=4, args=args)
+        elif args.dataset == "celeba":
+            global_model = VGG(num_classes=40, args=args)
+
+    elif args.model == "resnet18":
+        if args.dataset == "cifar" or args.dataset == "fashionmnist":
+            global_model = ResNet18(num_classes=10, args=args)
+        elif args.dataset == "utkface":
+            global_model = ResNet18(num_classes=4, args=args)
+        elif args.dataset == "celeba":
+            global_model = ResNet18(num_classes=40, args=args)
+
+    elif args.model == "resnet50":
+        if args.dataset == "cifar" or args.dataset == "fashionmnist":
+            global_model = ResNet50(num_classes=10, args=args)
+        elif args.dataset == "utkface":
+            global_model = ResNet50(num_classes=4, args=args)
+        elif args.dataset == "celeba":
+            global_model = ResNet50(num_classes=40, args=args)
 
     else:
-        exit('Error: unrecognized model')
+        exit("Error: unrecognized model")
 
     # Set the model to train and send it to device.
     global_model.to(device)
@@ -108,20 +105,19 @@ if __name__ == '__main__':
     cv_loss, cv_acc = [], []
     print_every = 2
     val_loss_pre, counter = 0, 0
-    
+
     ### ckpt params
     ckpt_dict = dict()
     ckpt_dict.update(vars(args))
-    ckpt_dict['train_ds_splits'] = train_user_groups
-    ckpt_dict['test_ds_splits'] = test_user_groups
-    ckpt_dict['global_lr'] = 1.0
-    ckpt_dict['wandb_run_name'] = run_name
-
+    ckpt_dict["train_ds_splits"] = train_user_groups
+    ckpt_dict["test_ds_splits"] = test_user_groups
+    ckpt_dict["global_lr"] = 1.0
+    ckpt_dict["wandb_run_name"] = run_name
 
     local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
     for epoch in tqdm(range(args.epochs)):
         local_weights, local_losses = [], []
-        print(f'\n | Global Training Round : {epoch+1} |\n')
+        print(f"\n | Global Training Round : {epoch+1} |\n")
 
         m = max(int(args.frac * args.num_users), 1)
         print(args.num_users)
@@ -134,45 +130,68 @@ if __name__ == '__main__':
 
         # Getting the test loss for all users' data of the global model
         for c in idxs_users:
-            local_update = get_local_update(args=args, train_dataset=train_dataset, test_dataset=test_dataset,
-                                      train_idxs = train_user_groups[c], test_idxs = test_user_groups[c],
-                                      logger=run, global_model=global_model)
+            local_update = get_local_update(
+                args=args,
+                train_dataset=train_dataset,
+                test_dataset=test_dataset,
+                train_idxs=train_user_groups[c],
+                test_idxs=test_user_groups[c],
+                logger=run,
+                global_model=global_model,
+            )
 
             acc, loss = local_update.inference(model=local_models[c], is_test=True)
-            
+
             test_accs.append(acc)
             list_loss.append(loss)
             # Uncomment to log to wandb if needed
-            #run.log({f"local model test loss for user {c}": loss})
-            #run.log({f"local model test accuracy for user {c}": acc})
+            # run.log({f"local model test loss for user {c}": loss})
+            # run.log({f"local model test accuracy for user {c}": acc})
 
-        test_loss_avg = sum(list_loss)/len(test_accs)
+        test_loss_avg = sum(list_loss) / len(test_accs)
         test_loss.append(test_loss_avg)
-        test_acc_avg = sum(test_accs)/len(test_accs)
+        test_acc_avg = sum(test_accs) / len(test_accs)
         test_accuracy.append(test_acc_avg)
 
-        run.log({f'Local Model Stddev of Test Losses': np.std(np.array(list_loss).flatten())})
-
+        run.log(
+            {
+                f"Local Model Stddev of Test Losses": np.std(
+                    np.array(list_loss).flatten()
+                )
+            }
+        )
 
         global_model.train()
         list_acc = []
         for idx in idxs_users:
-            local_update = get_local_update(args=args, train_dataset=train_dataset, test_dataset=test_dataset,
-                                      train_idxs=train_user_groups[idx], test_idxs = test_user_groups[idx], logger=run,
-                                      global_model=global_model)
+            local_update = get_local_update(
+                args=args,
+                train_dataset=train_dataset,
+                test_dataset=test_dataset,
+                train_idxs=train_user_groups[idx],
+                test_idxs=test_user_groups[idx],
+                logger=run,
+                global_model=global_model,
+            )
             w, loss = local_update.update_weights(
-                model=local_models[idx], global_round=epoch)
+                model=local_models[idx], global_round=epoch
+            )
             acc, loss = local_update.inference(model=w, is_test=False)
             list_acc.append(acc)
             local_weights.append(copy.deepcopy(w.state_dict()))
             local_losses.append(copy.deepcopy(loss))
             # Uncomment to log to wandb if needed
-            #run.log({f"local model training loss per iteration for user {idx}": loss})
-            #run.log({f"local model training accuracy per iteration for user {idx}": acc})
-        run.log({f'Local Model Stddev of Train Losses': np.std(np.array(local_losses).flatten())})
-        
+            # run.log({f"local model training loss per iteration for user {idx}": loss})
+            # run.log({f"local model training accuracy per iteration for user {idx}": acc})
+        run.log(
+            {
+                f"Local Model Stddev of Train Losses": np.std(
+                    np.array(local_losses).flatten()
+                )
+            }
+        )
 
-        acc_avg = sum(list_acc)/len(list_acc)
+        acc_avg = sum(list_acc) / len(list_acc)
         train_accuracy.append(acc_avg)
 
         # update global weights
@@ -181,42 +200,49 @@ if __name__ == '__main__':
         global_update.update_global_model(global_model, global_weights)
         global_update.update_local_models(local_models, global_weights)
         if epoch % int(args.save_every) == 0:
-            ckpt_dict['state_dict'] = global_model.state_dict()
+            ckpt_dict["state_dict"] = global_model.state_dict()
             if not os.path.exists(args.ckpt_path):
                 os.makedirs(args.ckpt_path)
-            torch.save(ckpt_dict, f'{args.ckpt_path}/{args.fl_method}_{args.model}_{args.dataset}_global_model_{epoch}_{dt_string}.pt')
+            torch.save(
+                ckpt_dict,
+                f"{args.ckpt_path}/{args.fl_method}_{args.model}_{args.dataset}_global_model_{epoch}_{dt_string}.pt",
+            )
 
         loss_avg = sum(local_losses) / len(local_losses)
 
         train_loss.append(loss_avg)
 
-        run.log({"Global test accuracy: ": 100*test_accuracy[-1]})
-        run.log({"Global train accuracy: ": 100*train_accuracy[-1]})
+        run.log({"Global test accuracy: ": 100 * test_accuracy[-1]})
+        run.log({"Global train accuracy: ": 100 * train_accuracy[-1]})
         run.log({"Global train loss: ": train_loss[-1]})
         run.log({"Global test loss: ": test_loss[-1]})
 
         # print global training loss after every 'i' rounds
-        if (epoch+1) % print_every == 0:
-            print(f' \nAvg Training Stats after {epoch+1} global rounds:')
-            print(f'Training Loss : {np.mean(np.array(train_loss))}')
-            print('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
-            print('Test Accuracy: {:.2f}% \n'.format(100*test_accuracy[-1]))
-            
+        if (epoch + 1) % print_every == 0:
+            print(f" \nAvg Training Stats after {epoch+1} global rounds:")
+            print(f"Training Loss : {np.mean(np.array(train_loss))}")
+            print("Train Accuracy: {:.2f}% \n".format(100 * train_accuracy[-1]))
+            print("Test Accuracy: {:.2f}% \n".format(100 * test_accuracy[-1]))
+
     # Test inference after completion of training
     test_acc, test_loss = test_inference(args, global_model, test_dataset)
 
-    print(f' \n Results after {args.epochs} global rounds of training:')
-    print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
-    print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
-    
+    print(f" \n Results after {args.epochs} global rounds of training:")
+    print("|---- Avg Train Accuracy: {:.2f}%".format(100 * train_accuracy[-1]))
+    print("|---- Test Accuracy: {:.2f}%".format(100 * test_acc))
 
     # Saving the objects train_loss and train_accuracy:
-    file_name = os.path.join(os.path.abspath(""), "save", "objects", f"{args.dataset}_{args.model}_ \
-                            {args.epochs}_C[{args.frac}]_iid[{args.iid}]_E[{args.local_ep}]_B[{args.local_bs}].pkl")
-    with open(file_name, 'wb') as f:
+    file_name = os.path.join(
+        os.path.abspath(""),
+        "save",
+        "objects",
+        f"{args.dataset}_{args.model}_ \
+                            {args.epochs}_C[{args.frac}]_iid[{args.iid}]_E[{args.local_ep}]_B[{args.local_bs}].pkl",
+    )
+    with open(file_name, "wb") as f:
         pickle.dump([train_loss, train_accuracy], f)
 
-    print('\n Total Run Time: {0:0.4f}'.format(time.time()-start_time))
+    print("\n Total Run Time: {0:0.4f}".format(time.time() - start_time))
 
     # PLOTTING (optional)
     # import matplotlib

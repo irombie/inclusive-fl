@@ -1,11 +1,11 @@
-from typing import Dict, List, Tuple, Type
-import torch
 import copy
 from abc import ABC, abstractmethod
-import numpy as np
+from dataclasses import dataclass
+from typing import Dict, List, Tuple, Type
 
 import numpy as np
-from dataclasses import dataclass
+import torch
+
 
 class AbstractGlobalUpdate(ABC):
     """
@@ -96,9 +96,9 @@ class MeanWeights(AbstractGlobalUpdate):
         w_avg = copy.deepcopy(local_model_weights[0])
         for key in w_avg.keys():
             for i in range(1, len(local_model_weights)):
-                w_avg[key] += local_model_weights[i][key] 
+                w_avg[key] += local_model_weights[i][key]
 
-            if self.args.reweight_loss_avg==1:
+            if self.args.reweight_loss_avg == 1:
                 if w_avg[key].dtype == torch.float32:
                     w_avg[key] *= weights_scalar[i].astype(np.float64)
                 else:
@@ -159,8 +159,8 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
             else:
                 for i in range(1, len(local_model_weights)):
                     w_avg[key] += local_model_weights[i][key]
-                    
-                if self.args.reweight_loss_avg==1:
+
+                if self.args.reweight_loss_avg == 1:
                     w_avg[key] *= weights_scalar[i]
                 else:
                     w_avg[key] = torch.div(w_avg[key], len(local_model_weights))
@@ -238,9 +238,8 @@ NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {
     "TestLossWeighted": AverageWeightsWithTestLoss,
 }
 
-def get_global_update(
-    args, model: torch.nn.Module, **kwargs
-) -> AbstractGlobalUpdate:
+
+def get_global_update(args, model: torch.nn.Module, **kwargs) -> AbstractGlobalUpdate:
     """
     Get global update from federated learning method name
 

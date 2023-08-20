@@ -27,7 +27,7 @@ if __name__ == '__main__':
         device = "cpu"
     device = torch.device(device)
     # load datasets
-    train_dataset, test_dataset, _ = get_dataset(args)
+    train_dataset, test_dataset, _, _, _, _ = get_dataset(args)
 
     # BUILD MODEL
     if args.model == 'cnn':

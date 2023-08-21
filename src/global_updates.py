@@ -5,6 +5,7 @@ from typing import Dict, List, Tuple, Type
 import numpy as np
 import torch
 
+import utils
 
 class AbstractGlobalUpdate(ABC):
     """
@@ -105,6 +106,43 @@ class MeanWeights(AbstractGlobalUpdate):
             else:
                 w_avg[key] = torch.div(w_avg[key], len(local_model_weights))
         return w_avg
+
+
+class MeanWeightsSparsified(AbstractGlobalUpdate):
+    """Aggregate weights by taking the mean, used by FedSyn."""
+
+    def __init__(self, args, model: torch.nn.Module, **kwargs):
+        super().__init__(args, model)
+        self.global_learning_rate = args.global_lr
+
+    def aggregate_weights(
+        self,
+        local_model_weights: List[Dict[str, torch.Tensor]],
+        global_model,
+        local_bitmasks,
+    ) -> Dict[str, torch.Tensor]:
+        """
+        Returns the mean of the weights.
+
+        All local models and global model are assumed to have the
+        same architecture, and hence the same keys in the state dict
+
+        :param local_model_weights: list of state dictionaries, where each element is a state
+            dictionary, which maps model attributes to parameter tensors
+
+        :return: global model state dictionary,
+            which is the average of all local models provided
+        """
+        sum_bitmask = np.sum(local_bitmasks, axis=0)
+        sum_update = np.sum(local_model_weights, axis=0)
+        weigted_local_model_sum = np.divide(
+            sum_update,
+            sum_bitmask,
+            out=np.zeros_like(sum_update),
+            where=sum_bitmask != 0,
+        )
+        flat_glob = utils.flatten(global_model)
+        return flat_glob + self.global_learning_rate * weigted_local_model_sum
 
 
 class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
@@ -235,6 +273,7 @@ NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {
     "FedBN": MeanWeightsNoBatchNorm,
     "FedProx": MeanWeights,
     "TestLossWeighted": AverageWeightsWithTestLoss,
+    "FedSyn": MeanWeightsSparsified,
 }
 
 

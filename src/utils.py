@@ -4,7 +4,7 @@
 import os
 import random
 from argparse import Namespace
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, OrderedDict, Tuple, Union
 
 import numpy as np
 import torch
@@ -118,3 +118,37 @@ def set_seed(seed: int = 42, is_deterministic=False) -> None:
     # Set a fixed value for the hash seed
     os.environ["PYTHONHASHSEED"] = str(seed)
     print(f"Random seed set as {seed}")
+
+def flatten(model):
+    weights = model.state_dict()
+    # create flat array
+    flat = np.array([])
+    for k in weights.keys():
+        flat = np.concatenate((flat, weights[k].cpu().numpy().flatten()))
+    return flat
+
+
+def updateFromNumpyFlatArray(flat_arr, model):
+    start = 0
+    new_glob = OrderedDict()
+    model_dict = model.state_dict()
+    for k in model_dict.keys():
+        size = 1
+        for dim in model_dict[k].shape:
+            size *= dim
+        shaped = np.reshape(flat_arr[start : start + size].copy(), model_dict[k].shape)
+        new_glob[k] = torch.from_numpy(shaped)
+        start = start + size
+
+    model.load_state_dict(new_glob)
+
+
+def get_bitmask_per_method(
+    flat_model: np.ndarray, sparse_ratio: float = 1, sparsification_type: str = "randk"
+):
+    if sparsification_type == "randk":
+        return np.random.choice(
+            [0, 1], size=(len(flat_model),), p=[1 - sparse_ratio, sparse_ratio]
+        )
+    else:
+        raise ValueError("Unrecognized sparsification method!")

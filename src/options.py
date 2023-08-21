@@ -139,12 +139,19 @@ def args_parser():
         default="./checkpoints/",
         help="path to save checkpoints",
     )
+    parser.add_argument("--global_lr", type=float, default=1)
     # Experimentation Flags
     parser.add_argument(
         "--reweight_loss_avg",
         type=int,
         default=0,
         help="To enable reweighted loss averaging or not, set to 1 to enable it",
+    )
+    parser.add_argument(
+        "--sparsification_ratio",
+        type=float,
+        default=1,
+        help="the percentage of model parameters that will be sent",
     )
 
     # arguments for FedProx

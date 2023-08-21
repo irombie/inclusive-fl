@@ -8,6 +8,8 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
+import utils
+
 
 class DatasetSplit(Dataset):
     """An abstract Dataset class wrapped around Pytorch Dataset class."""
@@ -165,6 +167,81 @@ class LocalUpdate:
         return accuracy, loss / len(loader)
 
 
+class LocalUpdateSparsified(LocalUpdate):
+    def __init__(
+        self,
+        args,
+        train_dataset,
+        test_dataset,
+        train_idxs,
+        test_idxs,
+        logger,
+        global_model,
+    ):
+        super().__init__(
+            args,
+            train_dataset,
+            test_dataset,
+            train_idxs,
+            test_idxs,
+            logger,
+            global_model,
+        )
+        self.sparsification_ratio = args.sparsification_ratio
+
+    def update_weights(self, model, global_round, client_id=None):
+        """
+        Performs the local updates and returns the updated model.
+            :param model: local model
+            :param global_round: the step number of current global round
+        """
+        # Set mode to train model
+        model.train()
+        epoch_loss = []
+
+        # Set optimizer for the local updates
+        optimizer = self.configure_optimizer(model)
+        glob_flat = utils.flatten(model)
+
+        for iter in range(self.args.local_ep):
+            batch_loss = []
+            for batch_idx, (images, labels) in enumerate(self.trainloader):
+                images, labels = images.to(self.device), labels.to(self.device)
+
+                model.zero_grad()
+                loss = self.calculate_loss(model, images, labels)
+                loss.backward()
+                optimizer.step()
+
+                if self.args.verbose and (batch_idx % 10 == 0):
+                    print(
+                        "| Global Round : {} | Local Epoch : {} | [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
+                            global_round,
+                            iter,
+                            batch_idx * len(images),
+                            len(self.trainloader.dataset),
+                            100.0 * batch_idx / len(self.trainloader),
+                            loss.item(),
+                        )
+                    )
+                batch_loss.append(loss.item())
+            avg_loss_per_local_training = sum(batch_loss) / len(batch_loss)
+            epoch_loss.append(avg_loss_per_local_training)
+            # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
+
+        flat = utils.flatten(model)
+        bitmask = utils.get_bitmask_per_method(
+            flat_model=flat,
+            sparse_ratio=self.sparsification_ratio,
+            sparsification_type="randk",
+        )  # because we will be using a single sparsification technique for now,
+        # i will not make this into a global arg but if we decide to compare with other sparsification techniques,
+        #  sparsification_type needs to be become a global arg
+        diff_flat = flat - glob_flat
+        diff_flat *= bitmask
+        return model, diff_flat, bitmask, sum(epoch_loss) / len(epoch_loss)
+
+
 class FedProxLocalUpdate(LocalUpdate):
     """
     FedProx Local Update. This is a subclass of LocalUpdate. It overrides the
@@ -196,6 +273,7 @@ NAME_TO_LOCAL_UPDATE: Dict[str, Type[LocalUpdate]] = {
     "FedProx": FedProxLocalUpdate,
     "FedBN": LocalUpdate,
     "TestLossWeighted": LocalUpdate,
+    "FedSyn": LocalUpdateSparsified,
 }
 
 
@@ -247,15 +325,14 @@ def get_local_update(
 
     :param args: Arguments object containing configurations passed
                     as arguments to the program call
-
+    
     :param train_dataset: Dataset object containing the training data
     :param test_dataset: Dataset object containing the test data
-
+    
     :param idxs: List of indices of the training data assigned to the
                     local update
-
+             
     :param logger: Logger object to log the local update
-
     :return: Local update object
     """
     if args.fl_method in NAME_TO_LOCAL_UPDATE:

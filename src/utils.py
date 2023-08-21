@@ -10,8 +10,11 @@ import numpy as np
 import torch
 from torchvision import datasets, transforms
 
-from sampling import (get_iid_partition, get_noniid_partition,
-                      paramaterise_noniid_distribution)
+from sampling import (
+    get_iid_partition,
+    get_noniid_partition,
+    paramaterise_noniid_distribution,
+)
 
 
 def get_dataset(
@@ -119,6 +122,7 @@ def set_seed(seed: int = 42, is_deterministic=False) -> None:
     os.environ["PYTHONHASHSEED"] = str(seed)
     print(f"Random seed set as {seed}")
 
+
 def flatten(model):
     weights = model.state_dict()
     # create flat array
@@ -146,9 +150,19 @@ def updateFromNumpyFlatArray(flat_arr, model):
 def get_bitmask_per_method(
     flat_model: np.ndarray, sparse_ratio: float = 1, sparsification_type: str = "randk"
 ):
-    if sparsification_type == "randk":
+    if sparsification_type == "randk" or sparsification_type == "fairness-randk":
         return np.random.choice(
             [0, 1], size=(len(flat_model),), p=[1 - sparse_ratio, sparse_ratio]
         )
     else:
         raise ValueError("Unrecognized sparsification method!")
+
+
+def temperatured_softmax(client_losses, softmax_temperature):
+    """Calulate a softmax distribution across client losses with
+    temperature
+    """
+    client_losses = client_losses / softmax_temperature
+    return np.exp(client_losses - np.max(client_losses)) / np.sum(
+        np.exp(client_losses - np.max(client_losses))
+    )

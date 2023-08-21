@@ -19,7 +19,14 @@ from models import MLP, VGG, CNNCifar, CNNFashion_Mnist, ResNet18, ResNet50
 from options import args_parser
 from update import get_local_update, test_inference
 
-from utils import exp_details, get_dataset, set_seed, updateFromNumpyFlatArray
+from utils import (
+    exp_details,
+    get_dataset,
+    set_seed,
+    updateFromNumpyFlatArray,
+    temperatured_softmax,
+)
+
 
 def main():
     start_time = time.time()
@@ -38,7 +45,6 @@ def main():
     for k in args_dict:
         tag_list.append(f"{k}:{args_dict[k]}")
     run = wandb.init(project=args.wandb_name, config=args, name=run_name, tags=tag_list)
-
 
     if args.gpu and args.device == "cuda":
         device = "cuda"
@@ -107,7 +113,7 @@ def main():
     # Training
     train_loss, train_accuracy, test_accuracy = [], [], []
     print_every = 2
-    
+
     ### ckpt params
     ckpt_dict = dict()
     ckpt_dict.update(vars(args))
@@ -154,6 +160,12 @@ def main():
         test_acc_avg = sum(test_accs) / len(test_accs)
         test_accuracy.append(test_acc_avg)
 
+        client_prob_dist = temperatured_softmax(
+            np.array(list_loss), args.softmax_temperature
+        )
+        client_prob_dist = {
+            idxs_users[i]: client_prob_dist[i] for i in range(len(client_prob_dist))
+        }
         run.log(
             {
                 f"Local Model Stddev of Test Losses": np.std(
@@ -174,18 +186,21 @@ def main():
                 logger=run,
                 global_model=global_model,
             )
-            # we might want to separate sparse updates and non-sparse 
-            # updates into separate classes in the future to avoid ifs 
+            # we might want to separate sparse updates and non-sparse
+            # updates into separate classes in the future to avoid ifs
             # of this nature
-            if args.fl_method=="FedSyn": 
+            if args.fl_method == "FedSyn":
                 w, flat_update, bitmask, loss = local_update.update_weights(
-                    model=local_models[idx], global_round=epoch
+                    model=local_models[idx],
+                    global_round=epoch,
+                    sparsification_percentage=client_prob_dist[idx],
                 )
                 local_weights.append(copy.deepcopy(flat_update))
                 local_bitmasks.append(bitmask)
             else:
                 w, loss = local_update.update_weights(
-                model=local_models[idx], global_round=epoch)
+                    model=local_models[idx], global_round=epoch
+                )
                 local_weights.append(copy.deepcopy(w.state_dict()))
 
             acc, loss = local_update.inference(model=w, is_test=False)
@@ -206,18 +221,18 @@ def main():
         train_accuracy.append(acc_avg)
 
         # update global weights
-        if args.fl_method=="FedSyn": 
+        if args.fl_method == "FedSyn":
             global_w = global_update.aggregate_weights(
                 local_weights, global_model, local_bitmasks
             )
             # update models
             updateFromNumpyFlatArray(global_w, global_model)
             local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
-        else: 
+        else:
             global_weights = global_update.aggregate_weights(local_weights, list_loss)
             global_update.update_global_model(global_model, global_weights)
             global_update.update_local_models(local_models, global_weights)
-        
+
         if epoch % int(args.save_every) == 0:
             ckpt_dict["state_dict"] = global_model.state_dict()
             if not os.path.exists(args.ckpt_path):

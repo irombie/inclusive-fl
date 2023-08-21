@@ -10,3 +10,4 @@ checkpoints/
 *.pt
 *.csv 
 *.txt
+.ipynb_checkpoints/

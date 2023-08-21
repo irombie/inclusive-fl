@@ -188,8 +188,9 @@ class LocalUpdateSparsified(LocalUpdate):
             global_model,
         )
         self.sparsification_ratio = args.sparsification_ratio
+        self.sparsification_type = args.sparsification_type
 
-    def update_weights(self, model, global_round, client_id=None):
+    def update_weights(self, model, global_round, client_id=None, **kwargs):
         """
         Performs the local updates and returns the updated model.
             :param model: local model
@@ -230,13 +231,15 @@ class LocalUpdateSparsified(LocalUpdate):
             # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
 
         flat = utils.flatten(model)
+        if self.sparsification_type == "randk":
+            sparse_ratio = self.sparsification_ratio
+        elif self.sparsification_type == "fairness-randk":
+            sparse_ratio = kwargs["sparsification_percentage"]
         bitmask = utils.get_bitmask_per_method(
             flat_model=flat,
-            sparse_ratio=self.sparsification_ratio,
-            sparsification_type="randk",
-        )  # because we will be using a single sparsification technique for now,
-        # i will not make this into a global arg but if we decide to compare with other sparsification techniques,
-        #  sparsification_type needs to be become a global arg
+            sparse_ratio=sparse_ratio,
+            sparsification_type=self.sparsification_type,
+        )
         diff_flat = flat - glob_flat
         diff_flat *= bitmask
         return model, diff_flat, bitmask, sum(epoch_loss) / len(epoch_loss)
@@ -325,13 +328,13 @@ def get_local_update(
 
     :param args: Arguments object containing configurations passed
                     as arguments to the program call
-    
+
     :param train_dataset: Dataset object containing the training data
     :param test_dataset: Dataset object containing the test data
-    
+
     :param idxs: List of indices of the training data assigned to the
                     local update
-             
+
     :param logger: Logger object to log the local update
     :return: Local update object
     """

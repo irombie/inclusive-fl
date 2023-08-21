@@ -1,4 +1,5 @@
 from typing import Dict, List, Tuple, Type
+from utils import dict_sum
 import torch
 import copy
 from abc import ABC, abstractmethod
@@ -231,11 +232,54 @@ class AverageWeightsWithTestLoss(AbstractGlobalUpdate):
         return w_avg
 
 
+class qFedAvgGlobalUpdate(AbstractGlobalUpdate):
+    """Aggregate weights by using average based on the qFedAvg loss."""
+
+    def aggregate_weights(
+        self,
+        local_model_weights: List[Dict[str, torch.Tensor]],
+        test_losses: List[float],
+    ) -> Dict[str, torch.Tensor]:
+        """
+        Empty Method as it is not required
+        """
+        raise Exception ("Not Implemented")
+
+    @staticmethod
+    def update_global_model(
+        global_model: torch.nn.Module, 
+        local_deltas: List[Dict[str, torch.Tensor]],
+        local_hs: List[Dict[str, torch.Tensor]],
+    ) -> Dict[str, torch.Tensor]:
+        """
+        Update global model with global weights
+
+        Due to absense of batch norm keys, strict=False is used in loading
+            of state dict
+
+        :param global_model: pytorch global model object
+        :param local_deltas: list of delta computed in qFedAvg Algorithm 2
+        :param local_hs: list of h computed in qFedAvg Algorithm 2
+
+        :return: updated global model with qFedAvg
+        """
+        delta_sum = dict_sum(local_deltas)
+        h_sum = dict_sum(local_hs)
+
+        updated_global_model = copy.deepcopy(global_model.state_dict())
+        for key in list(updated_global_model.keys()):
+            updated_global_model[key] -= delta_sum[key] / h_sum[key]
+
+        global_model.load_state_dict(updated_global_model, strict=False)
+        return updated_global_model
+
+
 NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {
     "FedAvg": MeanWeights,
     "FedBN": MeanWeightsNoBatchNorm,
     "FedProx": MeanWeights,
     "TestLossWeighted": AverageWeightsWithTestLoss,
+    "qFedAvg": qFedAvgGlobalUpdate,
 }
 
 def get_global_update(

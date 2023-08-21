@@ -121,6 +121,7 @@ def main():
     local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
     for epoch in tqdm(range(args.epochs)):
         local_weights, local_losses = [], []
+        local_deltas, local_hs = [], []
         print(f'\n | Global Training Round : {epoch+1} |\n')
 
         m = max(int(args.frac * args.num_users), 1)
@@ -159,11 +160,20 @@ def main():
             local_update = get_local_update(args=args, train_dataset=train_dataset, test_dataset=test_dataset,
                                       train_idxs=train_user_groups[idx], test_idxs = test_user_groups[idx], logger=run,
                                       global_model=global_model)
-            w, loss = local_update.update_weights(
-                model=local_models[idx], global_round=epoch)
-            acc, loss = local_update.inference(model=w, is_test=False)
+
+            if args.fl_method != 'qFedAvg':
+                w, loss = local_update.update_weights(
+                    model=local_models[idx], global_round=epoch)
+                acc, loss = local_update.inference(model=w, is_test=False)
+                local_weights.append(copy.deepcopy(w.state_dict()))
+            else:
+                delta, h, w, loss = local_update.update_weights(
+                    model=local_models[idx], global_round=epoch)
+                acc, loss = local_update.inference(model=w, is_test=False)
+                local_deltas.append(copy.deepcopy(delta))
+                local_hs.append(copy.deepcopy(h))
+
             list_acc.append(acc)
-            local_weights.append(copy.deepcopy(w.state_dict()))
             local_losses.append(copy.deepcopy(loss))
             # Uncomment to log to wandb if needed
             #run.log({f"local model training loss per iteration for user {idx}": loss})
@@ -175,9 +185,13 @@ def main():
         train_accuracy.append(acc_avg)
 
         # update global weights
-        global_weights = global_update.aggregate_weights(local_weights, list_loss)
-        # update models
-        global_update.update_global_model(global_model, global_weights)
+        if args.fl_method != 'qFedAvg':
+            global_weights = global_update.aggregate_weights(local_weights, list_loss)
+            # update models
+            global_update.update_global_model(global_model, global_weights)
+        else:
+            global_weights = global_update.update_global_model(global_model, local_deltas, local_hs)
+
         global_update.update_local_models(local_models, global_weights)
         if epoch % int(args.save_every) == 0:
             ckpt_dict['state_dict'] = global_model.state_dict()

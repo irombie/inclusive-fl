@@ -326,9 +326,8 @@ def get_local_update(
 
     :param args: Arguments object containing configurations passed
                     as arguments to the program call
-
-    :param train_dataset: Dataset object containing the training data
     
+    :param train_dataset: Dataset object containing the training data
     :param test_dataset: Dataset object containing the test data
     
     :param idxs: List of indices of the training data assigned to the

@@ -49,7 +49,7 @@ def main():
     set_seed(args.seed, False)
 
     # load dataset and user groups
-    train_dataset, test_dataset, train_user_groups, test_user_groups = get_dataset(args)
+    train_dataset, test_dataset, valid_dataset, train_user_groups, test_user_groups, valid_user_groups = get_dataset(args)
 
     # BUILD MODEL
     if args.model == 'cnn':
@@ -106,7 +106,7 @@ def main():
     global_update = get_global_update(args, global_model, num_users=args.num_users)
 
     # Training
-    train_loss, train_accuracy, test_accuracy = [], [], []
+    train_loss, train_accuracy, test_accuracy, valid_accuracy = [], [], [], []
     print_every = 2
     
     ### ckpt params
@@ -127,52 +127,51 @@ def main():
         m = max(int(args.frac * args.num_users), 1)
         idxs_users = np.random.choice(range(args.num_users), m, replace=False)
 
-        list_loss = []
+        valid_losses = []
         global_model.eval()
 
-        test_accs, test_loss = [], []
+        valid_accs, valid_loss = [], []
 
         # Getting the test loss for all users' data of the global model
         for c in idxs_users:
             local_update = get_local_update(args=args, train_dataset=train_dataset, test_dataset=test_dataset,
-                                      train_idxs = train_user_groups[c], test_idxs = test_user_groups[c],
-                                      logger=run, global_model=global_model)
+                                            valid_dataset=valid_dataset, train_idxs = train_user_groups[c], test_idxs = test_user_groups[c],
+                                            valid_idxs=valid_user_groups[c],logger=run, global_model=global_model)
 
-            acc, loss = local_update.inference(model=local_models[c], is_test=True)
+            acc, loss = local_update.inference(model=local_models[c], dataset_type='valid')
             
-            test_accs.append(acc)
-            list_loss.append(loss)
+            valid_accs.append(acc)
+            valid_losses.append(loss)
             # Uncomment to log to wandb if needed
             #run.log({f"local model test loss for user {c}": loss})
             #run.log({f"local model test accuracy for user {c}": acc})
 
-        test_loss_avg = sum(list_loss)/len(test_accs)
-        test_loss.append(test_loss_avg)
-        test_acc_avg = sum(test_accs)/len(test_accs)
-        test_accuracy.append(test_acc_avg)
+        valid_loss_avg = sum(valid_losses)/len(valid_accs)
+        valid_loss.append(valid_loss_avg)
+        valid_acc_avg = sum(valid_accs)/len(valid_accs)
+        valid_accuracy.append(valid_acc_avg)
 
-        run.log({f'Local Model Stddev of Test Losses': np.std(np.array(list_loss).flatten())})
+        run.log({f'Local Model Stddev of Valid Losses': np.std(np.array(valid_losses).flatten())})
 
 
         global_model.train()
         list_acc = []
         for idx in idxs_users:
             local_update = get_local_update(args=args, train_dataset=train_dataset, test_dataset=test_dataset,
-                                      train_idxs=train_user_groups[idx], test_idxs = test_user_groups[idx], logger=run,
-                                      global_model=global_model)
+                                            valid_dataset=valid_dataset, train_idxs = train_user_groups[idx], test_idxs = test_user_groups[idx],
+                                            valid_idxs=valid_user_groups[idx],logger=run, global_model=global_model)
 
             if args.fl_method != 'qFedAvg':
                 w, loss = local_update.update_weights(
                     model=local_models[idx], global_round=epoch)
-                acc, loss = local_update.inference(model=w, is_test=False)
                 local_weights.append(copy.deepcopy(w.state_dict()))
             else:
                 delta, h, w, loss = local_update.update_weights(
                     model=local_models[idx], global_round=epoch)
-                acc, loss = local_update.inference(model=w, is_test=False)
                 local_deltas.append(copy.deepcopy(delta))
                 local_hs.append(copy.deepcopy(h))
-
+            
+            acc, loss = local_update.inference(model=w, dataset_type='train')
             list_acc.append(acc)
             local_losses.append(copy.deepcopy(loss))
             # Uncomment to log to wandb if needed
@@ -184,9 +183,8 @@ def main():
         acc_avg = sum(list_acc)/len(list_acc)
         train_accuracy.append(acc_avg)
 
-        # update global weights
         if args.fl_method != 'qFedAvg':
-            global_weights = global_update.aggregate_weights(local_weights, list_loss)
+            global_weights = global_update.aggregate_weights(local_weights, valid_losses)
             # update models
             global_update.update_global_model(global_model, global_weights)
         else:
@@ -203,10 +201,39 @@ def main():
 
         train_loss.append(loss_avg)
 
+        test_losses = []
+        global_model.eval()
+
+        test_accs, test_loss = [], []
+
+        # Getting the test loss for all users' data of the global model
+        for c in idxs_users:
+            local_update = get_local_update(args=args, train_dataset=train_dataset, test_dataset=test_dataset,
+                                            valid_dataset=valid_dataset, train_idxs = train_user_groups[c], test_idxs = test_user_groups[c],
+                                            valid_idxs=valid_user_groups[c],logger=run, global_model=global_model)
+
+            acc, loss = local_update.inference(model=local_models[c], dataset_type='test')
+            
+            test_accs.append(acc)
+            test_losses.append(loss)
+            # Uncomment to log to wandb if needed
+            #run.log({f"local model test loss for user {c}": loss})
+            #run.log({f"local model test accuracy for user {c}": acc})
+
+        test_loss_avg = sum(test_losses)/len(test_accs)
+        test_loss.append(test_loss_avg)
+        test_acc_avg = sum(test_accs)/len(test_accs)
+        test_accuracy.append(test_acc_avg)
+
+        run.log({f'Local Model Stddev of Test Losses': np.std(np.array(test_losses).flatten())})
+
+
         run.log({"Global test accuracy: ": 100*test_accuracy[-1]})
         run.log({"Global train accuracy: ": 100*train_accuracy[-1]})
+        run.log({"Global valid accuracy: ": 100*valid_accuracy[-1]})
         run.log({"Global train loss: ": train_loss[-1]})
         run.log({"Global test loss: ": test_loss[-1]})
+        run.log({"Global valid loss: ": valid_loss[-1]})
 
         # print global training loss after every 'i' rounds
         if (epoch+1) % print_every == 0:
@@ -214,6 +241,7 @@ def main():
             print(f'Training Loss : {np.mean(np.array(train_loss))}')
             print('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
             print('Test Accuracy: {:.2f}% \n'.format(100*test_accuracy[-1]))
+            print('Valid Accuracy: {:.2f}% \n'.format(100*valid_accuracy[-1]))
             
     # Test inference after completion of training
     test_acc, test_loss = test_inference(args, global_model, test_dataset)

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
+import copy
 from typing import Dict, Type
 
 import torch
@@ -36,7 +37,7 @@ class LocalUpdate:
     this class. If a FedLearn algo requires a different set of steps, it can
     override the methods in this class.
     """
-    def __init__(self, args, train_dataset, test_dataset, train_idxs, test_idxs, logger, global_model):
+    def __init__(self, args, train_dataset, test_dataset, valid_dataset,train_idxs, test_idxs, valid_idxs, logger, global_model):
         self.args = args
         self.logger = logger
         self.train_idxs = train_idxs
@@ -45,6 +46,8 @@ class LocalUpdate:
                                  batch_size=self.args.local_bs, shuffle=True)
         self.testloader =  DataLoader(DatasetSplit(test_dataset, test_idxs),
                                 batch_size=self.args.local_bs, shuffle=False)
+        self.validloader  =DataLoader(DatasetSplit(valid_dataset, valid_idxs), 
+                                      batch_size=self.args.local_bs, shuffle=False)
         if args.gpu and args.device == "cuda":
             self.device = "cuda"
         elif args.gpu and args.device == "mps":
@@ -116,13 +119,17 @@ class LocalUpdate:
 
         return model, sum(epoch_loss) / len(epoch_loss)
 
-    def inference(self, model, is_test):
+    def inference(self, model, dataset_type:str):
         """ Returns the inference accuracy and loss.
         """
-        if is_test:
+        if dataset_type == 'test':
             loader = self.testloader
-        else:
+        elif dataset_type == 'train':
             loader = self.trainloader
+        elif dataset_type == 'valid':
+            loader = self.validloader
+        else:
+            raise ValueError('dataset_type must be one of test, train, valid')
         model.eval()
         loss, total, correct = 0.0, 0.0, 0.0
 
@@ -288,7 +295,7 @@ def test_inference(args, model, test_dataset):
     return accuracy, loss / len(testloader)
 
 def get_local_update(
-    args, train_dataset, test_dataset, train_idxs, test_idxs, logger, global_model,
+    args, train_dataset, test_dataset, valid_dataset, train_idxs, test_idxs, valid_idxs, logger, global_model,
 ) -> LocalUpdate:
     """
         Get local update from federated learning method name and return the
@@ -308,7 +315,7 @@ def get_local_update(
         :return: Local update object
     """
     if args.fl_method in NAME_TO_LOCAL_UPDATE:
-        return NAME_TO_LOCAL_UPDATE[args.fl_method](args=args, train_dataset=train_dataset, test_dataset=test_dataset, train_idxs=train_idxs, test_idxs=test_idxs, logger=logger, global_model=global_model)
+        return NAME_TO_LOCAL_UPDATE[args.fl_method](args=args, train_dataset=train_dataset, test_dataset=test_dataset, valid_dataset=valid_dataset,train_idxs=train_idxs, test_idxs=test_idxs, valid_idxs=valid_idxs,logger=logger, global_model=global_model)
     else:
         raise ValueError(
             f"Unsupported federated learning method name {args.fl_method} for local update."

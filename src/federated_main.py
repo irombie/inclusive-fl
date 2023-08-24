@@ -164,15 +164,14 @@ def main():
             if args.fl_method != 'qFedAvg':
                 w, loss = local_update.update_weights(
                     model=local_models[idx], global_round=epoch)
-                acc, loss = local_update.inference(model=w,  dataset_type='train')
                 local_weights.append(copy.deepcopy(w.state_dict()))
             else:
                 delta, h, w, loss = local_update.update_weights(
                     model=local_models[idx], global_round=epoch)
-                acc, loss = local_update.inference(model=w, dataset_type='train')
                 local_deltas.append(copy.deepcopy(delta))
                 local_hs.append(copy.deepcopy(h))
-
+            
+            acc, loss = local_update.inference(model=w, dataset_type='train')
             list_acc.append(acc)
             local_losses.append(copy.deepcopy(loss))
             # Uncomment to log to wandb if needed

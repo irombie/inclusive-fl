@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
+import copy
 from typing import Dict, Type
 
 import torch

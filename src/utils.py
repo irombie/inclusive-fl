@@ -7,6 +7,7 @@ import random
 from typing import Tuple, Union, Dict, List
 
 import numpy as np
+import copy
 import torch
 from torch.utils.data import Subset
 from torchvision import datasets, transforms
@@ -118,4 +119,26 @@ def set_seed(seed: int = 42, is_deterministic=False) -> None:
     # Set a fixed value for the hash seed
     os.environ["PYTHONHASHSEED"] = str(seed)
     print(f"Random seed set as {seed}")
+
+
+def dict_sum(
+        list_of_dicts: List[Dict[str, torch.Tensor]],
+    ) -> Dict[str, torch.Tensor]:
+        """
+        helper function that sums up dictionaries stored in a list.
+        Each dictionary is includes the same key-pair combination type.
+
+        :param list_of_dicts: list of dictionaries
+
+        :return: sum_of_dicts: sum of dictionaries from the list
+        """
+        assert list_of_dicts != None, "List of Dictionaries cannot be None."
+        assert len(list_of_dicts) > 0, "Ensure the List of Dictionaries is not empty."
+
+        sum_of_dicts = copy.deepcopy(list_of_dicts[0])
+        for key in list(sum_of_dicts.keys()):
+            for indx in range(1, len(list_of_dicts)):
+                sum_of_dicts[key] += list_of_dicts[indx][key]
+
+        return sum_of_dicts
 

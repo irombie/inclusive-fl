@@ -153,6 +153,12 @@ def args_parser():
         default=1,
         help="the percentage of model parameters that will be sent",
     )
+    parser.add_argument(
+        "--sparsification_type",
+        type=str,
+        default="randk",
+        help="Type of sparsification to use.",
+    )
 
     # arguments for FedProx
     parser.add_argument("--mu", type=float, default=None, help="mu value for FedProx")

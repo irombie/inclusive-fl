@@ -10,8 +10,11 @@ import numpy as np
 import torch
 from torchvision import datasets, transforms
 
-from sampling import (get_iid_partition, get_noniid_partition,
-                      paramaterise_noniid_distribution)
+from sampling import (
+    get_iid_partition,
+    get_noniid_partition,
+    paramaterise_noniid_distribution,
+)
 
 
 def get_dataset(
@@ -119,6 +122,7 @@ def set_seed(seed: int = 42, is_deterministic=False) -> None:
     os.environ["PYTHONHASHSEED"] = str(seed)
     print(f"Random seed set as {seed}")
 
+
 def flatten(model):
     weights = model.state_dict()
     # create flat array
@@ -143,6 +147,10 @@ def updateFromNumpyFlatArray(flat_arr, model):
     model.load_state_dict(new_glob)
 
 
+def f(x):
+    return np.abs(x)
+
+
 def get_bitmask_per_method(
     flat_model: np.ndarray, sparse_ratio: float = 1, sparsification_type: str = "randk"
 ):
@@ -150,5 +158,13 @@ def get_bitmask_per_method(
         return np.random.choice(
             [0, 1], size=(len(flat_model),), p=[1 - sparse_ratio, sparse_ratio]
         )
+    if sparsification_type == "topk":
+        num_params = int(sparse_ratio * len(flat_model))
+        max_indices = np.argpartition(np.absolute(flat_model), -num_params)[
+            -num_params:
+        ]
+        bitmask = np.zeros_like(flat_model)
+        np.put(bitmask, max_indices, 1)
+        return bitmask
     else:
         raise ValueError("Unrecognized sparsification method!")

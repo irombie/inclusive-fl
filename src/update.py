@@ -233,7 +233,7 @@ class LocalUpdateSparsified(LocalUpdate):
         bitmask = utils.get_bitmask_per_method(
             flat_model=flat,
             sparse_ratio=self.sparsification_ratio,
-            sparsification_type="randk",
+            sparsification_type=self.args.sparsification_type,
         )  # because we will be using a single sparsification technique for now,
         # i will not make this into a global arg but if we decide to compare with other sparsification techniques,
         #  sparsification_type needs to be become a global arg
@@ -325,13 +325,13 @@ def get_local_update(
 
     :param args: Arguments object containing configurations passed
                     as arguments to the program call
-    
+
     :param train_dataset: Dataset object containing the training data
     :param test_dataset: Dataset object containing the test data
-    
+
     :param idxs: List of indices of the training data assigned to the
                     local update
-             
+
     :param logger: Logger object to log the local update
     :return: Local update object
     """

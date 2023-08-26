@@ -7,83 +7,84 @@ from argparse import Namespace
 from typing import Dict, List, OrderedDict, Tuple, Union
 
 import numpy as np
+import copy
 import torch
+from torch.utils.data import Subset
 from torchvision import datasets, transforms
+from sklearn.model_selection import train_test_split
+from sampling import get_iid_partition, get_noniid_partition, paramaterise_noniid_distribution
 
-from sampling import (get_iid_partition, get_noniid_partition,
-                      paramaterise_noniid_distribution)
 
-
-def get_dataset(
-    args: Union[Namespace, Dict]
-) -> Tuple[
-    datasets.VisionDataset,
-    datasets.VisionDataset,
-    Dict[int, List[int]],
-    Dict[int, List[int]],
-]:
-    """Returns train and test datasets and a user group which is a dict where
+def get_dataset(args: Union[Namespace, Dict]
+                ) -> Tuple[datasets.VisionDataset, datasets.VisionDataset, datasets.VisionDataset, Dict[int, List[int]] ,Dict[int, List[int]], Dict[int, List[int]]]:
+    """ Returns train and test datasets and a user group which is a dict where
     the keys are the user index and the values are the corresponding data for
     each of those users.
 
     Mean and Std values reference: https://stackoverflow.com/questions/66678052/how-to-calculate-the-mean-and-the-std-of-cifar10-data
-
+    :return: train, test, valid dataset. train, test, valid user groups, which is a dictionary mapping a client
+        to the dataset indices for tht client. Note that these are disjoint
     """
     if isinstance(args, Namespace):
         args = vars(args)
     if args["dataset"] == "cifar":
         data_dir = "../data/cifar/"
         apply_transform = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    (0.49139968, 0.48215827, 0.44653124),
-                    (0.24703233, 0.24348505, 0.26158768),
-                ),
-            ]
-        )
+            [transforms.ToTensor(),
+             transforms.Normalize((0.49139968, 0.48215827 ,0.44653124), (0.24703233, 0.24348505, 0.26158768))])
 
-        train_dataset = datasets.CIFAR10(
-            data_dir, train=True, download=True, transform=apply_transform
-        )
+        train_valid_dataset = datasets.CIFAR10(data_dir, train=True, download=True,
+                                       transform=apply_transform)
 
-        test_dataset = datasets.CIFAR10(
-            data_dir, train=False, download=True, transform=apply_transform
-        )
+        test_dataset = datasets.CIFAR10(data_dir, train=False, download=True,
+                                      transform=apply_transform)
+        
+        train_idxs, valid_idxs = train_test_split(np.arange(len(train_valid_dataset)),
+                                             test_size=0.1,
+                                             random_state=42,
+                                             shuffle=True,
+                                             stratify=train_valid_dataset.targets)
+        train_dataset = Subset(train_valid_dataset, train_idxs)
+        valid_dataset = Subset(train_valid_dataset, valid_idxs)
+        train_labels = torch.tensor(train_valid_dataset.targets)[train_idxs]
+        valid_labels = torch.tensor(train_valid_dataset.targets)[valid_idxs]
 
-    elif args["dataset"] == "fashionmnist":
-        data_dir = "../data/fashionmnist/"
+    elif args['dataset'] == 'fashionmnist':
+        
+        data_dir = '../data/fashionmnist/'
 
         apply_transform = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
         )
+        train_valid_dataset = datasets.FashionMNIST(data_dir, train=True, download=True,
+                                       transform=apply_transform)
 
-        train_dataset = datasets.FashionMNIST(
-            data_dir, train=True, download=True, transform=apply_transform
-        )
-
-        test_dataset = datasets.FashionMNIST(
-            data_dir, train=False, download=True, transform=apply_transform
-        )
+        test_dataset = datasets.FashionMNIST(data_dir, train=False, download=True,
+                                      transform=apply_transform)
+        train_idxs, valid_idxs = train_test_split(np.arange(len(train_valid_dataset)),
+                                             test_size=0.1,
+                                             random_state=42,
+                                             shuffle=True,
+                                             stratify=train_valid_dataset.targets)
+        train_dataset = Subset(train_valid_dataset, train_idxs)
+        valid_dataset = Subset(train_valid_dataset, valid_idxs)
+        train_labels = train_valid_dataset.targets[train_idxs]
+        valid_labels = train_valid_dataset.targets[valid_idxs]
 
     # sample training data amongst users
-    if args["iid"]:
-        train_user_groups = get_iid_partition(train_dataset, args["num_users"])
-        test_user_groups = get_iid_partition(test_dataset, args["num_users"])
-
-    elif args["dist_noniid"]:
+    if args['iid']:
+        train_user_groups = get_iid_partition(train_dataset, args['num_users'])
+        valid_user_groups = get_iid_partition(valid_dataset, args['num_users'])
+        test_user_groups = get_iid_partition(test_dataset, args['num_users'])
+        
+    elif args['dist_noniid']:
         # users receive unequal data within classes
-        distribution = paramaterise_noniid_distribution(
-            args["num_users"],
-            args["num_classes"],
-            train_dataset.targets,
-            float(args["dist_noniid"]),
-            args["min_proportion"],
-        )
-        train_user_groups = get_noniid_partition(train_dataset.targets, distribution)
+        distribution = paramaterise_noniid_distribution(args['num_users'], args['num_classes'], train_labels, float(args['dist_noniid']), args['min_proportion'])
+        train_user_groups = get_noniid_partition(train_labels,distribution)
+        valid_user_groups = get_noniid_partition(valid_labels,distribution)
         test_user_groups = get_noniid_partition(test_dataset.targets, distribution)
 
-    return train_dataset, test_dataset, train_user_groups, test_user_groups
+    return train_dataset, test_dataset, valid_dataset, train_user_groups, test_user_groups, valid_user_groups
 
 
 def exp_details(args):
@@ -119,36 +120,23 @@ def set_seed(seed: int = 42, is_deterministic=False) -> None:
     os.environ["PYTHONHASHSEED"] = str(seed)
     print(f"Random seed set as {seed}")
 
-def flatten(model):
-    weights = model.state_dict()
-    # create flat array
-    flat = np.array([])
-    for k in weights.keys():
-        flat = np.concatenate((flat, weights[k].cpu().numpy().flatten()))
-    return flat
+def dict_sum(
+        list_of_dicts: List[Dict[str, torch.Tensor]],
+    ) -> Dict[str, torch.Tensor]:
+        """
+        helper function that sums up dictionaries stored in a list.
+        Each dictionary is includes the same key-pair combination type.
 
+        :param list_of_dicts: list of dictionaries
 
-def updateFromNumpyFlatArray(flat_arr, model):
-    start = 0
-    new_glob = OrderedDict()
-    model_dict = model.state_dict()
-    for k in model_dict.keys():
-        size = 1
-        for dim in model_dict[k].shape:
-            size *= dim
-        shaped = np.reshape(flat_arr[start : start + size].copy(), model_dict[k].shape)
-        new_glob[k] = torch.from_numpy(shaped)
-        start = start + size
+        :return: sum_of_dicts: sum of dictionaries from the list
+        """
+        assert list_of_dicts != None, "List of Dictionaries cannot be None."
+        assert len(list_of_dicts) > 0, "Ensure the List of Dictionaries is not empty."
 
-    model.load_state_dict(new_glob)
+        sum_of_dicts = copy.deepcopy(list_of_dicts[0])
+        for key in list(sum_of_dicts.keys()):
+            for indx in range(1, len(list_of_dicts)):
+                sum_of_dicts[key] += list_of_dicts[indx][key]
 
-
-def get_bitmask_per_method(
-    flat_model: np.ndarray, sparse_ratio: float = 1, sparsification_type: str = "randk"
-):
-    if sparsification_type == "randk":
-        return np.random.choice(
-            [0, 1], size=(len(flat_model),), p=[1 - sparse_ratio, sparse_ratio]
-        )
-    else:
-        raise ValueError("Unrecognized sparsification method!")
+        return sum_of_dicts

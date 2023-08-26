@@ -402,17 +402,19 @@ if __name__ == "__main__":
     }
 
     args.num_classes = 10
-    _, test_dataset, __, test_num_groups = get_dataset(arg_dict)
+    _, test_dataset, _, _, test_num_groups, _ = get_dataset(arg_dict)
+    
+    if harness_params['dataset'] == 'cifar':
+        len_in = 3*32*32
+    elif harness_params['dataset'] == 'mnist':
+        len_in = 28*28
+    elif harness_params['dataset'] == 'fashionmnist':
+        len_in = 28*28
 
-    if harness_params["dataset"] == "cifar":
-        len_in = 3 * 32 * 32
-    elif harness_params["dataset"] == "mnist":
-        len_in = 28 * 28
-    elif harness_params["dataset"] == "fashionmnist":
-        len_in = 28 * 28
+        
 
-    if harness_params["model"] == "cnn":
-        if harness_params["dataset"] == "cifar":
+    if harness_params['model'] == 'cnn':
+        if  harness_params['dataset'] == 'cifar':
             model = CNNCifar(args=args)
         elif harness_params["dataset"] == "mnist":
             model = CNNMnist(args=args)

@@ -159,6 +159,12 @@ def args_parser():
         default="randk",
         help="Type of sparsification to use.",
     )
+    parser.add_argument(
+        "--choose_from_top_r_percentile",
+        type=float,
+        default=1,
+        help="the ratio of r from the rtopk method",
+    )
 
     # arguments for FedProx
     parser.add_argument("--mu", type=float, default=None, help="mu value for FedProx")

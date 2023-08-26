@@ -234,6 +234,7 @@ class LocalUpdateSparsified(LocalUpdate):
             flat_model=flat,
             sparse_ratio=self.sparsification_ratio,
             sparsification_type=self.args.sparsification_type,
+            choose_from_top_r_percentile=self.args.choose_from_top_r_percentile,
         )  # because we will be using a single sparsification technique for now,
         # i will not make this into a global arg but if we decide to compare with other sparsification techniques,
         #  sparsification_type needs to be become a global arg

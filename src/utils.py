@@ -152,19 +152,36 @@ def f(x):
 
 
 def get_bitmask_per_method(
-    flat_model: np.ndarray, sparse_ratio: float = 1, sparsification_type: str = "randk"
+    flat_model: np.ndarray,
+    sparse_ratio: float = 1,
+    sparsification_type: str = "randk",
+    choose_from_top_r_percentile: float = 1,
 ):
+    assert (
+        choose_from_top_r_percentile >= sparse_ratio
+    ), "choose_from_top_r_percentile for rtopk should be larger than sparse_ratio"
     if sparsification_type == "randk":
         return np.random.choice(
             [0, 1], size=(len(flat_model),), p=[1 - sparse_ratio, sparse_ratio]
         )
-    if sparsification_type == "topk":
+    elif sparsification_type == "topk":
         num_params = int(sparse_ratio * len(flat_model))
         max_indices = np.argpartition(np.absolute(flat_model), -num_params)[
             -num_params:
         ]
         bitmask = np.zeros_like(flat_model)
         np.put(bitmask, max_indices, 1)
+        return bitmask
+    elif sparsification_type == "rtopk":
+        num_params = int(choose_from_top_r_percentile * len(flat_model))
+        max_indices = np.argpartition(np.absolute(flat_model), -num_params)[
+            -num_params:
+        ]
+        sparse_max_indices = np.random.choice(
+            max_indices, size=int(sparse_ratio * len(flat_model)), replace=False
+        )
+        bitmask = np.zeros_like(flat_model)
+        np.put(bitmask, sparse_max_indices, 1)
         return bitmask
     else:
         raise ValueError("Unrecognized sparsification method!")

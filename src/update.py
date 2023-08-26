@@ -51,9 +51,9 @@ class LocalUpdate:
         else:
             self.device = "cpu"
         # Default criterion set to NLL loss function
-        if args.dataset == "celeba":
-            self.criterion = nn.BCELoss().to(self.device)
-        elif args.dataset == "utkface":
+        # if args.dataset == "celeba":
+        #    self.criterion = nn.BCELoss().to(self.device)
+        if args.dataset in ["utkface", "celeba"]:
             self.criterion = nn.CrossEntropyLoss().to(self.device)
         else:   
             self.criterion = nn.NLLLoss().to(self.device)
@@ -82,11 +82,11 @@ class LocalUpdate:
             :return loss: the loss value
         """
         log_probs = model(images)
-        if self.args.dataset == "celeba":
-            labels = labels.unsqueeze(1).float()
-            loss = self.criterion(log_probs, labels)
-        else:
-            loss = self.criterion(log_probs, labels)
+        # if self.args.dataset == "celeba":
+        #    labels = labels.unsqueeze(1).float()
+        #    loss = self.criterion(log_probs, labels)
+        #else:
+        loss = self.criterion(log_probs, labels)
         return loss
 
     def update_weights(self, model, global_round, client_id=None):
@@ -144,10 +144,10 @@ class LocalUpdate:
 
             # Inference
             outputs = model(images)
-            if self.args.dataset == "celeba":
-                batch_loss = self.criterion(outputs, labels.unsqueeze(1).float())
-            else:
-                batch_loss = self.criterion(outputs, labels)
+            # if self.args.dataset == "celeba":
+            #     batch_loss = self.criterion(outputs, labels.unsqueeze(1).float())
+            # else:
+            batch_loss = self.criterion(outputs, labels)
             loss += batch_loss.item()
 
             # Prediction
@@ -203,9 +203,9 @@ def test_inference(args, model, test_dataset):
     else:
         device = "cpu"
 
-    if args.dataset == "celeba":
-        criterion = nn.BCELoss().to(device)
-    elif args.dataset == "utkface":
+    # if args.dataset == "celeba":
+    #     criterion = nn.BCELoss().to(device)
+    if args.dataset in ["utkface", "celeba"]:
         criterion = nn.CrossEntropyLoss().to(device)
     else:
         criterion = nn.NLLLoss().to(device)
@@ -217,10 +217,10 @@ def test_inference(args, model, test_dataset):
 
         # Inference
         outputs = model(images)
-        if args.dataset == "celeba":
-            batch_loss = criterion(outputs, labels.unsqueeze(1).float())
-        else:
-            batch_loss = criterion(outputs, labels)
+        # if args.dataset == "celeba":
+        #    batch_loss = criterion(outputs, labels.unsqueeze(1).float())
+        #else:
+        batch_loss = criterion(outputs, labels)
         loss += batch_loss.item()
 
         # Prediction

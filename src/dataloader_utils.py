@@ -16,7 +16,7 @@ from parse import parse
 # UKTFace
 
 class UTKFaceDataset(Dataset):
-    def __init__(self, directory, zfile, extract_dir, transform):
+    def __init__(self, directory, zfile, extract_dir, transform, label_type="ethnicity"):
         """
         Returns utkface dataset downloaded from link https://susanqq.github.io/UTKFace/.
         Download the aligned and cropped dataset (107 MB) and add it to the data folder
@@ -32,6 +32,7 @@ class UTKFaceDataset(Dataset):
         """
         self.directory = directory
         self.transform = transform
+        self.label_type = label_type
         self.labels = []
         self.images = []
 
@@ -53,7 +54,7 @@ class UTKFaceDataset(Dataset):
                 sys.exit('UTK Zip file not found!')
 
         for i, file in enumerate(os.listdir(extract_dir+'/UTKFace')):
-            file_labels = parse('{age}_{gender}_{}_{}.jpg', file)
+            file_labels = parse('{age}_{gender}_{ethnicity}_{}.jpg', file)
             if file_labels is not None:
                 if int(file_labels['age']) > 120 or int(file_labels['gender']) > 1:
                     continue
@@ -65,6 +66,7 @@ class UTKFaceDataset(Dataset):
                 self.labels.append({
                     'age': self.convert_age_to_range(int(file_labels['age'])),
                     'gender': int(file_labels['gender']),
+                    'ethnicity': int(file_labels['ethnicity']),
                 })
     
     def convert_age_to_range(self, age):
@@ -94,11 +96,15 @@ class UTKFaceDataset(Dataset):
 
         image = self.images[idx]
 
-        # labels = {'age': self.labels[idx]['age'], 'gender': self.labels[idx]['gender']}
-        labels = self.labels[idx]['age']
+        try: # accepts age/gender/ethnicity labels
+            labels = self.labels[idx][self.label_type]
+        except:
+            print("Wrong Label Type provided")
+            return
+
         return image, labels
 
-def get_utkface(data_dir, zfile, extract_dir, apply_transform):
+def get_utkface(data_dir, zfile, extract_dir, apply_transform, label_type="ethnicity"):
     """
         Returns train/test/validation utkface datasets.
 
@@ -113,7 +119,8 @@ def get_utkface(data_dir, zfile, extract_dir, apply_transform):
         directory=data_dir, 
         zfile=zfile, 
         extract_dir=extract_dir, 
-        transform=apply_transform
+        transform=apply_transform,
+        label_type=label_type,
     )
 
     train_len = int(len(dataset) * 0.8)
@@ -160,6 +167,8 @@ class CelebaDataset(Dataset):
 
         if label == -1:
             label = np.int64(0.0)
+        else:
+            label = np.int64(1.0)
 
         return img, label
 

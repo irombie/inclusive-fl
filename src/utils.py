@@ -69,7 +69,8 @@ def get_dataset(args: Union[Namespace, Dict]
             data_dir=data_dir, 
             zfile='data/utkface.tar.gz', 
             extract_dir='data', 
-            apply_transform=apply_transform
+            apply_transform=apply_transform,
+            label_type=args["label_type"],
         )
 
     elif args['dataset'] == "celeba":
@@ -94,7 +95,11 @@ def get_dataset(args: Union[Namespace, Dict]
             raise ValueError("celebA label-type is wrong. Please use 'gender' or 'smiling'.")
 
         label_type = args["label_type"]
-        train_dataset, test_dataset, valid_dataset = get_celeba(data_dir, label_type, apply_transform)
+        train_dataset, test_dataset, valid_dataset = get_celeba(
+            data_dir, 
+            label_type, 
+            apply_transform
+        )
 
 
     # sample training data amongst users

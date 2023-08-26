@@ -76,6 +76,6 @@ def args_parser():
     parser.add_argument('--mu', type=float, default=None, help="mu value for FedProx")
 
     # arguments for dataset
-    parser.add_argument('--label_type', type=str, default=None, help="label type for dataset")
+    parser.add_argument('--label_type', type=str, default=None, help="label type (celeba: gender/smiling, utkface: age/gender/ethnicty)")
     args = parser.parse_args()
     return args

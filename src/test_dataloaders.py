@@ -23,7 +23,7 @@ class TestCelebaDataLoader(unittest.TestCase):
         mean = [0.485, 0.456, 0.406]  # mean of the ImageNet dataset for normalizing
         std = [0.229, 0.224, 0.225]  # std of the ImageNet dataset for normalizing
 
-        apply_transformm = transforms.Compose(
+        apply_transform = transforms.Compose(
             [
                 transforms.Resize((224, 224)),
                 transforms.ToTensor(),
@@ -32,7 +32,11 @@ class TestCelebaDataLoader(unittest.TestCase):
         )
 
         label_type = "gender"
-        train_dataset, test_dataset, valid_dataset = get_celeba(data_dir, label_type, apply_transform)
+        train_dataset, test_dataset, valid_dataset = get_celeba(
+            data_dir, 
+            label_type, 
+            apply_transform
+        )
 
         trainloader = DataLoader(train_dataset, batch_size=64, shuffle=True)
         features, labels = next(iter(trainloader))
@@ -53,7 +57,8 @@ class TestUTKFaceDataLoader(unittest.TestCase):
             data_dir=data_dir, 
             zfile='data/utkface.tar.gz', 
             extract_dir='data', 
-            apply_transform=apply_transform
+            apply_transform=apply_transform,
+            label_type="ethnicity"
         )
 
         print('Dataset Lengths', len(train_dataset), '/', len(test_dataset), '/', len(test_dataset))

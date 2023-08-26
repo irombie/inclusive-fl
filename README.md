@@ -12,14 +12,18 @@ Create a conda environment from the `environment_droplet.yml` via running the co
 Then, activate the environment by running `conda activate <envname>`.
 
 ## Contributing
+0. Make sure your env is up to date by installing the requirements into your env via `pip install -r requirements.txt`
 1. Clone/pull the repository. `git pull origin main`
-2. Switch to a new branch, something other than main, and possibly appropriately named so it reflects what the changes are about. `git checkout -b <branch_name>`
-3. Make desired changes. 
-4. Commit and push to the new branch. `git add . ; git commit -m "<commit_msg>"; git push -u origin <branch_name>`. Once you commit and push once to a branch, you can push by just typing `git push`. 😼
-5. Create a pull request (PR) by heading to the repo's website and clicking on `compare & pull request`.
-6. Give an easy to understand name and provide explanation on what the PR does. 
-7. Ask for reviews from team members. Wait for a day for people to give feedback. After that, once your PR gets approved by someone, merge to `main`.
-8. YOU are AMAZING! 🥳🎉 Thank you for being such a valuable team member 💙
+2. Install precommit hooks via `pre-commit install`. Once installed, this step can be skipped.
+3. Switch to a new branch, something other than main, and possibly appropriately named so it reflects what the changes are about. `git checkout -b <branch_name>`
+4. Make desired changes. 
+5. Commit to the new branch. `git add . ; git commit -m "<commit_msg>"
+6. If precommit does not let you commit because it wants to format the file, repeat the above steps. You will now commit the formatted files.
+7. Push the commits via git push -u origin <branch_name>`. Once you commit and push once to a branch, you can push by just typing `git push`. 😼
+8. Create a pull request (PR) by heading to the repo's website and clicking on `compare & pull request`.
+9. Give an easy to understand name and provide explanation on what the PR does. 
+10. Ask for reviews from team members. Wait for a day for people to give feedback. After that, once your PR gets approved by someone, merge to `main`.
+11. YOU are AMAZING! 🥳🎉 Thank you for being such a valuable team member 💙
 
 ## Running the experiments
 1. To check which parameters are there to configure, head to `options.py` 👀
@@ -55,15 +59,5 @@ The default values for various paramters parsed to the experiment are given in `
 * ```--dist_noniid:```  Used in non-iid setting (--iid=0). Option to give each user the proportion of each class samples according to Dirichlet distribution. Default set to 0 to omit this option. Set to 1 to select this option. (The default value of other non-IID option for unequal splits --unequal=0 must stay unchanged).
 * ```--fl_method:``` Name of method to use. Currently supports "FedAvg", "FedProx", "FedBN" and "TestLossWeighted"
 * ```--mu:``` mu value for FedProx
-
-## Further Readings
-### Papers:
-* [Federated Learning: Challenges, Methods, and Future Directions](https://arxiv.org/abs/1908.07873)
-* [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629)
-* [Deep Learning with Differential Privacy](https://arxiv.org/abs/1607.00133)
-
-### Blog Posts:
-* [CMU MLD Blog Post: Federated Learning: Challenges, Methods, and Future Directions](https://blog.ml.cmu.edu/2019/11/12/federated-learning-challenges-methods-and-future-directions/)
-* [Leaf: A Benchmark for Federated Settings (CMU)](https://leaf.cmu.edu/)
-* [TensorFlow Federated](https://www.tensorflow.org/federated)
-* [Google AI Blog Post](https://ai.googleblog.com/2017/04/federated-learning-collaborative.html)
+* ```--sparsification_ratio``` The ratio of parameters that will be sent from the clients to the server at each round. 
+* and some others :D

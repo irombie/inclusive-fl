@@ -1,22 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.6
+from argparse import Namespace
 import os
 import random
-from argparse import Namespace
-from typing import Dict, List, OrderedDict, Tuple, Union
+from typing import Tuple, Union, Dict, List
+from collections import OrderedDict
 
 import numpy as np
 import copy
 import torch
 from torch.utils.data import Subset
 from torchvision import datasets, transforms
-
-from sampling import (
-    get_iid_partition,
-    get_noniid_partition,
-    paramaterise_noniid_distribution,
-)
 from sklearn.model_selection import train_test_split
 from sampling import (
     get_iid_partition,
@@ -57,23 +52,10 @@ def get_dataset(
             ]
         )
 
-        train_dataset = datasets.CIFAR10(
-            data_dir, train=True, download=True, transform=apply_transform
-        )
         train_valid_dataset = datasets.CIFAR10(
             data_dir, train=True, download=True, transform=apply_transform
         )
 
-        test_dataset = datasets.CIFAR10(
-            data_dir, train=False, download=True, transform=apply_transform
-        )
-
-    elif args["dataset"] == "fashionmnist":
-        data_dir = "../data/fashionmnist/"
-
-        apply_transform = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-        )
         test_dataset = datasets.CIFAR10(
             data_dir, train=False, download=True, transform=apply_transform
         )
@@ -93,13 +75,10 @@ def get_dataset(
     elif args["dataset"] == "fashionmnist":
         data_dir = "../data/fashionmnist/"
 
-        train_dataset = datasets.FashionMNIST(
-            data_dir, train=True, download=True, transform=apply_transform
+        apply_transform = transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
         )
 
-        test_dataset = datasets.FashionMNIST(
-            data_dir, train=False, download=True, transform=apply_transform
-        )
         train_valid_dataset = datasets.FashionMNIST(
             data_dir, train=True, download=True, transform=apply_transform
         )
@@ -127,14 +106,6 @@ def get_dataset(
 
     elif args["dist_noniid"]:
         # users receive unequal data within classes
-        distribution = paramaterise_noniid_distribution(
-            args["num_users"],
-            args["num_classes"],
-            train_dataset.targets,
-            float(args["dist_noniid"]),
-            args["min_proportion"],
-        )
-        train_user_groups = get_noniid_partition(train_dataset.targets, distribution)
         distribution = paramaterise_noniid_distribution(
             args["num_users"],
             args["num_classes"],
@@ -274,3 +245,13 @@ def get_bitmask_per_method(
         return bitmask
     else:
         raise ValueError("Unrecognized sparsification method!")
+
+
+def temperatured_softmax(client_losses, softmax_temperature):
+    """Calulate a softmax distribution across client losses with
+    temperature
+    """
+    client_losses = client_losses / softmax_temperature
+    return np.exp(client_losses - np.max(client_losses)) / np.sum(
+        np.exp(client_losses - np.max(client_losses))
+    )

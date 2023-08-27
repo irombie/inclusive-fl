@@ -165,6 +165,17 @@ def args_parser():
         default=1,
         help="the ratio of r from the rtopk method",
     )
+    parser.add_argument(
+        "--use_fair_sparsification",
+        action="store_true",
+        help="Activate fair sparsification on methods.",
+    )
+    parser.add_argument(
+        "--softmax_temperature",
+        type=float,
+        default=1,
+        help="The temperature used in fairness sparsification.",
+    )
 
     # arguments for FedProx
     parser.add_argument("--mu", type=float, default=None, help="mu value for FedProx")

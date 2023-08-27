@@ -185,8 +185,10 @@ class LocalUpdateSparsified(LocalUpdate):
         self,
         args,
         train_dataset,
+        valid_dataset,
         test_dataset,
         train_idxs,
+        valid_idxs,
         test_idxs,
         logger,
         global_model,
@@ -194,15 +196,17 @@ class LocalUpdateSparsified(LocalUpdate):
         super().__init__(
             args,
             train_dataset,
+            valid_dataset,
             test_dataset,
             train_idxs,
+            valid_idxs,
             test_idxs,
             logger,
             global_model,
         )
         self.sparsification_ratio = args.sparsification_ratio
 
-    def update_weights(self, model, global_round, client_id=None):
+    def update_weights(self, model, global_round, client_id=None, **kwargs):
         """
         Performs the local updates and returns the updated model.
             :param model: local model
@@ -242,16 +246,17 @@ class LocalUpdateSparsified(LocalUpdate):
             epoch_loss.append(avg_loss_per_local_training)
             # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
 
+        sparse_ratio = self.sparsification_ratio
+        if kwargs["sparsification_percentage"] is not None:
+            sparse_ratio = kwargs["sparsification_percentage"]
         flat = utils.flatten(model)
+        diff_flat = flat - glob_flat
         bitmask = utils.get_bitmask_per_method(
-            flat_model=flat,
-            sparse_ratio=self.sparsification_ratio,
+            flat_model=diff_flat,
+            sparse_ratio=sparse_ratio,
             sparsification_type=self.args.sparsification_type,
             choose_from_top_r_percentile=self.args.choose_from_top_r_percentile,
-        )  # because we will be using a single sparsification technique for now,
-        # i will not make this into a global arg but if we decide to compare with other sparsification techniques,
-        #  sparsification_type needs to be become a global arg
-        diff_flat = flat - glob_flat
+        )
         diff_flat *= bitmask
         return model, diff_flat, bitmask, sum(epoch_loss) / len(epoch_loss)
 

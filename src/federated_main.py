@@ -19,7 +19,13 @@ from models import MLP, VGG, CNNCifar, CNNFashion_Mnist, ResNet18, ResNet50
 from options import args_parser
 from update import get_local_update, test_inference
 
-from utils import exp_details, get_dataset, set_seed, updateFromNumpyFlatArray
+from utils import (
+    exp_details,
+    get_dataset,
+    set_seed,
+    updateFromNumpyFlatArray,
+    temperatured_softmax,
+)
 
 
 def main():
@@ -137,7 +143,7 @@ def main():
 
         valid_accs, valid_loss = [], []
 
-        # Getting the test loss for all users' data of the global model
+        # Getting the validation loss for all users' data of the global model
         for c in idxs_users:
             local_update = get_local_update(
                 args=args,
@@ -174,6 +180,14 @@ def main():
             }
         )
 
+        client_prob_dist = None
+        if args.use_fair_sparsification:
+            client_prob_dist = temperatured_softmax(
+                np.array(valid_losses), args.softmax_temperature
+            )
+            client_prob_dist = {
+                idxs_users[i]: client_prob_dist[i] for i in range(len(client_prob_dist))
+            }
         global_model.train()
         list_acc = []
         local_bitmasks = []
@@ -182,8 +196,10 @@ def main():
                 args=args,
                 train_dataset=train_dataset,
                 test_dataset=test_dataset,
-                train_idxs=train_user_groups[idx],
-                test_idxs=test_user_groups[idx],
+                valid_dataset=valid_dataset,
+                train_idxs=train_user_groups[c],
+                test_idxs=test_user_groups[c],
+                valid_idxs=valid_user_groups[c],
                 logger=run,
                 global_model=global_model,
             )
@@ -192,8 +208,15 @@ def main():
             # of this nature
 
             if args.fl_method == "FedSyn":
+                sparsification_percentage = None
+                if args.use_fair_sparsification:
+                    sparsification_percentage = client_prob_dist[idx]
+                    print(f"Sparsification percentage {sparsification_percentage}")
+                    assert sparsification_percentage is not None
                 w, flat_update, bitmask, loss = local_update.update_weights(
-                    model=local_models[idx], global_round=epoch
+                    model=local_models[idx],
+                    sparsification_percentage=sparsification_percentage,
+                    global_round=epoch,
                 )
                 local_weights.append(copy.deepcopy(flat_update))
                 local_bitmasks.append(bitmask)
@@ -215,6 +238,7 @@ def main():
             # Uncomment to log to wandb if needed
             # run.log({f"local model training loss per iteration for user {idx}": loss})
             # run.log({f"local model training accuracy per iteration for user {idx}": acc})
+
         run.log(
             {
                 f"Local Model Stddev of Train Losses": np.std(
@@ -222,6 +246,21 @@ def main():
                 )
             }
         )
+
+        num_client_params_sent = [
+            sum(local_bitmasks[i]) for i in range(len(local_bitmasks))
+        ]
+        # Uncommented to reduce clutter.
+        # for i, params_sent in zip(idxs_users, num_client_params_sent):
+        #     run.log({f"Number of parameters sent by client idx:{i}": params_sent})
+        run.log(
+            {
+                "Standard deviation of number of parameters sent:": np.std(
+                    num_client_params_sent
+                )
+            }
+        )
+        run.log({"Mean of number of parameters sent:": np.mean(num_client_params_sent)})
 
         acc_avg = sum(list_acc) / len(list_acc)
         train_accuracy.append(acc_avg)

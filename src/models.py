@@ -123,7 +123,7 @@ class modelC(nn.Module):
 class VGG(nn.Module):
     def __init__(self, num_classes: int, args) -> None:
         super().__init__()
-        self.vgg = vgg11_bn(pretrained=True)
+        self.vgg = vgg11_bn(pretrained=False)
         self.classifier = nn.Linear(1000, num_classes)
         self.dataset = args.dataset
 
@@ -131,14 +131,14 @@ class VGG(nn.Module):
         x = self.vgg(x)
         x = self.classifier(x)
         if self.dataset != "celeba":
-            return x
+            return F.log_softmax(x, dim=1)
         else:
             return torch.sigmoid(x)
     
 class ResNet18(nn.Module):
     def __init__(self, num_classes: int, args) -> None:
         super().__init__()
-        self.resnet = resnet18(pretrained=True)
+        self.resnet = resnet18(pretrained=False)
         self.classifier = nn.Linear(1000, num_classes)
         self.dataset = args.dataset
 
@@ -146,14 +146,14 @@ class ResNet18(nn.Module):
         x = self.resnet(x)
         x = self.classifier(x)
         if self.dataset != "celeba":
-            return x
+            return F.log_softmax(x, dim=1)
         else:
             return torch.sigmoid(x)
     
 class ResNet50(nn.Module):
     def __init__(self, num_classes: int, args) -> None:
         super().__init__()
-        self.resnet = resnet50(pretrained=True)
+        self.resnet = resnet50(pretrained=False)
         self.classifier = nn.Linear(1000, num_classes)
         self.dataset = args.dataset
 
@@ -161,6 +161,6 @@ class ResNet50(nn.Module):
         x = self.resnet(x)
         x = self.classifier(x)
         if self.dataset != "celeba":
-            return x
+            return F.log_softmax(x, dim=1)
         else:
             return torch.sigmoid(x)

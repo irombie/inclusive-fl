@@ -64,7 +64,7 @@ def args_parser():
                         help='Minimum proportion of dataset for each user. Used in dist_noniid')
     parser.add_argument('--stopping_rounds', type=int, default=10,
                         help='rounds of early stopping')
-    parser.add_argument('--verbose', type=int, default=1, help='verbose')
+    parser.add_argument('--verbose', type=int, default=0, help='verbose')
     parser.add_argument('--seed', type=int, help='random seed', required=True)
     parser.add_argument("--wandb_name", type=str, default = "FL", help="wandb project name, please set according to the details of your experiment")
     parser.add_argument('--save_every', type=int, default=2, help='save model every x rounds')
@@ -75,7 +75,13 @@ def args_parser():
     # arguments for FedProx
     parser.add_argument('--mu', type=float, default=None, help="mu value for FedProx")
 
+
     # arguments for dataset
     parser.add_argument('--label_type', type=str, default=None, help="label type (celeba: gender/smiling, utkface: age/gender/ethnicty)")
+    
+    # arguments for qFedAvg
+    parser.add_argument('--q', type=float, default=None, help="q value for qFedAvg")
+    parser.add_argument('--eps', type=float, default=None, help="eps value for qFedAvg")
+
     args = parser.parse_args()
     return args

@@ -28,6 +28,13 @@ from utils import (
 )
 
 
+UTKFACE_CLASSES = {
+    "age": 7,
+    "gender": 2,
+    "ethnicity": 5,
+}
+
+
 def main():
     start_time = time.time()
 
@@ -79,31 +86,42 @@ def main():
         len_in = 1
         for x in img_size:
             len_in *= x
-            global_model = MLP(dim_in=len_in, dim_hidden=64, dim_out=args.num_classes)
 
-    elif args.model == "vgg19":
-        if args.dataset == "cifar" or args.dataset == "fashionmnist":
-            global_model = VGG(num_classes=10, args=args)
-        elif args.dataset == "utkface":
-            global_model = VGG(num_classes=4, args=args)
-        elif args.dataset == "celeba":
-            global_model = VGG(num_classes=40, args=args)
+            global_model = MLP(dim_in=len_in, dim_hidden=64,
+                               dim_out=args.num_classes)
+    
+    elif args.model == 'vgg19':
+        if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
+            global_model = VGG(num_classes=10, args = args)
+        elif args.dataset == 'utkface':
+            global_model = VGG(
+                num_classes=UTKFACE_CLASSES[args.label_type], 
+                args = args
+            )
+        elif args.dataset == 'celeba':
+            global_model = VGG(num_classes=2, args = args)
+    
+    elif args.model == 'resnet18':
+        if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
+            global_model = ResNet18(num_classes=10, args = args)
+        elif args.dataset == 'utkface':
+            global_model = ResNet18(
+                num_classes=UTKFACE_CLASSES[args.label_type], 
+                args = args
+            )
+        elif args.dataset == 'celeba':
+            global_model = ResNet18(num_classes=2, args = args)
 
-    elif args.model == "resnet18":
-        if args.dataset == "cifar" or args.dataset == "fashionmnist":
-            global_model = ResNet18(num_classes=10, args=args)
-        elif args.dataset == "utkface":
-            global_model = ResNet18(num_classes=4, args=args)
-        elif args.dataset == "celeba":
-            global_model = ResNet18(num_classes=40, args=args)
-
-    elif args.model == "resnet50":
-        if args.dataset == "cifar" or args.dataset == "fashionmnist":
-            global_model = ResNet50(num_classes=10, args=args)
-        elif args.dataset == "utkface":
-            global_model = ResNet50(num_classes=4, args=args)
-        elif args.dataset == "celeba":
-            global_model = ResNet50(num_classes=40, args=args)
+    elif args.model == 'resnet50':
+        if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
+            global_model = ResNet50(num_classes=10, args = args)
+        elif args.dataset == 'utkface':
+            global_model = ResNet50(
+                num_classes=UTKFACE_CLASSES[args.label_type], 
+                args = args
+            )
+        elif args.dataset == 'celeba':
+            global_model = ResNet50(num_classes=2, args = args)
 
     else:
         exit("Error: unrecognized model")

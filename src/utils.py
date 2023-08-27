@@ -6,12 +6,15 @@ import os
 import random
 from typing import Tuple, Union, Dict, List
 from collections import OrderedDict
+import os, wget, zipfile
 
 import numpy as np
 import copy
 import torch
 from torch.utils.data import Subset
 from torchvision import datasets, transforms
+
+from dataloader_utils import get_celeba, CelebaDataset, get_utkface, UTKFaceDataset
 from sklearn.model_selection import train_test_split
 from sampling import (
     get_iid_partition,
@@ -67,6 +70,7 @@ def get_dataset(
             shuffle=True,
             stratify=train_valid_dataset.targets,
         )
+
         train_dataset = Subset(train_valid_dataset, train_idxs)
         valid_dataset = Subset(train_valid_dataset, valid_idxs)
         train_labels = torch.tensor(train_valid_dataset.targets)[train_idxs]
@@ -98,6 +102,53 @@ def get_dataset(
         train_labels = train_valid_dataset.targets[train_idxs]
         valid_labels = train_valid_dataset.targets[valid_idxs]
 
+    elif args['dataset'] == "utkface":
+        data_dir = 'data/UTKFace'
+
+        apply_transform = transforms.Compose([
+            transforms.Resize((128, 128)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.49,), (0.23,))
+        ])
+
+        # train_dataset, test_dataset, valid_dataset = get_utkface(data_dir, apply_transform)
+        train_dataset, test_dataset, valid_dataset = get_utkface(
+            data_dir=data_dir, 
+            zfile='data/utkface.tar.gz', 
+            extract_dir='data', 
+            apply_transform=apply_transform,
+            label_type=args["label_type"],
+        )
+
+    elif args['dataset'] == "celeba":
+
+        data_dir = 'data/celeba'
+
+        mean = [0.485, 0.456, 0.406]  # mean of the ImageNet dataset for normalizing
+        std = [0.229, 0.224, 0.225]  # std of the ImageNet dataset for normalizing
+
+        apply_transform = transforms.Compose(
+            [
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean, std),
+            ]
+        )
+
+        if "label_type" not in args:
+            raise ValueError("celebA label-type is missing. Please use 'gender' or 'smiling'.")
+
+        if args["label_type"] not in ["gender", "smiling"]:
+            raise ValueError("celebA label-type is wrong. Please use 'gender' or 'smiling'.")
+
+        label_type = args["label_type"]
+        train_dataset, test_dataset, valid_dataset = get_celeba(
+            data_dir, 
+            label_type, 
+            apply_transform
+        )
+
+
     # sample training data amongst users
     if args["iid"]:
         train_user_groups = get_iid_partition(train_dataset, args["num_users"])
@@ -128,11 +179,13 @@ def get_dataset(
 
 
 def exp_details(args):
-    print("\nExperimental details:")
-    print(f"    Model     : {args.model}")
-    print(f"    Optimizer : {args.optimizer}")
-    print(f"    Learning  : {args.lr}")
-    print(f"    Global Rounds   : {args.epochs}\n")
+
+    print('\nExperimental details:')
+    print(f'    Dataset.  : {args.dataset}')
+    print(f'    Model     : {args.model}')
+    print(f'    Optimizer : {args.optimizer}')
+    print(f'    Learning  : {args.lr}')
+    print(f'    Global Rounds   : {args.epochs}\n')
 
     print("    Federated parameters:")
     if args.iid:

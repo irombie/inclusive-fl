@@ -15,7 +15,7 @@ class MLP(nn.Module):
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout()
         self.layer_hidden = nn.Linear(dim_hidden, dim_out)
-        self.softmax = nn.Softmax(dim=1)
+        #self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         x = x.view(-1, x.shape[1] * x.shape[-2] * x.shape[-1])
@@ -23,7 +23,7 @@ class MLP(nn.Module):
         x = self.dropout(x)
         x = self.relu(x)
         x = self.layer_hidden(x)
-        return self.softmax(x)
+        return F.log_softmax(x, dim=1)
 
 
 class CNNMnist(nn.Module):
@@ -127,7 +127,7 @@ class modelC(nn.Module):
 class VGG(nn.Module):
     def __init__(self, num_classes: int, args) -> None:
         super().__init__()
-        self.vgg = vgg11_bn(pretrained=True)
+        self.vgg = vgg11_bn(pretrained=False)
         self.classifier = nn.Linear(1000, num_classes)
         self.dataset = args.dataset
 
@@ -135,7 +135,7 @@ class VGG(nn.Module):
         x = self.vgg(x)
         x = self.classifier(x)
         if self.dataset != "celeba":
-            return x
+            return F.log_softmax(x, dim=1)
         else:
             return torch.sigmoid(x)
 
@@ -159,7 +159,7 @@ class ResNet18(nn.Module):
 class ResNet50(nn.Module):
     def __init__(self, num_classes: int, args) -> None:
         super().__init__()
-        self.resnet = resnet50(pretrained=True)
+        self.resnet = resnet50(pretrained=False)
         self.classifier = nn.Linear(1000, num_classes)
         self.dataset = args.dataset
 

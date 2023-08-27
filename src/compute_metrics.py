@@ -4,10 +4,12 @@ import os
 # Python additional
 import numpy as np
 import pandas as pd
+
 # PyTorch Imports
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 # Torchvision
 import torchvision
 import tqdm
@@ -17,6 +19,7 @@ from torch import autograd
 from torch.utils.data import DataLoader
 
 import wandb
+
 ### Model imports
 from models import MLP, CNNCifar, CNNFashion_Mnist, CNNMnist
 from update import DatasetSplit

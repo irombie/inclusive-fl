@@ -21,6 +21,7 @@ from update import get_local_update, test_inference
 
 from utils import exp_details, get_dataset, set_seed, updateFromNumpyFlatArray
 
+
 def main():
     start_time = time.time()
 
@@ -39,7 +40,6 @@ def main():
         tag_list.append(f"{k}:{args_dict[k]}")
     run = wandb.init(project=args.wandb_name, config=args, name=run_name, tags=tag_list)
 
-
     if args.gpu and args.device == "cuda":
         device = "cuda"
     elif args.gpu and args.device == "mps":
@@ -50,7 +50,14 @@ def main():
     set_seed(args.seed, False)
 
     # load dataset and user groups
-    train_dataset, test_dataset, train_user_groups, test_user_groups = get_dataset(args)
+    (
+        train_dataset,
+        test_dataset,
+        valid_dataset,
+        train_user_groups,
+        test_user_groups,
+        valid_user_groups,
+    ) = get_dataset(args)
 
     # BUILD MODEL
     if args.model == "cnn":
@@ -105,9 +112,9 @@ def main():
     global_update = get_global_update(args, global_model, num_users=args.num_users)
 
     # Training
-    train_loss, train_accuracy, test_accuracy = [], [], []
+    train_loss, train_accuracy, test_accuracy, valid_accuracy = [], [], [], []
     print_every = 2
-    
+
     ### ckpt params
     ckpt_dict = dict()
     ckpt_dict.update(vars(args))
@@ -118,16 +125,17 @@ def main():
 
     local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
     for epoch in tqdm(range(args.epochs)):
-        local_weights, local_losses, local_bitmasks = [], [], []
+        local_weights, local_losses = [], []
+        local_deltas, local_hs = [], []
         print(f"\n | Global Training Round : {epoch+1} |\n")
 
         m = max(int(args.frac * args.num_users), 1)
         idxs_users = np.random.choice(range(args.num_users), m, replace=False)
 
-        list_loss = []
+        valid_losses = []
         global_model.eval()
 
-        test_accs, test_loss = [], []
+        valid_accs, valid_loss = [], []
 
         # Getting the test loss for all users' data of the global model
         for c in idxs_users:
@@ -135,35 +143,40 @@ def main():
                 args=args,
                 train_dataset=train_dataset,
                 test_dataset=test_dataset,
+                valid_dataset=valid_dataset,
                 train_idxs=train_user_groups[c],
                 test_idxs=test_user_groups[c],
+                valid_idxs=valid_user_groups[c],
                 logger=run,
                 global_model=global_model,
             )
 
-            acc, loss = local_update.inference(model=local_models[c], is_test=True)
+            acc, loss = local_update.inference(
+                model=local_models[c], dataset_type="valid"
+            )
 
-            test_accs.append(acc)
-            list_loss.append(loss)
+            valid_accs.append(acc)
+            valid_losses.append(loss)
             # Uncomment to log to wandb if needed
             # run.log({f"local model test loss for user {c}": loss})
             # run.log({f"local model test accuracy for user {c}": acc})
 
-        test_loss_avg = sum(list_loss) / len(test_accs)
-        test_loss.append(test_loss_avg)
-        test_acc_avg = sum(test_accs) / len(test_accs)
-        test_accuracy.append(test_acc_avg)
+        valid_loss_avg = sum(valid_losses) / len(valid_accs)
+        valid_loss.append(valid_loss_avg)
+        valid_acc_avg = sum(valid_accs) / len(valid_accs)
+        valid_accuracy.append(valid_acc_avg)
 
         run.log(
             {
-                f"Local Model Stddev of Test Losses": np.std(
-                    np.array(list_loss).flatten()
+                f"Local Model Stddev of Valid Losses": np.std(
+                    np.array(valid_losses).flatten()
                 )
             }
         )
 
         global_model.train()
         list_acc = []
+        local_bitmasks = []
         for idx in idxs_users:
             local_update = get_local_update(
                 args=args,
@@ -174,21 +187,29 @@ def main():
                 logger=run,
                 global_model=global_model,
             )
-            # we might want to separate sparse updates and non-sparse 
-            # updates into separate classes in the future to avoid ifs 
+            # we might want to separate sparse updates and non-sparse
+            # updates into separate classes in the future to avoid ifs
             # of this nature
-            if args.fl_method=="FedSyn": 
+
+            if args.fl_method == "FedSyn":
                 w, flat_update, bitmask, loss = local_update.update_weights(
                     model=local_models[idx], global_round=epoch
                 )
                 local_weights.append(copy.deepcopy(flat_update))
                 local_bitmasks.append(bitmask)
+            elif args.fl_method == "qFedAvg":
+                delta, h, w, loss = local_update.update_weights(
+                    model=local_models[idx], global_round=epoch
+                )
+                local_deltas.append(copy.deepcopy(delta))
+                local_hs.append(copy.deepcopy(h))
             else:
                 w, loss = local_update.update_weights(
-                model=local_models[idx], global_round=epoch)
+                    model=local_models[idx], global_round=epoch
+                )
                 local_weights.append(copy.deepcopy(w.state_dict()))
 
-            acc, loss = local_update.inference(model=w, is_test=False)
+            acc, loss = local_update.inference(model=w, dataset_type="train")
             list_acc.append(acc)
             local_losses.append(copy.deepcopy(loss))
             # Uncomment to log to wandb if needed
@@ -206,18 +227,25 @@ def main():
         train_accuracy.append(acc_avg)
 
         # update global weights
-        if args.fl_method=="FedSyn": 
+        if args.fl_method == "FedSyn":
             global_w = global_update.aggregate_weights(
                 local_weights, global_model, local_bitmasks
             )
             # update models
             updateFromNumpyFlatArray(global_w, global_model)
             local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
-        else: 
-            global_weights = global_update.aggregate_weights(local_weights, list_loss)
+        elif args.fl_method == "qFedAvg":
+            global_weights = global_update.update_global_model(
+                global_model, local_deltas, local_hs
+            )
+            global_update.update_local_models(local_models, global_weights)
+        else:
+            global_weights = global_update.aggregate_weights(
+                local_weights, valid_losses
+            )
             global_update.update_global_model(global_model, global_weights)
             global_update.update_local_models(local_models, global_weights)
-        
+
         if epoch % int(args.save_every) == 0:
             ckpt_dict["state_dict"] = global_model.state_dict()
             if not os.path.exists(args.ckpt_path):
@@ -231,10 +259,54 @@ def main():
 
         train_loss.append(loss_avg)
 
+        test_losses = []
+        global_model.eval()
+
+        test_accs, test_loss = [], []
+
+        # Getting the test loss for all users' data of the global model
+        for c in idxs_users:
+            local_update = get_local_update(
+                args=args,
+                train_dataset=train_dataset,
+                test_dataset=test_dataset,
+                valid_dataset=valid_dataset,
+                train_idxs=train_user_groups[c],
+                test_idxs=test_user_groups[c],
+                valid_idxs=valid_user_groups[c],
+                logger=run,
+                global_model=global_model,
+            )
+
+            acc, loss = local_update.inference(
+                model=local_models[c], dataset_type="test"
+            )
+
+            test_accs.append(acc)
+            test_losses.append(loss)
+            # Uncomment to log to wandb if needed
+            # run.log({f"local model test loss for user {c}": loss})
+            # run.log({f"local model test accuracy for user {c}": acc})
+
+        test_loss_avg = sum(test_losses) / len(test_accs)
+        test_loss.append(test_loss_avg)
+        test_acc_avg = sum(test_accs) / len(test_accs)
+        test_accuracy.append(test_acc_avg)
+
+        run.log(
+            {
+                f"Local Model Stddev of Test Losses": np.std(
+                    np.array(test_losses).flatten()
+                )
+            }
+        )
+
         run.log({"Global test accuracy: ": 100 * test_accuracy[-1]})
         run.log({"Global train accuracy: ": 100 * train_accuracy[-1]})
+        run.log({"Global valid accuracy: ": 100 * valid_accuracy[-1]})
         run.log({"Global train loss: ": train_loss[-1]})
         run.log({"Global test loss: ": test_loss[-1]})
+        run.log({"Global valid loss: ": valid_loss[-1]})
 
         # print global training loss after every 'i' rounds
         if (epoch + 1) % print_every == 0:
@@ -242,6 +314,7 @@ def main():
             print(f"Training Loss : {np.mean(np.array(train_loss))}")
             print("Train Accuracy: {:.2f}% \n".format(100 * train_accuracy[-1]))
             print("Test Accuracy: {:.2f}% \n".format(100 * test_accuracy[-1]))
+            print("Valid Accuracy: {:.2f}% \n".format(100 * valid_accuracy[-1]))
 
     # Test inference after completion of training
     test_acc, test_loss = test_inference(args, global_model, test_dataset)
@@ -262,31 +335,6 @@ def main():
         pickle.dump([train_loss, train_accuracy], f)
 
     print("\n Total Run Time: {0:0.4f}".format(time.time() - start_time))
-
-    # PLOTTING (optional)
-    # import matplotlib
-    # import matplotlib.pyplot as plt
-    # matplotlib.use('Agg')
-
-    # Plot Loss curve
-    # plt.figure()
-    # plt.title('Training Loss vs Communication rounds')
-    # plt.plot(range(len(train_loss)), train_loss, color='r')
-    # plt.ylabel('Training loss')
-    # plt.xlabel('Communication Rounds')
-    # plt.savefig('../save/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_loss.png'.
-    #             format(args.dataset, args.model, args.epochs, args.frac,
-    #                    args.iid, args.local_ep, args.local_bs))
-    #
-    # # Plot Average Accuracy vs Communication rounds
-    # plt.figure()
-    # plt.title('Average Accuracy vs Communication rounds')
-    # plt.plot(range(len(train_accuracy)), train_accuracy, color='k')
-    # plt.ylabel('Average Accuracy')
-    # plt.xlabel('Communication Rounds')
-    # plt.savefig('../save/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_acc.png'.
-    #             format(args.dataset, args.model, args.epochs, args.frac,
-    #                    args.iid, args.local_ep, args.local_bs))
 
 
 if __name__ == "__main__":

@@ -2,10 +2,12 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
+import copy
 from typing import Dict, Type
 
 import torch
 from torch import nn
+import numpy as np
 from torch.utils.data import DataLoader, Dataset
 
 import utils
@@ -42,8 +44,10 @@ class LocalUpdate:
         args,
         train_dataset,
         test_dataset,
+        valid_dataset,
         train_idxs,
         test_idxs,
+        valid_idxs,
         logger,
         global_model,
     ):
@@ -58,6 +62,11 @@ class LocalUpdate:
         )
         self.testloader = DataLoader(
             DatasetSplit(test_dataset, test_idxs),
+            batch_size=self.args.local_bs,
+            shuffle=False,
+        )
+        self.validloader = DataLoader(
+            DatasetSplit(valid_dataset, valid_idxs),
             batch_size=self.args.local_bs,
             shuffle=False,
         )
@@ -140,12 +149,16 @@ class LocalUpdate:
 
         return model, sum(epoch_loss) / len(epoch_loss)
 
-    def inference(self, model, is_test):
+    def inference(self, model, dataset_type: str):
         """Returns the inference accuracy and loss."""
-        if is_test:
+        if dataset_type == "test":
             loader = self.testloader
-        else:
+        elif dataset_type == "train":
             loader = self.trainloader
+        elif dataset_type == "valid":
+            loader = self.validloader
+        else:
+            raise ValueError("dataset_type must be one of test, train, valid")
         model.eval()
         loss, total, correct = 0.0, 0.0, 0.0
 
@@ -269,12 +282,102 @@ class FedProxLocalUpdate(LocalUpdate):
         return super().calculate_loss(model, images, labels) + fedprox_term
 
 
+class qFedAvgLocalUpdate(LocalUpdate):
+    """
+    qFedAvg Local Update. This is a subclass of LocalUpdate. It overrides the
+    calculate_loss method to include the updated qFedAvg Loss.
+    Reference: https://arxiv.org/pdf/1905.10497.pdf
+    """
+
+    def update_weights(self, model, global_round, client_id=None):
+        """
+        Performs the qFedAvg local updates and returns the updated model.
+            :param model: local model
+            :param global_round: the step number of current global round
+        """
+        # Set mode to train model
+        model.train()
+        epoch_loss = []
+
+        # Set optimizer for the local updates
+        optimizer = self.configure_optimizer(model)
+
+        base_model = copy.deepcopy(model.state_dict())
+
+        training_losses = []
+        for iter in range(self.args.local_ep):
+            batch_loss = []
+            train_loss = 0.0
+            for batch_idx, (images, labels) in enumerate(self.trainloader):
+                images, labels = images.to(self.device), labels.to(self.device)
+
+                model.zero_grad()
+                loss = self.calculate_loss(model, images, labels)
+                loss.backward()
+                optimizer.step()
+
+                train_loss += loss.item() * images.size(0)
+
+                if self.args.verbose and (batch_idx % 10 == 0):
+                    print(
+                        "| Global Round : {} | Local Epoch : {} | [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
+                            global_round,
+                            iter,
+                            batch_idx * len(images),
+                            len(self.trainloader.dataset),
+                            100.0 * batch_idx / len(self.trainloader),
+                            loss.item(),
+                        )
+                    )
+                batch_loss.append(loss.item())
+            avg_loss_per_local_training = sum(batch_loss) / len(batch_loss)
+            epoch_loss.append(avg_loss_per_local_training)
+
+            train_loss /= len(self.trainloader.dataset)
+            training_losses.append(train_loss)
+
+            # if iter == 0:
+            #     base_client_loss = avg_loss_per_local_training
+            # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
+
+        # qFedAvg update to the model
+        F = sum(training_losses) / len(training_losses)
+        if self.args.q is None:
+            raise ValueError(
+                "q argument must be passed as argument for fl_method=qFedAvg"
+            )
+
+        if self.args.eps is None:
+            # use default eps value to avoid zero loss
+            F += 1e-6
+        F += self.args.eps
+        Fq = np.float_power(F, self.args.q)
+        L = 1.0 / self.args.lr
+
+        delta_weights, delta, h = {}, {}, {}
+        updated_model = copy.deepcopy(model.state_dict())
+        for key in list(updated_model.keys()):
+            # Line 6 calculations qFedAvg algorithm
+            delta_weights[key] = L * (base_model[key] - updated_model[key])
+            delta[key] = Fq * delta_weights[key]
+
+            # Lemma 3 in the qFedAvg paper provides the connection between the Local
+            # Lipchitz constant at q=0 and when q>0. It is used to estimate the learning rate
+            # as the learning rate is set as the inverse of lipschitz constant.
+            h[key] = Fq * (
+                (self.args.q * torch.norm(delta_weights[key], p=2) ** 2) / F + L
+            )
+
+        return delta, h, model, sum(epoch_loss) / len(epoch_loss)
+
+
 NAME_TO_LOCAL_UPDATE: Dict[str, Type[LocalUpdate]] = {
     "FedAvg": LocalUpdate,
     "FedProx": FedProxLocalUpdate,
     "FedBN": LocalUpdate,
     "TestLossWeighted": LocalUpdate,
     "FedSyn": LocalUpdateSparsified,
+    "qFedAvg": qFedAvgLocalUpdate,
 }
 
 
@@ -315,8 +418,10 @@ def get_local_update(
     args,
     train_dataset,
     test_dataset,
+    valid_dataset,
     train_idxs,
     test_idxs,
+    valid_idxs,
     logger,
     global_model,
 ) -> LocalUpdate:
@@ -341,8 +446,10 @@ def get_local_update(
             args=args,
             train_dataset=train_dataset,
             test_dataset=test_dataset,
+            valid_dataset=valid_dataset,
             train_idxs=train_idxs,
             test_idxs=test_idxs,
+            valid_idxs=valid_idxs,
             logger=logger,
             global_model=global_model,
         )

@@ -75,8 +75,13 @@ def args_parser():
     # arguments for FedProx
     parser.add_argument('--mu', type=float, default=None, help="mu value for FedProx")
 
+
+    # arguments for dataset
+    parser.add_argument('--label_type', type=str, default=None, help="label type (celeba: gender/smiling, utkface: age/gender/ethnicty)")
+    
     # arguments for qFedAvg
     parser.add_argument('--q', type=float, default=None, help="q value for qFedAvg")
     parser.add_argument('--eps', type=float, default=None, help="eps value for qFedAvg")
+
     args = parser.parse_args()
     return args

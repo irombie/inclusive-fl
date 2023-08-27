@@ -55,7 +55,12 @@ class LocalUpdate:
         else:
             self.device = "cpu"
         # Default criterion set to NLL loss function
-        self.criterion = nn.NLLLoss().to(self.device)
+        # if args.dataset == "celeba":
+        #    self.criterion = nn.BCELoss().to(self.device)
+        if args.dataset in ["utkface", "celeba"]:
+            self.criterion = nn.CrossEntropyLoss().to(self.device)
+        else:   
+            self.criterion = nn.NLLLoss().to(self.device)
 
         self.global_model = global_model
 
@@ -81,6 +86,10 @@ class LocalUpdate:
             :return loss: the loss value
         """
         log_probs = model(images)
+        # if self.args.dataset == "celeba":
+        #    labels = labels.unsqueeze(1).float()
+        #    loss = self.criterion(log_probs, labels)
+        #else:
         loss = self.criterion(log_probs, labels)
         return loss
 
@@ -109,9 +118,14 @@ class LocalUpdate:
 
                 if self.args.verbose and (batch_idx % 10 == 0):
                     print('| Global Round : {} | Local Epoch : {} | [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                        global_round, iter, batch_idx * len(images),
-                        len(self.trainloader.dataset),
-                        100. * batch_idx / len(self.trainloader), loss.item()))
+                            global_round, 
+                            iter, 
+                            batch_idx * len(images),
+                            len(self.trainloader.dataset),
+                            100. * batch_idx / len(self.trainloader), 
+                            loss.item(),
+                        )
+                    )
                 batch_loss.append(loss.item())
             avg_loss_per_local_training = sum(batch_loss)/len(batch_loss)
             epoch_loss.append(avg_loss_per_local_training)
@@ -138,6 +152,9 @@ class LocalUpdate:
 
             # Inference
             outputs = model(images)
+            # if self.args.dataset == "celeba":
+            #     batch_loss = self.criterion(outputs, labels.unsqueeze(1).float())
+            # else:
             batch_loss = self.criterion(outputs, labels)
             loss += batch_loss.item()
 
@@ -273,7 +290,13 @@ def test_inference(args, model, test_dataset):
         device = "mps"
     else:
         device = "cpu"
-    criterion = nn.NLLLoss().to(device)
+
+    # if args.dataset == "celeba":
+    #     criterion = nn.BCELoss().to(device)
+    if args.dataset in ["utkface", "celeba"]:
+        criterion = nn.CrossEntropyLoss().to(device)
+    else:
+        criterion = nn.NLLLoss().to(device)
     testloader = DataLoader(test_dataset, batch_size=128,
                             shuffle=False)
 
@@ -282,6 +305,9 @@ def test_inference(args, model, test_dataset):
 
         # Inference
         outputs = model(images)
+        # if args.dataset == "celeba":
+        #    batch_loss = criterion(outputs, labels.unsqueeze(1).float())
+        #else:
         batch_loss = criterion(outputs, labels)
         loss += batch_loss.item()
 

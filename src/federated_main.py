@@ -21,6 +21,13 @@ from update import get_local_update, test_inference
 from utils import exp_details, get_dataset, set_seed
 
 
+UTKFACE_CLASSES = {
+    "age": 7,
+    "gender": 2,
+    "ethnicity": 5,
+}
+
+
 def main():
     start_time = time.time()
 
@@ -73,25 +80,34 @@ def main():
         if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
             global_model = VGG(num_classes=10, args = args)
         elif args.dataset == 'utkface':
-            global_model = VGG(num_classes=4, args = args)
+            global_model = VGG(
+                num_classes=UTKFACE_CLASSES[args.label_type], 
+                args = args
+            )
         elif args.dataset == 'celeba':
-            global_model = VGG(num_classes=40, args = args)
+            global_model = VGG(num_classes=2, args = args)
     
     elif args.model == 'resnet18':
         if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
             global_model = ResNet18(num_classes=10, args = args)
         elif args.dataset == 'utkface':
-            global_model = ResNet18(num_classes=4, args = args)
+            global_model = ResNet18(
+                num_classes=UTKFACE_CLASSES[args.label_type], 
+                args = args
+            )
         elif args.dataset == 'celeba':
-            global_model = ResNet18(num_classes=40, args = args)
+            global_model = ResNet18(num_classes=2, args = args)
 
     elif args.model == 'resnet50':
         if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
             global_model = ResNet50(num_classes=10, args = args)
         elif args.dataset == 'utkface':
-            global_model = ResNet50(num_classes=4, args = args)
+            global_model = ResNet50(
+                num_classes=UTKFACE_CLASSES[args.label_type], 
+                args = args
+            )
         elif args.dataset == 'celeba':
-            global_model = ResNet50(num_classes=40, args = args)
+            global_model = ResNet50(num_classes=2, args = args)
 
     else:
         exit('Error: unrecognized model')

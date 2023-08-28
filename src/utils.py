@@ -262,10 +262,6 @@ def updateFromNumpyFlatArray(flat_arr, model):
     model.load_state_dict(new_glob)
 
 
-def f(x):
-    return np.abs(x)
-
-
 def get_bitmask_per_method(
     flat_model: np.ndarray,
     sparse_ratio: float = 1,

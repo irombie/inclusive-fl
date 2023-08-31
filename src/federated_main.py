@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 import wandb
 from global_updates import get_global_update
-from models import MLP, VGG, CNNCifar, CNNFashion_Mnist, ResNet18, ResNet50
+from models import MLP, VGG, CNNCifar, CNNFashion_Mnist, ResNet18, ResNet9
 from options import args_parser
 from update import get_local_update, test_inference
 
@@ -112,16 +112,16 @@ def main():
         elif args.dataset == 'celeba':
             global_model = ResNet18(num_classes=2, args = args)
 
-    elif args.model == 'resnet50':
+    elif args.model == 'resnet9':
         if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
-            global_model = ResNet50(num_classes=10, args = args)
+            global_model = ResNet9(num_classes=10, args = args)
         elif args.dataset == 'utkface':
-            global_model = ResNet50(
+            global_model = ResNet9(
                 num_classes=UTKFACE_CLASSES[args.label_type], 
                 args = args
             )
         elif args.dataset == 'celeba':
-            global_model = ResNet50(num_classes=2, args = args)
+            global_model = ResNet9(num_classes=2, args = args)
 
     else:
         exit("Error: unrecognized model")

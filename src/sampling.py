@@ -4,9 +4,10 @@
 
 
 from collections import defaultdict
+from typing import Dict, List, Union
+
 import numpy as np
 import torch
-from typing import Union, List, Dict
 
 
 def get_iid_partition(dataset, num_users):

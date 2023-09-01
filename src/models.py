@@ -193,7 +193,7 @@ class ResidualBlock(nn.Module):
 
 
 class ResNet9(nn.Module):
-    def __init__(self):
+    def __init__(self, num_classes: int, args):
         super().__init__()
 
         self.conv = nn.Sequential(
@@ -216,11 +216,17 @@ class ResNet9(nn.Module):
             ResidualBlock(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1),
             nn.MaxPool2d(kernel_size=2, stride=2),
         )
+        self.dataset = args.dataset
 
-        self.fc = nn.Linear(in_features=1024, out_features=10, bias=True)
+        self.fc = nn.Linear(in_features=1024, out_features=num_classes, bias=True)
 
     def forward(self, x):
         out = self.conv(x)
+        
         out = out.view(-1, out.shape[1] * out.shape[2] * out.shape[3])
         out = self.fc(out)
-        return out
+        
+        if self.dataset != "celeba":
+            return F.log_softmax(out, dim=1)
+        else:
+            return torch.sigmoid(out)

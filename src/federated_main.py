@@ -91,7 +91,9 @@ def main():
         if args.dataset == "cifar" or args.dataset == "fashionmnist":
             global_model = VGG(num_classes=10, args=args)
         elif args.dataset == "utkface":
-            global_model = VGG(num_classes=UTKFACE_CLASSES[args.label_type], args=args)
+            global_model = VGG(
+                num_classes=UTKFACE_CLASSES[args.utk_label_type], args=args
+            )
         elif args.dataset == "celeba":
             global_model = VGG(num_classes=2, args=args)
 
@@ -100,7 +102,7 @@ def main():
             global_model = ResNet18(num_classes=10, args=args)
         elif args.dataset == "utkface":
             global_model = ResNet18(
-                num_classes=UTKFACE_CLASSES[args.label_type], args=args
+                num_classes=UTKFACE_CLASSES[args.utk_label_type], args=args
             )
         elif args.dataset == "celeba":
             global_model = ResNet18(num_classes=2, args=args)
@@ -110,7 +112,7 @@ def main():
             global_model = ResNet9(num_classes=10, args=args)
         elif args.dataset == "utkface":
             global_model = ResNet9(
-                num_classes=UTKFACE_CLASSES[args.label_type], args=args
+                num_classes=UTKFACE_CLASSES[args.utk_label_type], args=args
             )
         elif args.dataset == "celeba":
             global_model = ResNet9(num_classes=2, args=args)
@@ -140,6 +142,7 @@ def main():
     ckpt_dict["wandb_run_name"] = run_name
 
     local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
+
     for epoch in tqdm(range(args.epochs)):
         local_weights, local_losses = [], []
         local_deltas, local_hs = [], []

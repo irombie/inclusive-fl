@@ -118,8 +118,20 @@ def get_dataset(
             zfile="data/utkface.tar.gz",
             extract_dir="data",
             apply_transform=apply_transform,
-            label_type=args["label_type"],
+            label_type=args["utk_label_type"],
         )
+
+        train_labels = train_dataset.dataset.labels
+        train_labels = [d[args["utk_label_type"]] for d in train_labels]
+        train_images = train_dataset.dataset.images
+
+        valid_labels = valid_dataset.dataset.labels
+        valid_labels = [d[args["utk_label_type"]] for d in valid_labels]
+        valid_images = valid_dataset.dataset.images
+
+        test_labels = test_dataset.dataset.labels
+        test_labels = [d[args["utk_label_type"]] for d in test_labels]
+        test_images = test_dataset.dataset.images
 
     elif args["dataset"] == "celeba":
         data_dir = "data/celeba"
@@ -135,20 +147,14 @@ def get_dataset(
             ]
         )
 
-        if "label_type" not in args:
-            raise ValueError(
-                "celebA label-type is missing. Please use 'gender' or 'smiling'."
-            )
-
-        if args["label_type"] not in ["gender", "smiling"]:
-            raise ValueError(
-                "celebA label-type is wrong. Please use 'gender' or 'smiling'."
-            )
-
-        label_type = args["label_type"]
+        label_type = args["celeba_label_type"]
         train_dataset, test_dataset, valid_dataset = get_celeba(
             data_dir, label_type, apply_transform
         )
+        train_labels = train_dataset.dataset.labels
+        train_labels = [d[args["celeba_label_type"]] for d in train_labels]
+        train_images = train_dataset.dataset.images
+        # TODO : ADD OTHERS
 
     # sample training data amongst users
     if args["iid"]:
@@ -167,7 +173,7 @@ def get_dataset(
         )
         train_user_groups = get_noniid_partition(train_labels, distribution)
         valid_user_groups = get_noniid_partition(valid_labels, distribution)
-        test_user_groups = get_noniid_partition(test_dataset.targets, distribution)
+        test_user_groups = get_noniid_partition(test_labels, distribution)
 
     return (
         train_dataset,

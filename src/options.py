@@ -183,10 +183,18 @@ def args_parser():
 
     # arguments for dataset
     parser.add_argument(
-        "--label_type",
+        "--utk_label_type",
         type=str,
-        default=None,
-        help="label type (celeba: gender/smiling, utkface: age/gender/ethnicty)",
+        default="ethnicity",
+        help="label type (utkface: age/gender/ethnicty)",
+    )
+
+    # arguments for dataset
+    parser.add_argument(
+        "--celeba_label_type",
+        type=str,
+        default="gender",
+        help="label type (celeba: gender/smiling)",
     )
 
     # arguments for qFedAvg

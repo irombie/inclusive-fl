@@ -1,12 +1,17 @@
-num_users: [10, 50, 100]
-dataset: ["mnist", "cifar", "fashionmnist"]
-epochs: [30]
-lr: [0.01, 0.001, 0.0005]
-local_ep: [1, 3, 5]
-frac: [0.1, 0.3, 1]
-iid: [0, 1]
-dist_noniid: [0.3, 0.5]
-mu:  [0.01, 0.001]
-fl_method: ["FedAvg", "FedProx"]
-reweight_loss_avg: [0,1]
+dataset: ['cifar'] # 'utkface', 'celeba',
+model: ['vgg11_bn', 'resenet18', 'resnet9']
+epochs: [40]
+lr: [0.01, 0.001] 
+iid: [0]
+num_users: [100]
+frac: [0.5]
+local_ep: [5]
+local_bs: [16]
+q: [0.1] #qfedavg,
+fl_method: ['FedAvg', 'FedProx', 'qFedAvg', 'FedSyn']
+mu: [0.01]
+sparsification_ratio: [0.2, 0.5] #fedsyn
+sparsification_type: ['topk', 'rtopk'] #fedsyn
+dist_noniid: [0.5, 0.8]
+use_fair_sparsification: [0, 1] #fedsyn
 seed: [1234]

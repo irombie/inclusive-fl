@@ -122,7 +122,6 @@ def get_dataset(
         )
 
     elif args["dataset"] == "celeba":
-
         data_dir = "data/celeba"
 
         mean = [0.485, 0.456, 0.406]  # mean of the ImageNet dataset for normalizing
@@ -181,7 +180,6 @@ def get_dataset(
 
 
 def exp_details(args):
-
     print("\nExperimental details:")
     print(f"    Dataset.  : {args.dataset}")
     print(f"    Model     : {args.model}")

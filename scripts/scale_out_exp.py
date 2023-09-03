@@ -1,10 +1,12 @@
 import itertools
+import os
 import subprocess
 import time
 
 import yaml
-from tqdm import tqdm
 from loguru import logger
+from tqdm import tqdm
+
 
 def parse_yml(path: str = "scripts/configs.yml"):
     with open(path, "r") as stream:
@@ -14,12 +16,12 @@ def parse_yml(path: str = "scripts/configs.yml"):
         except yaml.YAMLError as exc:
             logger.error(f"Error parsing YAML file: {exc}")
             return None
-        
+
+
 def generate_command_args(combination, gpu, device, timestamp):
     fl_method = combination[11]
 
     command_args = {
-        "python3": "src/federated_main.py",
         "--gpu": gpu,
         "--device": device,
         "--model": combination[0],
@@ -28,7 +30,7 @@ def generate_command_args(combination, gpu, device, timestamp):
         "--local_bs": combination[3],
         "--frac": combination[4],
         "--iid": combination[5],
-        "--alpha": combination[6],
+        "--dist_noniid": combination[6],
         "--dataset": combination[7],
         "--seed": combination[8],
         "--num_users": combination[9],
@@ -41,11 +43,12 @@ def generate_command_args(combination, gpu, device, timestamp):
         command_args["--mu"] = combination[12]
     elif fl_method == "qFedAvg":
         command_args["--q"] = combination[12]
-        command_args["--eps"] = combination[13]
+        command_args["--epochs"] = combination[13]
     elif fl_method in ["FedAvg", "FedSyn"]:
         command_args["--sparsification_ratio"] = combination[12]
         command_args["--sparsification_type"] = combination[13]
         command_args["--use_fair_sparsification"] = combination[14]
+        command_args["--choose_from_top_r_percentile"] = combination[15]
 
     return command_args
 
@@ -69,6 +72,10 @@ def main():
     configs = parse_yml()
     if configs is None:
         raise Exception("Unable to read config file!")
+    if "sparsification_ratio" in configs:
+        configs["choose_from_top_r_percentile"] = [
+            1.5 * float(num) for num in configs["sparsification_ratio"]
+        ]
 
     # Generate all parameter combinations
     parameter_combinations = []
@@ -82,7 +89,7 @@ def main():
                     configs["local_bs"],
                     configs["frac"],
                     configs["iid"],
-                    configs["alpha"],
+                    configs["dist_noniid"],
                     configs["dataset"],
                     configs["seed"],
                     configs["num_users"],
@@ -91,7 +98,7 @@ def main():
                     configs["mu"],
                 )
             )
-        
+
         elif fl_method == "qFedAvg":
             parameter_combinations += list(
                 itertools.product(
@@ -101,17 +108,17 @@ def main():
                     configs["local_bs"],
                     configs["frac"],
                     configs["iid"],
-                    configs["alpha"],
+                    configs["dist_noniid"],
                     configs["dataset"],
                     configs["seed"],
                     configs["num_users"],
                     configs["epochs"],
                     [fl_method],
                     configs["q"],
-                    configs["eps"],
+                    configs["epochs"],
                 )
             )
-        
+
         else:
             parameter_combinations += list(
                 itertools.product(
@@ -121,7 +128,7 @@ def main():
                     configs["local_bs"],
                     configs["frac"],
                     configs["iid"],
-                    configs["alpha"],
+                    configs["dist_noniid"],
                     configs["dataset"],
                     configs["seed"],
                     configs["num_users"],
@@ -130,6 +137,7 @@ def main():
                     configs["sparsification_ratio"],
                     configs["sparsification_type"],
                     configs["use_fair_sparsification"],
+                    configs["choose_from_top_r_percentile"],
                 )
             )
 
@@ -137,13 +145,17 @@ def main():
 
     # Launch experiments
     for i, combination in enumerate(tqdm(parameter_combinations)):
-        command_args = generate_command_args(combination, fl_method, gpu, device, timestamp)
+        command_args = generate_command_args(combination, gpu, device, timestamp)
         command = [f"{k}={v}" for k, v in command_args.items()]
+        command.insert(0, f"{os.getcwd()}/src/federated_main.py")  # + command
+        command.insert(0, "python3")
 
-        logger.info(f'Launching experiment {i+1}/{len(parameter_combinations)}: {" ".join(command)}')
+        logger.info(
+            f'Launching experiment {i+1}/{len(parameter_combinations)}: {" ".join(command)}'
+        )
 
         subprocess.run(command)
 
+
 if __name__ == "__main__":
     main()
-

@@ -15,18 +15,16 @@ from tqdm import tqdm
 
 import wandb
 from global_updates import get_global_update
-from models import MLP, VGG, CNNCifar, CNNFashion_Mnist, ResNet18, ResNet9
+from models import MLP, VGG, CNNCifar, CNNFashion_Mnist, ResNet9, ResNet18
 from options import args_parser
 from update import get_local_update, test_inference
-
 from utils import (
     exp_details,
     get_dataset,
     set_seed,
-    updateFromNumpyFlatArray,
     temperatured_softmax,
+    updateFromNumpyFlatArray,
 )
-
 
 UTKFACE_CLASSES = {
     "age": 7,
@@ -87,41 +85,35 @@ def main():
         for x in img_size:
             len_in *= x
 
-            global_model = MLP(dim_in=len_in, dim_hidden=64,
-                               dim_out=args.num_classes)
-    
-    elif args.model == 'vgg19':
-        if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
-            global_model = VGG(num_classes=10, args = args)
-        elif args.dataset == 'utkface':
-            global_model = VGG(
-                num_classes=UTKFACE_CLASSES[args.label_type], 
-                args = args
-            )
-        elif args.dataset == 'celeba':
-            global_model = VGG(num_classes=2, args = args)
-    
-    elif args.model == 'resnet18':
-        if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
-            global_model = ResNet18(num_classes=10, args = args)
-        elif args.dataset == 'utkface':
-            global_model = ResNet18(
-                num_classes=UTKFACE_CLASSES[args.label_type], 
-                args = args
-            )
-        elif args.dataset == 'celeba':
-            global_model = ResNet18(num_classes=2, args = args)
+            global_model = MLP(dim_in=len_in, dim_hidden=64, dim_out=args.num_classes)
 
-    elif args.model == 'resnet9':
-        if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
-            global_model = ResNet9(num_classes=10, args = args)
-        elif args.dataset == 'utkface':
-            global_model = ResNet9(
-                num_classes=UTKFACE_CLASSES[args.label_type], 
-                args = args
+    elif args.model == "vgg11_bn":
+        if args.dataset == "cifar" or args.dataset == "fashionmnist":
+            global_model = VGG(num_classes=10, args=args)
+        elif args.dataset == "utkface":
+            global_model = VGG(num_classes=UTKFACE_CLASSES[args.label_type], args=args)
+        elif args.dataset == "celeba":
+            global_model = VGG(num_classes=2, args=args)
+
+    elif args.model == "resnet18":
+        if args.dataset == "cifar" or args.dataset == "fashionmnist":
+            global_model = ResNet18(num_classes=10, args=args)
+        elif args.dataset == "utkface":
+            global_model = ResNet18(
+                num_classes=UTKFACE_CLASSES[args.label_type], args=args
             )
-        elif args.dataset == 'celeba':
-            global_model = ResNet9(num_classes=2, args = args)
+        elif args.dataset == "celeba":
+            global_model = ResNet18(num_classes=2, args=args)
+
+    elif args.model == "resnet9":
+        if args.dataset == "cifar" or args.dataset == "fashionmnist":
+            global_model = ResNet9(num_classes=10, args=args)
+        elif args.dataset == "utkface":
+            global_model = ResNet9(
+                num_classes=UTKFACE_CLASSES[args.label_type], args=args
+            )
+        elif args.dataset == "celeba":
+            global_model = ResNet9(num_classes=2, args=args)
 
     else:
         exit("Error: unrecognized model")

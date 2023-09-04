@@ -44,7 +44,7 @@ def generate_command_args(combination, gpu, device, timestamp):
     elif fl_method == "qFedAvg":
         command_args["--q"] = combination[12]
         command_args["--epochs"] = combination[13]
-    elif fl_method in ["FedAvg", "FedSyn"]:
+    elif fl_method == "FedSyn":
         command_args["--sparsification_ratio"] = combination[12]
         command_args["--sparsification_type"] = combination[13]
         command_args["--use_fair_sparsification"] = combination[14]
@@ -116,6 +116,23 @@ def main():
                     [fl_method],
                     configs["q"],
                     configs["epochs"],
+                )
+            )
+        elif fl_method == "FedAvg":
+            parameter_combinations += list(
+                itertools.product(
+                    configs["model"],
+                    configs["lr"],
+                    configs["local_ep"],
+                    configs["local_bs"],
+                    configs["frac"],
+                    configs["iid"],
+                    configs["dist_noniid"],
+                    configs["dataset"],
+                    configs["seed"],
+                    configs["num_users"],
+                    configs["epochs"],
+                    [fl_method],
                 )
             )
 

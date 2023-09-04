@@ -74,6 +74,7 @@ def get_dataset(
         valid_dataset = Subset(train_valid_dataset, valid_idxs)
         train_labels = torch.tensor(train_valid_dataset.targets)[train_idxs]
         valid_labels = torch.tensor(train_valid_dataset.targets)[valid_idxs]
+        test_labels = test_dataset.targets
 
     elif args["dataset"] == "fashionmnist":
         data_dir = "../data/fashionmnist/"
@@ -100,6 +101,7 @@ def get_dataset(
         valid_dataset = Subset(train_valid_dataset, valid_idxs)
         train_labels = train_valid_dataset.targets[train_idxs]
         valid_labels = train_valid_dataset.targets[valid_idxs]
+        test_labels = test_dataset.targets
 
     elif args["dataset"] == "utkface":
         data_dir = "data/UTKFace"
@@ -160,7 +162,7 @@ def get_dataset(
     if args["iid"]:
         train_user_groups = get_iid_partition(train_dataset, args["num_users"])
         valid_user_groups = get_iid_partition(valid_dataset, args["num_users"])
-        test_user_groups = get_iid_partition(test_dataset, args["num_users"])
+        test_user_groups = get_iid_partition(test_labels, args["num_users"])
 
     elif args["dist_noniid"]:
         # users receive unequal data within classes

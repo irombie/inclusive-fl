@@ -31,43 +31,8 @@ def args_parser():
         help="Name of federated learning method to use, \
                         options are FedAvg, FedBN, FedProx, TestLossWeighted",
     )
-
     # model arguments
-    parser.add_argument("--model", type=str, default="mlp", help="model name")
-    parser.add_argument(
-        "--kernel_num", type=int, default=9, help="number of each kind of kernel"
-    )
-    parser.add_argument(
-        "--kernel_sizes",
-        type=str,
-        default="3,4,5",
-        help="comma-separated kernel size to \
-                        use for convolution",
-    )
-    parser.add_argument(
-        "--num_channels",
-        type=int,
-        default=1,
-        help="number \
-                        of channels of imgs",
-    )
-    parser.add_argument(
-        "--norm", type=str, default="batch_norm", help="batch_norm, layer_norm, or None"
-    )
-    parser.add_argument(
-        "--num_filters",
-        type=int,
-        default=32,
-        help="number of filters for conv nets -- 32 for \
-                        mini-imagenet, 64 for omiglot.",
-    )
-    parser.add_argument(
-        "--max_pool",
-        type=str,
-        default="True",
-        help="Whether use max pooling rather than \
-                        strided convolutions",
-    )
+    parser.add_argument("--model", type=str, default="cnn", help="model name")
 
     # other arguments
     parser.add_argument(
@@ -76,13 +41,6 @@ def args_parser():
         default="fashionmnist",
         help="name \
                         of dataset",
-    )
-    parser.add_argument(
-        "--num_classes",
-        type=int,
-        default=10,
-        help="number \
-                        of classes",
     )
     parser.add_argument(
         "--gpu",
@@ -167,7 +125,8 @@ def args_parser():
     )
     parser.add_argument(
         "--use_fair_sparsification",
-        action="store_true",
+        type=int,
+        default=True,
         help="Activate fair sparsification on methods.",
     )
     parser.add_argument(
@@ -180,14 +139,9 @@ def args_parser():
     # arguments for FedProx
     parser.add_argument("--mu", type=float, default=None, help="mu value for FedProx")
 
-
-    # arguments for dataset
-    parser.add_argument('--label_type', type=str, default=None, help="label type (celeba: gender/smiling, utkface: age/gender/ethnicty)")
-    
     # arguments for qFedAvg
-
-    parser.add_argument('--q', type=float, default=None, help="q value for qFedAvg")
-    parser.add_argument('--eps', type=float, default=None, help="eps value for qFedAvg")
+    parser.add_argument("--q", type=float, default=None, help="q value for qFedAvg")
+    parser.add_argument("--eps", type=float, default=None, help="eps value for qFedAvg")
 
     args = parser.parse_args()
     return args

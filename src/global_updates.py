@@ -1,6 +1,3 @@
-from typing import Dict, List, Tuple, Type
-from utils import dict_sum
-import torch
 import copy
 from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple, Type
@@ -9,6 +6,7 @@ import numpy as np
 import torch
 
 import utils
+from utils import dict_sum
 
 
 class AbstractGlobalUpdate(ABC):

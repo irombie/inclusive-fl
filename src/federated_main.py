@@ -15,24 +15,16 @@ from tqdm import tqdm
 
 import wandb
 from global_updates import get_global_update
-from models import MLP, VGG, CNNCifar, CNNFashion_Mnist, ResNet18, ResNet50
+from models import VGG, SmallCNN, CNNFashion_Mnist, ResNet9, ResNet18
 from options import args_parser
 from update import get_local_update, test_inference
-
 from utils import (
     exp_details,
     get_dataset,
     set_seed,
-    updateFromNumpyFlatArray,
     temperatured_softmax,
+    updateFromNumpyFlatArray,
 )
-
-
-UTKFACE_CLASSES = {
-    "age": 7,
-    "gender": 2,
-    "ethnicity": 5,
-}
 
 
 def main():
@@ -73,58 +65,46 @@ def main():
     ) = get_dataset(args)
 
     # BUILD MODEL
-    if args.model == "cnn":
-        # Convolutional neural netork
-        if args.dataset == "fashionmnist":
-            global_model = CNNFashion_Mnist(args=args)
-        elif args.dataset == "cifar":
-            global_model = CNNCifar(args=args)
+    if args.dataset == "fashionmnist":
+        global_model = CNNFashion_Mnist(args=args)
 
-    elif args.model == "mlp":
-        # Multi-layer preceptron
-        img_size = train_dataset[0][0].shape
-        len_in = 1
-        for x in img_size:
-            len_in *= x
+    elif args.dataset == "cifar":
+        if args.model == "small_cnn":
+            global_model = SmallCNN(args=args, num_classes=10)
+        elif args.model == "vgg11_bn":
+            global_model = VGG(num_classes=10, args=args)
+        elif args.model == "resnet18":
+            global_model = ResNet18(num_classes=10, args=args)
+        elif args.model == "resnet9":
+            global_model = ResNet9(num_classes=10, args=args)
+        else:
+            exit("Error: Model not implemented!")
 
-            global_model = MLP(dim_in=len_in, dim_hidden=64,
-                               dim_out=args.num_classes)
-    
-    elif args.model == 'vgg19':
-        if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
-            global_model = VGG(num_classes=10, args = args)
-        elif args.dataset == 'utkface':
-            global_model = VGG(
-                num_classes=UTKFACE_CLASSES[args.label_type], 
-                args = args
-            )
-        elif args.dataset == 'celeba':
-            global_model = VGG(num_classes=2, args = args)
-    
-    elif args.model == 'resnet18':
-        if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
-            global_model = ResNet18(num_classes=10, args = args)
-        elif args.dataset == 'utkface':
-            global_model = ResNet18(
-                num_classes=UTKFACE_CLASSES[args.label_type], 
-                args = args
-            )
-        elif args.dataset == 'celeba':
-            global_model = ResNet18(num_classes=2, args = args)
+    elif args.dataset == "utkface":
+        if args.model == "small_cnn":
+            global_model = SmallCNN(args=args, num_classes=5)
+        elif args.model == "vgg11_bn":
+            global_model = VGG(num_classes=5, args=args)
+        elif args.model == "resnet18":
+            global_model = ResNet18(num_classes=5, args=args)
+        elif args.model == "resnet9":
+            global_model = ResNet9(num_classes=5, args=args)
+        else:
+            exit("Error: Model not implemented!")
 
-    elif args.model == 'resnet50':
-        if args.dataset == 'cifar' or args.dataset == 'fashionmnist':
-            global_model = ResNet50(num_classes=10, args = args)
-        elif args.dataset == 'utkface':
-            global_model = ResNet50(
-                num_classes=UTKFACE_CLASSES[args.label_type], 
-                args = args
-            )
-        elif args.dataset == 'celeba':
-            global_model = ResNet50(num_classes=2, args = args)
-
+    elif args.dataset == "tiny-imagenet":
+        if args.model == "small_cnn":
+            global_model = SmallCNN(args=args, num_classes=200)
+        elif args.model == "vgg11_bn":
+            global_model = VGG(num_classes=200, args=args)
+        elif args.model == "resnet18":
+            global_model = ResNet18(num_classes=200, args=args)
+        elif args.model == "resnet9":
+            global_model = ResNet9(num_classes=200, args=args)
+        else:
+            exit("Error: Model not implemented!")
     else:
-        exit("Error: unrecognized model")
+        exit("Error: Dataset not implemented!")
 
     # Set the model to train and send it to device.
     global_model.to(device)
@@ -148,6 +128,7 @@ def main():
     ckpt_dict["wandb_run_name"] = run_name
 
     local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
+
     for epoch in tqdm(range(args.epochs)):
         local_weights, local_losses = [], []
         local_deltas, local_hs = [], []

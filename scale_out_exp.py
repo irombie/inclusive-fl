@@ -8,7 +8,7 @@ from loguru import logger
 from tqdm import tqdm
 
 
-def parse_yml(path: str = "configs.yml"):
+def parse_yml(path: str = "YAMALAMDINGDONG.yml"):
     with open(path, "r") as stream:
         try:
             logger.info("Parsing YAML file.")

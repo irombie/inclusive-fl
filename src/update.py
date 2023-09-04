@@ -27,12 +27,11 @@ class DatasetSplit(Dataset):
         try:
             image, label = self.dataset[self.idxs[item]]
         except:
-            # print("IN EXCEPT -- CELEBA OR UTKFACE")
+            # print("IN EXCEPT -- OR UTKFACE")
             image = self.dataset.dataset.images[self.idxs[item]]
             label = [d["ethnicity"] for d in self.dataset.dataset.labels][
                 self.idxs[item]
             ]
-
         return torch.tensor(image), torch.tensor(label)
 
 
@@ -84,13 +83,8 @@ class LocalUpdate:
             self.device = "mps"
         else:
             self.device = "cpu"
-        # Default criterion set to NLL loss function
-        # if args.dataset == "celeba":
-        #    self.criterion = nn.BCELoss().to(self.device)
-        if args.dataset in ["utkface", "celeba"]:
-            self.criterion = nn.CrossEntropyLoss().to(self.device)
-        else:
-            self.criterion = nn.NLLLoss().to(self.device)
+
+        self.criterion = nn.NLLLoss().to(self.device)
 
         self.global_model = global_model
 
@@ -118,10 +112,7 @@ class LocalUpdate:
             :return loss: the loss value
         """
         log_probs = model(images)
-        # if self.args.dataset == "celeba":
-        #    labels = labels.unsqueeze(1).float()
-        #    loss = self.criterion(log_probs, labels)
-        # else:
+
         loss = self.criterion(log_probs, labels)
         return loss
 
@@ -184,9 +175,7 @@ class LocalUpdate:
 
             # Inference
             outputs = model(images)
-            # if self.args.dataset == "celeba":
-            #     batch_loss = self.criterion(outputs, labels.unsqueeze(1).float())
-            # else:
+
             batch_loss = self.criterion(outputs, labels)
             loss += batch_loss.item()
 
@@ -419,12 +408,7 @@ def test_inference(args, model, test_dataset):
     else:
         device = "cpu"
 
-    # if args.dataset == "celeba":
-    #     criterion = nn.BCELoss().to(device)
-    if args.dataset in ["utkface", "celeba"]:
-        criterion = nn.CrossEntropyLoss().to(device)
-    else:
-        criterion = nn.NLLLoss().to(device)
+    criterion = nn.NLLLoss().to(device)
     testloader = DataLoader(test_dataset, batch_size=128, shuffle=False)
 
     for batch_idx, (images, labels) in enumerate(testloader):
@@ -432,9 +416,7 @@ def test_inference(args, model, test_dataset):
 
         # Inference
         outputs = model(images)
-        # if args.dataset == "celeba":
-        #    batch_loss = criterion(outputs, labels.unsqueeze(1).float())
-        # else:
+
         batch_loss = criterion(outputs, labels)
         loss += batch_loss.item()
 

@@ -278,11 +278,9 @@ def main():
             )
         else:
             global_weights = global_update.aggregate_weights(
-                local_weights_sum, valid_losses
+                local_weights_sum, valid_losses, len(idxs_users)
             )
-            global_update.update_global_model(
-                global_model, global_weights, len(idxs_users)
-            )
+            global_update.update_global_model(global_model, global_weights)
 
         if epoch % int(args.save_every) == 0:
             ckpt_dict["state_dict"] = global_model.state_dict()

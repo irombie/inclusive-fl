@@ -32,6 +32,7 @@ class AbstractGlobalUpdate(ABC):
         self,
         local_model_weights: List[Dict[str, torch.Tensor]],
         test_losses: List[float],
+        **kwargs,
     ) -> Dict[str, torch.Tensor]:
         """
         Method to aggregate local model weights to return global
@@ -48,7 +49,10 @@ class AbstractGlobalUpdate(ABC):
         pass
 
     def update_global_model(
-        self, global_model: torch.nn.Module, global_weights: Dict[str, torch.Tensor]
+        self,
+        global_model: torch.nn.Module,
+        global_weights: Dict[str, torch.Tensor],
+        **kwargs,
     ) -> None:
         """
         Update global model with global weights
@@ -95,7 +99,10 @@ class MeanWeights(AbstractGlobalUpdate):
         :return: global model state dictionary,
             which is the average of all local models provided
         """
-        return torch.div(local_weights_sum, num_users)
+        return np.divide(local_weights_sum, num_users)
+
+    def update_global_model(self, global_model, global_weights, **kwargs) -> None:
+        utils.updateFromNumpyFlatArray(global_weights, global_model)
 
 
 class MeanWeightsSparsified(AbstractGlobalUpdate):

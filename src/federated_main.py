@@ -128,8 +128,6 @@ def main():
     ckpt_dict["global_lr"] = args.global_lr
     ckpt_dict["wandb_run_name"] = run_name
 
-    # local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
-    # global_model.train()
     list_acc = []
     # local_bitmasks = []
     for epoch in tqdm(range(args.epochs)):

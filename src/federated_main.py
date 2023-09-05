@@ -15,11 +15,12 @@ from tqdm import tqdm
 
 import wandb
 from global_updates import get_global_update
-from models import VGG, SmallCNN, CNNFashion_Mnist, ResNet9, ResNet18
+from models import VGG, CNNFashion_Mnist, ResNet9, ResNet18, SmallCNN
 from options import args_parser
 from update import get_local_update, test_inference
 from utils import (
     exp_details,
+    flatten,
     get_dataset,
     set_seed,
     temperatured_softmax,
@@ -127,10 +128,12 @@ def main():
     ckpt_dict["global_lr"] = args.global_lr
     ckpt_dict["wandb_run_name"] = run_name
 
-    local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
-
+    # local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
+    # global_model.train()
+    list_acc = []
+    # local_bitmasks = []
     for epoch in tqdm(range(args.epochs)):
-        local_weights, local_losses = [], []
+        local_losses = []
         local_deltas, local_hs = [], []
         print(f"\n | Global Training Round : {epoch+1} |\n")
 
@@ -142,8 +145,13 @@ def main():
 
         valid_accs, valid_loss = [], []
 
-        # Getting the validation loss for all users' data of the global model
+        global_flat = flatten(global_model)
+        local_weights_sum, local_bitmasks_sum = np.zeros_like(
+            global_flat
+        ), np.zeros_like(global_flat)
+
         for c in idxs_users:
+            ########## Getting the validation loss for all users' data of the global model
             local_update = get_local_update(
                 args=args,
                 train_dataset=train_dataset,
@@ -156,9 +164,7 @@ def main():
                 global_model=global_model,
             )
 
-            acc, loss = local_update.inference(
-                model=local_models[c], dataset_type="valid"
-            )
+            acc, loss = local_update.inference(model=global_model, dataset_type="valid")
 
             valid_accs.append(acc)
             valid_losses.append(loss)
@@ -187,10 +193,11 @@ def main():
             client_prob_dist = {
                 idxs_users[i]: client_prob_dist[i] for i in range(len(client_prob_dist))
             }
-        global_model.train()
-        list_acc = []
-        local_bitmasks = []
-        for idx in idxs_users:
+
+        for c in idxs_users:
+            local_model = copy.deepcopy(global_model)
+            ####### Calculate local update
+            idx = c
             local_update = get_local_update(
                 args=args,
                 train_dataset=train_dataset,
@@ -213,23 +220,26 @@ def main():
                     print(f"Sparsification percentage {sparsification_percentage}")
                     assert sparsification_percentage is not None
                 w, flat_update, bitmask, loss = local_update.update_weights(
-                    model=local_models[idx],
+                    model=local_model,
                     sparsification_percentage=sparsification_percentage,
                     global_round=epoch,
                 )
-                local_weights.append(copy.deepcopy(flat_update))
-                local_bitmasks.append(bitmask)
+                # local_weights.append(copy.deepcopy(flat_update))
+                # local_bitmasks.append(bitmask)
+                local_weights_sum += flat_update
+                local_bitmasks_sum += bitmask
             elif args.fl_method == "qFedAvg":
                 delta, h, w, loss = local_update.update_weights(
-                    model=local_models[idx], global_round=epoch
+                    model=local_model, global_round=epoch
                 )
                 local_deltas.append(copy.deepcopy(delta))
                 local_hs.append(copy.deepcopy(h))
             else:
                 w, loss = local_update.update_weights(
-                    model=local_models[idx], global_round=epoch
+                    model=local_model, global_round=epoch
                 )
-                local_weights.append(copy.deepcopy(w.state_dict()))
+                local_weights_sum += flatten(local_model)
+                local_bitmasks_sum += np.ones_like(local_bitmasks_sum)
 
             acc, loss = local_update.inference(model=w, dataset_type="train")
             list_acc.append(acc)
@@ -246,12 +256,7 @@ def main():
             }
         )
 
-        num_client_params_sent = [
-            sum(local_bitmasks[i]) for i in range(len(local_bitmasks))
-        ]
-        # Uncommented to reduce clutter.
-        # for i, params_sent in zip(idxs_users, num_client_params_sent):
-        #     run.log({f"Number of parameters sent by client idx:{i}": params_sent})
+        num_client_params_sent = local_bitmasks_sum
         run.log(
             {
                 "Standard deviation of number of parameters sent:": np.std(
@@ -267,22 +272,21 @@ def main():
         # update global weights
         if args.fl_method == "FedSyn":
             global_w = global_update.aggregate_weights(
-                local_weights, global_model, local_bitmasks
+                local_weights_sum, global_model, local_bitmasks_sum
             )
             # update models
             updateFromNumpyFlatArray(global_w, global_model)
-            local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
         elif args.fl_method == "qFedAvg":
             global_weights = global_update.update_global_model(
                 global_model, local_deltas, local_hs
             )
-            global_update.update_local_models(local_models, global_weights)
         else:
             global_weights = global_update.aggregate_weights(
-                local_weights, valid_losses
+                local_weights_sum, valid_losses
             )
-            global_update.update_global_model(global_model, global_weights)
-            global_update.update_local_models(local_models, global_weights)
+            global_update.update_global_model(
+                global_model, global_weights, len(idxs_users)
+            )
 
         if epoch % int(args.save_every) == 0:
             ckpt_dict["state_dict"] = global_model.state_dict()
@@ -316,9 +320,7 @@ def main():
                 global_model=global_model,
             )
 
-            acc, loss = local_update.inference(
-                model=local_models[c], dataset_type="test"
-            )
+            acc, loss = local_update.inference(model=global_model, dataset_type="test")
 
             test_accs.append(acc)
             test_losses.append(loss)

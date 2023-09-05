@@ -79,8 +79,9 @@ class MeanWeights(AbstractGlobalUpdate):
 
     def aggregate_weights(
         self,
-        local_model_weights: List[Dict[str, torch.Tensor]],
+        local_weights_sum,
         test_losses: List[float],
+        num_users,
     ) -> Dict[str, torch.Tensor]:
         """
         Returns the mean of the weights.
@@ -94,20 +95,7 @@ class MeanWeights(AbstractGlobalUpdate):
         :return: global model state dictionary,
             which is the average of all local models provided
         """
-        weights_scalar = np.divide(test_losses, np.sum(test_losses))
-        w_avg = copy.deepcopy(local_model_weights[0])
-        for key in w_avg.keys():
-            for i in range(1, len(local_model_weights)):
-                w_avg[key] += local_model_weights[i][key]
-
-            if self.args.reweight_loss_avg == 1:
-                if w_avg[key].dtype == torch.float32:
-                    w_avg[key] *= weights_scalar[i].astype(np.float64)
-                else:
-                    w_avg[key] *= weights_scalar[i].astype(np.int64)
-            else:
-                w_avg[key] = torch.div(w_avg[key], len(local_model_weights))
-        return w_avg
+        return torch.div(local_weights_sum, num_users)
 
 
 class MeanWeightsSparsified(AbstractGlobalUpdate):
@@ -119,9 +107,9 @@ class MeanWeightsSparsified(AbstractGlobalUpdate):
 
     def aggregate_weights(
         self,
-        local_model_weights: List[Dict[str, torch.Tensor]],
+        local_weights_sum,
         global_model,
-        local_bitmasks,
+        local_bitmasks_sum,
     ) -> Dict[str, torch.Tensor]:
         """
         Returns the mean of the weights.
@@ -135,13 +123,11 @@ class MeanWeightsSparsified(AbstractGlobalUpdate):
         :return: global model state dictionary,
             which is the average of all local models provided
         """
-        sum_bitmask = np.sum(local_bitmasks, axis=0)
-        sum_update = np.sum(local_model_weights, axis=0)
         weigted_local_model_sum = np.divide(
-            sum_update,
-            sum_bitmask,
-            out=np.zeros_like(sum_update),
-            where=sum_bitmask != 0,
+            local_weights_sum,
+            local_bitmasks_sum,
+            out=np.zeros_like(local_weights_sum),
+            where=local_bitmasks_sum != 0,
         )
         flat_glob = utils.flatten(global_model)
         return flat_glob + self.global_learning_rate * weigted_local_model_sum

@@ -260,7 +260,12 @@ def main():
                 )
             }
         )
-        run.log({"Mean of number of parameters sent:": np.mean(num_client_params_sent)})
+        run.log(
+            {
+                "Mean of number of parameters sent:": np.sum(num_client_params_sent)
+                / len(idxs_users)
+            }
+        )
 
         acc_avg = sum(list_acc) / len(list_acc)
         train_accuracy.append(acc_avg)

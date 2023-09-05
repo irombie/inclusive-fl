@@ -149,7 +149,7 @@ def main():
         ), np.zeros_like(global_flat)
 
         for c in idxs_users:
-            ########## Getting the validation loss for all users' data of the global model
+            # Getting the validation loss for all users' data of the global model
             local_update = get_local_update(
                 args=args,
                 train_dataset=train_dataset,
@@ -192,10 +192,9 @@ def main():
                 idxs_users[i]: client_prob_dist[i] for i in range(len(client_prob_dist))
             }
 
-        for c in idxs_users:
+        for idx in idxs_users:
             local_model = copy.deepcopy(global_model)
-            ####### Calculate local update
-            idx = c
+            ## Calculate local update
             local_update = get_local_update(
                 args=args,
                 train_dataset=train_dataset,

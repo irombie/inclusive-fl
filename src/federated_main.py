@@ -222,8 +222,7 @@ def main():
                     sparsification_percentage=sparsification_percentage,
                     global_round=epoch,
                 )
-                # local_weights.append(copy.deepcopy(flat_update))
-                # local_bitmasks.append(bitmask)
+
                 local_weights_sum += flat_update
                 local_bitmasks_sum += bitmask
             elif args.fl_method == "qFedAvg":

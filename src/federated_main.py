@@ -129,7 +129,7 @@ def main():
     ckpt_dict["wandb_run_name"] = run_name
 
     list_acc = []
-    # local_bitmasks = []
+
     for epoch in tqdm(range(args.epochs)):
         local_losses = []
         local_deltas, local_hs = [], []

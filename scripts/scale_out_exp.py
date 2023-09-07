@@ -36,7 +36,7 @@ def generate_command_args(combination, gpu, device, timestamp):
         "--num_users": combination[9],
         "--epochs": combination[10],
         "--fl_method": fl_method,
-        "--wandb_name": f"test_suite_cifar_smallcnn{timestamp}",
+        "--wandb_name": f"test_suite_{timestamp}",
     }
 
     if fl_method == "FedProx":

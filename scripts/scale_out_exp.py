@@ -8,7 +8,7 @@ from loguru import logger
 from tqdm import tqdm
 
 
-def parse_yml(path: str = "configs.yml"):
+def parse_yml(path: str = "scripts/configs.yml"):
     with open(path, "r") as stream:
         try:
             logger.info("Parsing YAML file.")
@@ -36,7 +36,7 @@ def generate_command_args(combination, gpu, device, timestamp):
         "--num_users": combination[9],
         "--epochs": combination[10],
         "--fl_method": fl_method,
-        "--wandb_name": f"test_suite_{timestamp}",
+        "--wandb_name": f"test_suite_cifar_smallcnn{timestamp}",
     }
 
     if fl_method == "FedProx":

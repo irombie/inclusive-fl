@@ -1,14 +1,14 @@
-dataset: ['cifar', 'utkface'] # , 'celeba'] is problematic
-model: ['vgg11_bn', 'resenet18', 'resnet9']
-epochs: [40]
+dataset: ['cifar'] #'utkface'] # , 'celeba'] is problematic
+model: ["small_cnn"] #['vgg11_bn', 'resenet18', 'resnet9']
+epochs: [10]
 lr: [0.01, 0.001] 
-iid: [0]
-num_users: [100]
+iid: [1]
+num_users: [20]
 frac: [0.5]
 local_ep: [5]
 local_bs: [16]
 q: [0.1] #qfedavg,
-fl_method: ['FedAvg', 'FedProx', 'qFedAvg', 'FedSyn']
+fl_method: ['FedAvg', 'FedProx',  'FedSyn'] # 'qFedAvg',
 mu: [0.01]
 sparsification_ratio: [0.2, 0.5] #fedsyn
 sparsification_type: ['topk', 'rtopk'] #fedsyn

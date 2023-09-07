@@ -377,4 +377,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+        wandb.finish(exit_code=0)
+    except:
+        wandb.finish(exit_code=-1)

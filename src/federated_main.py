@@ -211,11 +211,11 @@ def main():
             # of this nature
 
             if args.fl_method == "FedSyn":
-                sparsification_percentage = None
+                sparsification_percentage = args.sparsification_ratio
                 if args.use_fair_sparsification:
                     sparsification_percentage = client_prob_dist[idx]
                     print(f"Sparsification percentage {sparsification_percentage}")
-                    assert sparsification_percentage is not None
+                # assert sparsification_percentage is not None
                 w, flat_update, bitmask, loss = local_update.update_weights(
                     model=local_model,
                     sparsification_percentage=sparsification_percentage,

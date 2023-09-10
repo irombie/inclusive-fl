@@ -32,7 +32,7 @@ class DatasetSplit(Dataset):
             label = [d["ethnicity"] for d in self.dataset.dataset.labels][
                 self.idxs[item]
             ]
-        return torch.tensor(image), torch.tensor(label)
+        return image, label
 
 
 class LocalUpdate:

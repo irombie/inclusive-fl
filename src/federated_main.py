@@ -284,7 +284,7 @@ def main():
             global_weights = global_update.aggregate_weights(
                 global_model, local_delta_sum, local_h_sum
             )
-            updateFromNumpyFlatArray(global_w, global_model)
+            updateFromNumpyFlatArray(global_weights, global_model)
         else:
             global_weights = global_update.aggregate_weights(
                 local_weights_sum, valid_losses, len(idxs_users)

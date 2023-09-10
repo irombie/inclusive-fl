@@ -5,7 +5,6 @@
 import copy
 from typing import Dict, OrderedDict, Type
 
-import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
@@ -357,7 +356,8 @@ class qFedAvgLocalUpdate(LocalUpdate):
                 "q argument must be passed as argument for fl_method=qFedAvg"
             )
         F += self.args.eps
-        Fq = np.float_power(F, self.args.q)
+        F_torch = torch.tensor(F, dtype=torch.float32)
+        Fq = torch.pow(F_torch, self.args.q)
         L = 1.0 / self.args.lr
 
         delta_weights, delta, h, h_expanded = (

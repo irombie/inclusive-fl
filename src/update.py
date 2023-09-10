@@ -356,15 +356,17 @@ class qFedAvgLocalUpdate(LocalUpdate):
             raise ValueError(
                 "q argument must be passed as argument for fl_method=qFedAvg"
             )
-
-        if self.args.eps is None:
-            # use default eps value to avoid zero loss
-            F += 1e-6
         F += self.args.eps
         Fq = np.float_power(F, self.args.q)
         L = 1.0 / self.args.lr
 
-        delta_weights, delta, h = OrderedDict(), OrderedDict(), OrderedDict()
+        delta_weights, delta, h, h_expanded = (
+            OrderedDict(),
+            OrderedDict(),
+            OrderedDict(),
+            OrderedDict(),
+        )
+        start = 0
         updated_model = copy.deepcopy(model.state_dict())
         for key in list(updated_model.keys()):
             # Line 6 calculations qFedAvg algorithm
@@ -374,13 +376,18 @@ class qFedAvgLocalUpdate(LocalUpdate):
             # Lemma 3 in the qFedAvg paper provides the connection between the Local
             # Lipchitz constant at q=0 and when q>0. It is used to estimate the learning rate
             # as the learning rate is set as the inverse of lipschitz constant.
+            size = 1
             h[key] = Fq * (
                 (self.args.q * torch.norm(delta_weights[key], p=2) ** 2) / F + L
             )
+            for dim in updated_model[key].shape:
+                size *= dim
+            h_expanded[key] = torch.Tensor([h[key]] * size)
+            start = start + size
 
         return (
             utils.flatten(delta, is_dict=True),
-            utils.flatten(h, is_dict=True),
+            utils.flatten(h_expanded, is_dict=True),
             model,
             sum(epoch_loss) / len(epoch_loss),
         )

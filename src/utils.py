@@ -4,30 +4,25 @@
 import copy
 import os
 import random
+import shutil
 import sys
 import tarfile
 import zipfile
 from argparse import Namespace
 from collections import OrderedDict, defaultdict
 from typing import Dict, List, Tuple, Union
-import wget
-from parse import parse
-from PIL import Image
-import shutil
 
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
-
-
 import torch
+import wget
+from parse import parse
+from PIL import Image
+from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset, Subset
 from torchvision import datasets, transforms
 from torchvision.datasets import ImageFolder
-
-from torchvision.datasets import ImageFolder
-from torchvision.datasets.utils import verify_str_arg
-from torchvision.datasets.utils import download_and_extract_archive
+from torchvision.datasets.utils import download_and_extract_archive, verify_str_arg
 
 
 def exp_details(args):
@@ -559,8 +554,11 @@ def dict_sum(
     return sum_of_dicts
 
 
-def flatten(model):
-    weights = model.state_dict()
+def flatten(model, is_dict=False):
+    if not is_dict:
+        weights = model.state_dict()
+    else:
+        weights = model
     # create flat array
     flat = np.array([])
     for k in weights.keys():

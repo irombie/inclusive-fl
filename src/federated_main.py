@@ -7,6 +7,7 @@ import copy
 import os
 import pickle
 import time
+import traceback
 from datetime import datetime
 
 import numpy as np
@@ -132,7 +133,6 @@ def main():
 
     for epoch in tqdm(range(args.epochs)):
         local_losses = []
-        local_deltas, local_hs = [], []
         print(f"\n | Global Training Round : {epoch+1} |\n")
 
         m = max(int(args.frac * args.num_users), 1)
@@ -144,9 +144,12 @@ def main():
         valid_accs, valid_loss = [], []
 
         global_flat = flatten(global_model)
-        local_weights_sum, local_bitmasks_sum = np.zeros_like(
-            global_flat
-        ), np.zeros_like(global_flat)
+        local_weights_sum, local_bitmasks_sum, local_delta_sum, local_h_sum = (
+            np.zeros_like(global_flat),
+            np.zeros_like(global_flat),
+            np.zeros_like(global_flat),
+            np.zeros_like(global_flat),
+        )
 
         for c in idxs_users:
             # Getting the validation loss for all users' data of the global model
@@ -228,8 +231,8 @@ def main():
                 delta, h, w, loss = local_update.update_weights(
                     model=local_model, global_round=epoch
                 )
-                local_deltas.append(copy.deepcopy(delta))
-                local_hs.append(copy.deepcopy(h))
+                local_delta_sum += delta
+                local_h_sum += h
             else:
                 w, loss = local_update.update_weights(
                     model=local_model, global_round=epoch
@@ -278,9 +281,10 @@ def main():
             # update models
             updateFromNumpyFlatArray(global_w, global_model)
         elif args.fl_method == "qFedAvg":
-            global_weights = global_update.update_global_model(
-                global_model, local_deltas, local_hs
+            global_weights = global_update.aggregate_weights(
+                global_model, local_delta_sum, local_h_sum
             )
+            updateFromNumpyFlatArray(global_w, global_model)
         else:
             global_weights = global_update.aggregate_weights(
                 local_weights_sum, valid_losses, len(idxs_users)
@@ -380,5 +384,7 @@ if __name__ == "__main__":
     try:
         main()
         wandb.finish(exit_code=0)
-    except:
+    except Exception as e:
+        print(f"Experiment failed due to {e}")
+        print(traceback.format_exc())
         wandb.finish(exit_code=-1)

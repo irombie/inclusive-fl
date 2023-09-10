@@ -266,21 +266,11 @@ class AverageWeightsWithTestLoss(AbstractGlobalUpdate):
 class qFedAvgGlobalUpdate(AbstractGlobalUpdate):
     """Aggregate weights by using average based on the qFedAvg loss."""
 
-    def aggregate_weights(
-        self,
-        local_model_weights: List[Dict[str, torch.Tensor]],
-        test_losses: List[float],
-    ) -> Dict[str, torch.Tensor]:
-        """
-        Empty Method as it is not required
-        """
-        raise Exception("Not Implemented")
-
     @staticmethod
-    def update_global_model(
+    def aggregate_weights(
         global_model: torch.nn.Module,
-        local_deltas: List[Dict[str, torch.Tensor]],
-        local_hs: List[Dict[str, torch.Tensor]],
+        delta_sum: np.array,
+        h_sum: np.array,
     ) -> Dict[str, torch.Tensor]:
         """
         Update global model with global weights
@@ -294,15 +284,14 @@ class qFedAvgGlobalUpdate(AbstractGlobalUpdate):
 
         :return: updated global model with qFedAvg
         """
-        delta_sum = dict_sum(local_deltas)
-        h_sum = dict_sum(local_hs)
-
-        updated_global_model = copy.deepcopy(global_model.state_dict())
-        for key in list(updated_global_model.keys()):
-            updated_global_model[key] -= delta_sum[key] / h_sum[key]
-
-        global_model.load_state_dict(updated_global_model, strict=False)
-        return updated_global_model
+        weigted_local_model_sum = np.divide(
+            delta_sum,
+            h_sum,
+            out=np.zeros_like(delta_sum),
+            where=h_sum != 0,
+        )
+        flat_glob = utils.flatten(global_model)
+        return flat_glob - weigted_local_model_sum
 
 
 NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {

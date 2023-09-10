@@ -141,7 +141,7 @@ def args_parser():
 
     # arguments for qFedAvg
     parser.add_argument("--q", type=float, default=None, help="q value for qFedAvg")
-    parser.add_argument("--eps", type=float, default=None, help="eps value for qFedAvg")
+    parser.add_argument("--eps", type=float, default=1e-6, help="eps value for qFedAvg")
 
     args = parser.parse_args()
     return args

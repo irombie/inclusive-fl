@@ -3,7 +3,7 @@
 # Python version: 3.6
 
 import copy
-from typing import Dict, Type
+from typing import Dict, OrderedDict, Type
 
 import numpy as np
 import torch
@@ -350,10 +350,6 @@ class qFedAvgLocalUpdate(LocalUpdate):
             train_loss /= len(self.trainloader.dataset)
             training_losses.append(train_loss)
 
-            # if iter == 0:
-            #     base_client_loss = avg_loss_per_local_training
-            # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
-
         # qFedAvg update to the model
         F = sum(training_losses) / len(training_losses)
         if self.args.q is None:
@@ -368,7 +364,7 @@ class qFedAvgLocalUpdate(LocalUpdate):
         Fq = np.float_power(F, self.args.q)
         L = 1.0 / self.args.lr
 
-        delta_weights, delta, h = {}, {}, {}
+        delta_weights, delta, h = OrderedDict(), OrderedDict(), OrderedDict()
         updated_model = copy.deepcopy(model.state_dict())
         for key in list(updated_model.keys()):
             # Line 6 calculations qFedAvg algorithm
@@ -382,7 +378,12 @@ class qFedAvgLocalUpdate(LocalUpdate):
                 (self.args.q * torch.norm(delta_weights[key], p=2) ** 2) / F + L
             )
 
-        return delta, h, model, sum(epoch_loss) / len(epoch_loss)
+        return (
+            utils.flatten(delta, is_dict=True),
+            utils.flatten(h, is_dict=True),
+            model,
+            sum(epoch_loss) / len(epoch_loss),
+        )
 
 
 NAME_TO_LOCAL_UPDATE: Dict[str, Type[LocalUpdate]] = {

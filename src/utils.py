@@ -38,6 +38,7 @@ def exp_details(args):
         print("    IID")
     else:
         print("    Non-IID")
+    print(f"    Federated Learning Algorithm : {args.fl_method}")
     print(f"    Fraction of users  : {args.frac}")
     print(f"    Local Batch size   : {args.local_bs}")
     print(f"    Local Epochs       : {args.local_ep}\n")
@@ -444,9 +445,11 @@ def get_dataset(
 
         apply_transform = transforms.Compose(
             [
-                transforms.Resize((128, 128)),
+                transforms.Resize((64, 64)),
                 transforms.ToTensor(),
-                transforms.Normalize((0.49,), (0.23,)),
+                transforms.Normalize(
+                    (0.5959, 0.4562, 0.3906), (0.2591, 0.2312, 0.2268)
+                ),
             ]
         )
 

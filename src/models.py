@@ -36,6 +36,7 @@ class CNNFashion_Mnist(nn.Module):
 class SmallCNN(nn.Module):
     def __init__(self, args, num_classes):
         super(SmallCNN, self).__init__()
+
         self.normalization = nn.BatchNorm2d
 
         self.activation = nn.ReLU()
@@ -77,6 +78,7 @@ class SmallCNN(nn.Module):
         x = self.features(x)
         x = torch.flatten(x, 1)
         x = self.classifier(x)
+
         return F.log_softmax(x, dim=1)
 
 

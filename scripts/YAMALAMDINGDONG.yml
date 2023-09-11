@@ -1,14 +1,14 @@
-dataset: ['tiny-imagenet']
-model: ['resnet18', 'resnet9', 'small_cnn']
+dataset: ['utkface', 'cifar', 'tiny-imagenet']
+model: ['small_cnn']
 epochs: [3]
-lr: [0.001] 
+lr: [0.01] 
 iid: [0]
 num_users: [4]
 frac: [0.5]
 local_ep: [2]
 local_bs: [128]
 q: [0.1] #qfedavg,
-fl_method: ['FedAvg', 'FedProx', 'qFedAvg', 'FedSyn']
+fl_method: ['FedProx', 'qFedAvg', 'FedSyn']
 mu: [0.01]
 sparsification_ratio: [0.5] #fedsyn
 sparsification_type: ['rtopk'] #fedsyn

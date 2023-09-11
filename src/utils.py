@@ -43,7 +43,7 @@ def exp_details(args):
         print("    IID")
     else:
         print("    Non-IID")
-    print(f"    Federated Learning Algorithm" : {args.fl_method}")
+    print(f"    Federated Learning Algorithm : {args.fl_method}")
     print(f"    Fraction of users  : {args.frac}")
     print(f"    Local Batch size   : {args.local_bs}")
     print(f"    Local Epochs       : {args.local_ep}\n")
@@ -446,7 +446,7 @@ def get_dataset(
         test_labels = test_dataset.targets
 
     elif args["dataset"] == "utkface":
-        data_dir = "data/UTKFace"
+        data_dir = "../data"
 
         apply_transform = transforms.Compose(
             [
@@ -459,8 +459,8 @@ def get_dataset(
         # train_dataset, test_dataset, valid_dataset = get_utkface(data_dir, apply_transform)
         train_dataset, test_dataset, valid_dataset = get_utkface(
             data_dir=data_dir,
-            zfile="data/utkface.tar.gz",
-            extract_dir="data",
+            zfile="../data/UTKFace.tar.gz",
+            extract_dir="../data",
             apply_transform=apply_transform,
             label_type="ethnicity",
         )

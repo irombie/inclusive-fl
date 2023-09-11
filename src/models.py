@@ -64,7 +64,6 @@ class SmallCNN(nn.Module):
             nn.MaxPool2d(2, stride=2),
         )
 
-        # Calculate the input size for the first linear layer dynamically
 
         self.classifier = nn.Sequential(
             nn.Linear(256 if num_classes == 10 else 1024, 256),
@@ -75,6 +74,13 @@ class SmallCNN(nn.Module):
             self.activation,
             nn.Linear(256, num_classes),
         )
+	
+    def forward(self, x):
+        x = self.features(x)
+        x = torch.flatten(x, 1)
+        x = self.classifier(x)
+        
+        return F.log_softmax(x, dim=1)
 
 
 class VGG(nn.Module):

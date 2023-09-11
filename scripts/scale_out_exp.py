@@ -7,6 +7,15 @@ import yaml
 from loguru import logger
 from tqdm import tqdm
 
+MODEL_IDX = 0
+DATASET_IDX = 7
+
+IGNORE_EXPERIMENTS = [
+    ("resnet18", "cifar"),
+    ("vgg11_bn", "cifar"),
+    ("small_cnn", "tiny-imagenet"),
+]
+
 
 def parse_yml(path: str = "scripts/configs.yml"):
     with open(path, "r") as stream:
@@ -158,7 +167,15 @@ def main():
                 )
             )
 
+    # Remove unwanted experiments:
+
     timestamp = time.time()
+    final_list = []
+    for exp in parameter_combinations:
+        if not (exp[MODEL_IDX], exp[DATASET_IDX]) in IGNORE_EXPERIMENTS:
+            final_list.append(exp)
+
+    parameter_combinations = final_list
 
     # Launch experiments
     for i, combination in enumerate(tqdm(parameter_combinations)):

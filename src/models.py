@@ -147,7 +147,7 @@ class ResidualBlock(nn.Module):
         else:
             self.downsample = None
 
-        self.relu = nn.ReLU(inplace=False)
+        self.relu = nn.ReLU()
 
     def forward(self, x):
         residual = x
@@ -159,7 +159,7 @@ class ResidualBlock(nn.Module):
             residual = self.downsample(residual)
 
         out = self.relu(out)
-        out += residual
+        out = out + residual
         return out
 
 
@@ -177,7 +177,7 @@ class ResNet9(nn.Module):
                 bias=False,
             ),
             nn.BatchNorm2d(num_features=64, momentum=0.9),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             nn.Conv2d(
                 in_channels=64,
                 out_channels=128,
@@ -187,7 +187,7 @@ class ResNet9(nn.Module):
                 bias=False,
             ),
             nn.BatchNorm2d(num_features=128, momentum=0.9),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
             ResidualBlock(
                 in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1
@@ -201,7 +201,7 @@ class ResNet9(nn.Module):
                 bias=False,
             ),
             nn.BatchNorm2d(num_features=256, momentum=0.9),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Conv2d(
                 in_channels=256,
@@ -212,7 +212,7 @@ class ResNet9(nn.Module):
                 bias=False,
             ),
             nn.BatchNorm2d(num_features=256, momentum=0.9),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
             ResidualBlock(
                 in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1

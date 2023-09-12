@@ -18,21 +18,30 @@ import torch
 import wget
 from parse import parse
 from PIL import Image
+from prettytable import PrettyTable
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset, Subset
 from torchvision import datasets, transforms
 from torchvision.datasets import ImageFolder
 from torchvision.datasets.utils import download_and_extract_archive, verify_str_arg
-from prettytable import PrettyTable
+
 
 def exp_details(args):
-    
     exp_table = PrettyTable()
     exp_table.field_names = ["Experiment Parameter", "Value"]
-    exp_table.add_row(['FL Algorithm', args.fl_method])
+    exp_table.add_row(["FL Algorithm", args.fl_method])
     exp_table.add_row(["Dataset", args.dataset])
     exp_table.add_row(["Model", args.model])
-    exp_table.add_row(["Device", torch.device('cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_built() else 'cpu'))])
+    exp_table.add_row(
+        [
+            "Device",
+            torch.device(
+                "cuda"
+                if torch.cuda.is_available()
+                else ("mps" if torch.backends.mps.is_built() else "cpu")
+            ),
+        ]
+    )
     exp_table.add_row(["Learning Rate", args.lr])
     exp_table.add_row(["Global Rounds", args.epochs])
     exp_table.add_row(["Local Epochs", args.local_ep])
@@ -40,7 +49,7 @@ def exp_details(args):
     exp_table.add_row(["Number of Users", args.num_users])
     exp_table.add_row(["Fraction of Users", args.frac])
     exp_table.add_row(["Data Distribution Type", "IID" if args.iid else "Non-IID"])
-    
+
     print(exp_table)
     return
 
@@ -590,9 +599,6 @@ def get_bitmask_per_method(
     sparsification_type: str = "randk",
     choose_from_top_r_percentile: float = 1,
 ):
-    assert (
-        choose_from_top_r_percentile >= sparse_ratio
-    ), "choose_from_top_r_percentile for rtopk should be larger than sparse_ratio"
     if sparsification_type == "randk":
         num_params = int(sparse_ratio * len(flat_model))
         indices = np.random.choice(len(flat_model), size=num_params, replace=False)
@@ -608,6 +614,9 @@ def get_bitmask_per_method(
         np.put(bitmask, max_indices, 1)
         return bitmask
     elif sparsification_type == "rtopk":
+        assert (
+            choose_from_top_r_percentile >= sparse_ratio
+        ), "choose_from_top_r_percentile for rtopk should be larger than sparse_ratio"
         num_params = int(choose_from_top_r_percentile * len(flat_model))
         max_indices = np.argpartition(np.absolute(flat_model), -num_params)[
             -num_params:

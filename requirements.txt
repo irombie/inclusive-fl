@@ -9,3 +9,4 @@ wandb==0.14.2
 loguru==0.7.0
 wget==3.2
 parse==1.19.1
+requirements.txt

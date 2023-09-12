@@ -349,48 +349,54 @@ class qFedAvgLocalUpdate(LocalUpdate):
             train_loss /= len(self.trainloader.dataset)
             training_losses.append(train_loss)
 
-        # qFedAvg update to the model
-        F = sum(training_losses) / len(training_losses)
-        if self.args.q is None:
-            raise ValueError(
-                "q argument must be passed as argument for fl_method=qFedAvg"
+        model.eval()
+        with torch.no_grad():
+            # qFedAvg update to the model
+            F = sum(training_losses) / len(training_losses)
+            if self.args.q is None:
+                raise ValueError(
+                    "q argument must be passed as argument for fl_method=qFedAvg"
+                )
+            F += self.args.eps
+            Fq = torch.pow(torch.tensor(F, dtype=torch.float32), self.args.q)
+            L = 1.0 / self.args.lr
+
+            delta_weights, delta, h, h_expanded = (
+                OrderedDict(),
+                OrderedDict(),
+                OrderedDict(),
+                OrderedDict(),
             )
-        F += self.args.eps
-        F_torch = torch.tensor(F, dtype=torch.float32)
-        Fq = torch.pow(F_torch, self.args.q)
-        L = 1.0 / self.args.lr
 
-        delta_weights, delta, h, h_expanded = (
-            OrderedDict(),
-            OrderedDict(),
-            OrderedDict(),
-            OrderedDict(),
-        )
-        start = 0
-        updated_model = copy.deepcopy(model.state_dict())
-        for key in list(updated_model.keys()):
-            # Line 6 calculations qFedAvg algorithm
-            delta_weights[key] = L * (base_model[key] - updated_model[key])
-            delta[key] = Fq * delta_weights[key]
+            for key in list(model.state_dict().keys()):
+                # Line 6 calculations qFedAvg algorithm
+                delta_weights[key] = L * (base_model[key] - model.state_dict()[key])
+                delta[key] = Fq * delta_weights[key]
 
-            # Lemma 3 in the qFedAvg paper provides the connection between the Local
-            # Lipchitz constant at q=0 and when q>0. It is used to estimate the learning rate
-            # as the learning rate is set as the inverse of lipschitz constant.
-            size = 1
-            h[key] = Fq * (
-                (self.args.q * torch.norm(delta_weights[key], p=2) ** 2) / F + L
+                # Lemma 3 in the qFedAvg paper provides the connection between the Local
+                # Lipchitz constant at q=0 and when q>0. It is used to estimate the learning rate
+                # as the learning rate is set as the inverse of lipschitz constant.
+                size = 1
+                h[key] = Fq * (
+                    (
+                        self.args.q
+                        * torch.linalg.norm(torch.flatten(delta_weights[key]), ord=2)
+                        ** 2
+                    )
+                    / F
+                    + L
+                )
+
+                for dim in model.state_dict()[key].shape:
+                    size *= dim
+                h_expanded[key] = torch.full((size,), h[key])
+
+            return (
+                utils.flatten(delta, is_dict=True),
+                utils.flatten(h_expanded, is_dict=True),
+                model,
+                sum(epoch_loss) / len(epoch_loss),
             )
-            for dim in updated_model[key].shape:
-                size *= dim
-            h_expanded[key] = torch.Tensor([h[key]] * size)
-            start = start + size
-
-        return (
-            utils.flatten(delta, is_dict=True),
-            utils.flatten(h_expanded, is_dict=True),
-            model,
-            sum(epoch_loss) / len(epoch_loss),
-        )
 
 
 NAME_TO_LOCAL_UPDATE: Dict[str, Type[LocalUpdate]] = {

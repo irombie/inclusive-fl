@@ -23,25 +23,25 @@ from torch.utils.data import Dataset, Subset
 from torchvision import datasets, transforms
 from torchvision.datasets import ImageFolder
 from torchvision.datasets.utils import download_and_extract_archive, verify_str_arg
-
+from prettytable import PrettyTable
 
 def exp_details(args):
-    print("\nExperimental details:")
-    print(f"    Dataset.  : {args.dataset}")
-    print(f"    Model     : {args.model}")
-    print(f"    Optimizer : {args.optimizer}")
-    print(f"    Learning  : {args.lr}")
-    print(f"    Global Rounds   : {args.epochs}\n")
-
-    print("    Federated parameters:")
-    if args.iid:
-        print("    IID")
-    else:
-        print("    Non-IID")
-    print(f"    Federated Learning Algorithm : {args.fl_method}")
-    print(f"    Fraction of users  : {args.frac}")
-    print(f"    Local Batch size   : {args.local_bs}")
-    print(f"    Local Epochs       : {args.local_ep}\n")
+    
+    exp_table = PrettyTable()
+    exp_table.field_names = ["Experiment Parameter", "Value"]
+    exp_table.add_row(['FL Algorithm', args.fl_method])
+    exp_table.add_row(["Dataset", args.dataset])
+    exp_table.add_row(["Model", args.model])
+    exp_table.add_row(["Device", torch.device('cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_built() else 'cpu'))])
+    exp_table.add_row(["Learning Rate", args.lr])
+    exp_table.add_row(["Global Rounds", args.epochs])
+    exp_table.add_row(["Local Epochs", args.local_ep])
+    exp_table.add_row(["Local Batch Size", args.local_bs])
+    exp_table.add_row(["Number of Users", args.num_users])
+    exp_table.add_row(["Fraction of Users", args.frac])
+    exp_table.add_row(["Data Distribution Type", "IID" if args.iid else "Non-IID"])
+    
+    print(exp_table)
     return
 
 

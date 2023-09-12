@@ -26,6 +26,9 @@ Then, activate the environment by running `conda activate <envname>`.
 11. YOU are AMAZING! 🥳🎉 Thank you for being such a valuable team member 💙
 
 ## Running the experiments
+
+### Generic Experiments with the code
+
 1. To check which parameters are there to configure, head to `options.py` 👀
 2. If you add a new parameter there, make sure to add it to the README below so others can be informed!
 3. Whenever you are creating a new experiment set, **create a new project with a unique name** by running the code with the flag `--wandb_name <name>`. If you are running experiments in that set, **create runs within that project** by using the same name with that flag. 
@@ -33,30 +36,40 @@ Then, activate the environment by running `conda activate <envname>`.
 5. Federated experiment involves training a global model using many local models.
 
 * To run the federated experiment with CIFAR on CNN (IID):
-```
-python src/federated_main.py --model=cnn --dataset=cifar --gpu=0 --iid=1 --epochs=10
+```bash
+python src/federated_main.py --model=small_cnn --dataset=cifar --iid=1 --epochs=10
 ```
 You can change the default values of other parameters to simulate different conditions. 
+
+### Scale out (Large Scale Experiments)
+1. Define a .yaml file and upload it to scripts/ so we can be clear about what experiment each of y'all are running (to ensure no gaps/overlap).
+2. You can find a template for the yaml in the scripts/ folder, make a copy and edit as required.
+3. Ensure that your wandb project is linked to the group project and not your personal ID to avoid challenges in aggregating.
+*To run the grid based on your experiments*
+
+```bash
+python src/scale_out_exp.py --config-file <YOUR CONFIG FILE>
+```
 
 ## Options
 The default values for various paramters parsed to the experiment are given in ```options.py```. Details are given some of those parameters:
 
-* ```--dataset:```  Default: 'fashionmnist'. Options: 'fashionmnist', 'cifar'
-* ```--model:```    Default: 'mlp'. Options: 'mlp', 'cnn'
-* ```--gpu:```      Default: None (runs on CPU). Can also be set to the specific gpu id.
+* ```--dataset:```  Default: 'fashionmnist'. Options: 'fashionmnist', 'cifar', 'tiny-imagenet', 'utkface' (only ethnicity)
+* ```--model:```    Default: 'small_cnn'. Options: 'small_cnn', 'resnet9', 'resnet18', 'vgg11_bn'
 * ```--epochs:```   Number of rounds of training.
 * ```--lr:```       Learning rate set to 0.01 by default.
 * ```--verbose:```  Detailed log outputs. Activated by default, set to 0 to deactivate.
 * ```--seed:```     Random Seed. Default set to 1.
 
-#### Federated Parameters 
+## Federated Parameters 
 * ```--iid:```      Distribution of data amongst users. Default set to IID. Set to 0 for non-IID.
 * ```--num_users:```Number of users. Default is 100.
 * ```--frac:```     Fraction of users to be used for federated updates. Default is 0.1.
 * ```--local_ep:``` Number of local training epochs in each user. Default is 10.
 * ```--local_bs:``` Batch size of local updates in each user. Default is 10.
-* ```--unequal:```  Used in non-iid setting (--iid=0). Option to split the data amongst users equally or unequally. Default set to 0 for equal splits. Set to 1 for unequal splits.
 * ```--dist_noniid:```  Used in non-iid setting (--iid=0). Option to give each user the proportion of each class samples according to Dirichlet distribution. Default set to 0 to omit this option. Set to 1 to select this option. (The default value of other non-IID option for unequal splits --unequal=0 must stay unchanged).
+
+## Algorithm specific parameters
 * ```--fl_method:``` Name of method to use. Currently supports "FedAvg", "FedProx", "FedBN" and "TestLossWeighted"
 * ```--mu:``` mu value for FedProx
 * ```--sparsification_ratio``` The ratio of parameters that will be sent from the clients to the server at each round. 

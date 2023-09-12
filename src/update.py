@@ -76,12 +76,7 @@ class LocalUpdate:
             batch_size=self.args.local_bs,
             shuffle=False,
         )
-        if args.gpu and args.device == "cuda":
-            self.device = "cuda"
-        elif args.gpu and args.device == "mps":
-            self.device = "mps"
-        else:
-            self.device = "cpu"
+        self.device = torch.device('cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_built() else 'cpu'))
 
         self.criterion = nn.NLLLoss().to(self.device)
 
@@ -91,14 +86,9 @@ class LocalUpdate:
         """
         Configures the optimizer for the local updates.
         """
-        if self.args.optimizer == "sgd":
-            optimizer = torch.optim.SGD(
-                model.parameters(), lr=self.args.lr, momentum=0.5
-            )
-        elif self.args.optimizer == "adam":
-            optimizer = torch.optim.Adam(
-                model.parameters(), lr=self.args.lr, weight_decay=1e-4
-            )
+        optimizer = torch.optim.SGD(
+            model.parameters(), lr=self.args.lr, momentum=0.99
+        )
         return optimizer
 
     def calculate_loss(self, model, images, labels):
@@ -415,12 +405,7 @@ def test_inference(args, model, test_dataset):
     model.eval()
     loss, total, correct = 0.0, 0.0, 0.0
 
-    if args.gpu and args.device == "cuda":
-        device = "cuda"
-    elif args.gpu and args.device == "mps":
-        device = "mps"
-    else:
-        device = "cpu"
+    device = torch.device('cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_built() else 'cpu'))
 
     criterion = nn.NLLLoss().to(device)
     testloader = DataLoader(test_dataset, batch_size=128, shuffle=False)

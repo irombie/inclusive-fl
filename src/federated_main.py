@@ -47,12 +47,7 @@ def main():
         tag_list.append(f"{k}:{args_dict[k]}")
     run = wandb.init(project=args.wandb_name, config=args, name=run_name, tags=tag_list)
 
-    if args.gpu and args.device == "cuda":
-        device = "cuda"
-    elif args.gpu and args.device == "mps":
-        device = "mps"
-    else:
-        device = "cpu"
+    device = torch.device('cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_built() else 'cpu'))
 
     set_seed(args.seed, False)
 
@@ -290,16 +285,17 @@ def main():
                 local_weights_sum, valid_losses, len(idxs_users)
             )
             global_update.update_global_model(global_model, global_weights)
-
+        
         if epoch % int(args.save_every) == 0:
             ckpt_dict["state_dict"] = global_model.state_dict()
-            if not os.path.exists(args.ckpt_path):
-                os.makedirs(args.ckpt_path)
-            torch.save(
-                ckpt_dict,
-                f"{args.ckpt_path}/{args.fl_method}_{args.model}_{args.dataset}_global_model_{epoch}_{dt_string}.pt",
-            )
-
+            ckpt_dir = os.path.join(args.ckpt_path, "")
+            
+            if not os.path.exists(ckpt_dir):
+                os.makedirs(ckpt_dir)
+            
+            filename = f"{args.fl_method}_{args.model}_{args.dataset}_global_model_{epoch}_{dt_string}.pt"
+            filepath = os.path.join(ckpt_dir, filename)
+            torch.save(ckpt_dict, filepath)
         loss_avg = sum(local_losses) / len(local_losses)
 
         train_loss.append(loss_avg)
@@ -365,17 +361,6 @@ def main():
     print(f" \n Results after {args.epochs} global rounds of training:")
     print("|---- Avg Train Accuracy: {:.2f}%".format(100 * train_accuracy[-1]))
     print("|---- Test Accuracy: {:.2f}%".format(100 * test_acc))
-
-    # Saving the objects train_loss and train_accuracy:
-    file_name = os.path.join(
-        os.path.abspath(""),
-        "save",
-        "objects",
-        f"{args.dataset}_{args.model}_ \
-                            {args.epochs}_C[{args.frac}]_iid[{args.iid}]_E[{args.local_ep}]_B[{args.local_bs}].pkl",
-    )
-    with open(file_name, "wb") as f:
-        pickle.dump([train_loss, train_accuracy], f)
 
     print("\n Total Run Time: {0:0.4f}".format(time.time() - start_time))
 

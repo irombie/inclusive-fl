@@ -85,7 +85,7 @@ class SmallCNN(nn.Module):
 class VGG(nn.Module):
     def __init__(self, num_classes: int, args) -> None:
         super().__init__()
-        self.vgg = vgg11_bn(pretrained=False)
+        self.vgg = vgg11_bn(weights=None)
         self.classifier = nn.Linear(1000, num_classes)
         self.dataset = args.dataset
 
@@ -99,7 +99,7 @@ class VGG(nn.Module):
 class ResNet18(nn.Module):
     def __init__(self, num_classes: int, args) -> None:
         super().__init__()
-        self.resnet = resnet18(pretrained=False)
+        self.resnet = resnet18(weights=None)
         self.classifier = nn.Linear(1000, num_classes)
         self.dataset = args.dataset
 
@@ -110,123 +110,48 @@ class ResNet18(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-class ResidualBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, padding, stride):
-        super().__init__()
-        self.conv_res1 = nn.Conv2d(
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
-            padding=padding,
-            stride=stride,
-            bias=False,
-        )
-        self.conv_res1_bn = nn.BatchNorm2d(num_features=out_channels, momentum=0.9)
-        self.conv_res2 = nn.Conv2d(
-            in_channels=out_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
-            padding=padding,
-            bias=False,
-        )
-        self.conv_res2_bn = nn.BatchNorm2d(num_features=out_channels, momentum=0.9)
+class Mul(nn.Module):
+    def __init__(self, weight):
+        super(Mul, self).__init__()
+        self.weight = weight
+    def forward(self, x): return x * self.weight
 
-        if stride != 1:
-            # in case stride is not set to 1, we need to downsample the residual so that
-            # the dimensions are the same when we add them together
-            self.downsample = nn.Sequential(
-                nn.Conv2d(
-                    in_channels=in_channels,
-                    out_channels=out_channels,
-                    kernel_size=1,
-                    stride=stride,
-                    bias=False,
-                ),
-                nn.BatchNorm2d(num_features=out_channels, momentum=0.9),
-            )
-        else:
-            self.downsample = None
+class Flatten(nn.Module):
+    def forward(self, x): return x.view(x.size(0), -1)
 
-        self.relu = nn.ReLU()
+class Residual(nn.Module):
+    def __init__(self, module):
+        super(Residual, self).__init__()
+        self.module = module
+    def forward(self, x): return x + self.module(x)
 
-    def forward(self, x):
-        residual = x
-
-        out = self.relu(self.conv_res1_bn(self.conv_res1(x)))
-        out = self.conv_res2_bn(self.conv_res2(out))
-
-        if self.downsample is not None:
-            residual = self.downsample(residual)
-
-        out = self.relu(out)
-        out = out + residual
-        return out
-
-
+def conv_bn(channels_in, channels_out, kernel_size=3, stride=1, padding=1, groups=1):
+    return nn.Sequential(
+            nn.Conv2d(channels_in, channels_out,
+                         kernel_size=kernel_size, stride=stride, padding=padding,
+                         groups=groups, bias=False),
+            nn.BatchNorm2d(channels_out),
+            nn.ReLU(inplace=True)
+    )
 class ResNet9(nn.Module):
-    def __init__(self, num_classes: int, args):
+    def __init__(self, num_classes: int, args) -> None:
         super().__init__()
-
-        self.conv = nn.Sequential(
-            nn.Conv2d(
-                in_channels=3,
-                out_channels=64,
-                kernel_size=3,
-                stride=1,
-                padding=1,
-                bias=False,
-            ),
-            nn.BatchNorm2d(num_features=64, momentum=0.9),
-            nn.ReLU(),
-            nn.Conv2d(
-                in_channels=64,
-                out_channels=128,
-                kernel_size=3,
-                stride=1,
-                padding=1,
-                bias=False,
-            ),
-            nn.BatchNorm2d(num_features=128, momentum=0.9),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            ResidualBlock(
-                in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1
-            ),
-            nn.Conv2d(
-                in_channels=128,
-                out_channels=256,
-                kernel_size=3,
-                stride=1,
-                padding=1,
-                bias=False,
-            ),
-            nn.BatchNorm2d(num_features=256, momentum=0.9),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Conv2d(
-                in_channels=256,
-                out_channels=256,
-                kernel_size=3,
-                stride=1,
-                padding=1,
-                bias=False,
-            ),
-            nn.BatchNorm2d(num_features=256, momentum=0.9),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            ResidualBlock(
-                in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1
-            ),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-        )
+        self.num_classes = num_classes
+        self.model = nn.Sequential(
+                    conv_bn(3, 64, kernel_size=3, stride=1, padding=1),
+                    conv_bn(64, 128, kernel_size=5, stride=2, padding=2),
+                    Residual(nn.Sequential(conv_bn(128, 128), conv_bn(128, 128))),
+                    conv_bn(128, 256, kernel_size=3, stride=1, padding=1),
+                    nn.MaxPool2d(2),
+                    Residual(nn.Sequential(conv_bn(256, 256), conv_bn(256, 256))),
+                    conv_bn(256, 128, kernel_size=3, stride=1, padding=0),
+                    nn.AdaptiveMaxPool2d((1, 1)),
+                    Flatten(),
+                    nn.Linear(128, self.num_classes, bias=False),
+                    Mul(0.2)
+                )
         self.dataset = args.dataset
 
-        self.fc = nn.Linear(in_features=1024, out_features=num_classes, bias=True)
-
     def forward(self, x):
-        out = self.conv(x)
-
-        out = out.view(-1, out.shape[1] * out.shape[2] * out.shape[3])
-        out = self.fc(out)
-
-        return F.log_softmax(out, dim=1)
+        x = self.model(x)
+        return F.log_softmax(x, dim=1)

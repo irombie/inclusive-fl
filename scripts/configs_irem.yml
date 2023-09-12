@@ -1,5 +1,5 @@
-dataset: ['cifar'] # , "tiny-imagenet", "utkface"] 
-model: ["small_cnn"] #, 'vgg11_bn', 'resenet18', 'resnet9']
+dataset: ['cifar', "utkface"] # , "tiny-imagenet", 
+model: ["small_cnn", 'vgg11_bn', 'resnet9'] #'resenet18',
 epochs: [50]
 lr: [0.01] 
 iid: [0]

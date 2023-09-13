@@ -1,6 +1,6 @@
 dataset: ['utkface', 'cifar', 'tiny-imagenet']
-model: ['small_cnn']
-epochs: [3]
+model: ['small_cnn', 'resnet9', 'resnet18']
+epochs: [2]
 lr: [0.01] 
 iid: [0]
 num_users: [4]

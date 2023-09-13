@@ -32,6 +32,7 @@ class AbstractGlobalUpdate(ABC):
         self,
         local_model_weights: List[Dict[str, torch.Tensor]],
         test_losses: List[float],
+        **kwargs,
     ) -> Dict[str, torch.Tensor]:
         """
         Method to aggregate local model weights to return global
@@ -48,7 +49,10 @@ class AbstractGlobalUpdate(ABC):
         pass
 
     def update_global_model(
-        self, global_model: torch.nn.Module, global_weights: Dict[str, torch.Tensor]
+        self,
+        global_model: torch.nn.Module,
+        global_weights: Dict[str, torch.Tensor],
+        **kwargs,
     ) -> None:
         """
         Update global model with global weights
@@ -79,8 +83,9 @@ class MeanWeights(AbstractGlobalUpdate):
 
     def aggregate_weights(
         self,
-        local_model_weights: List[Dict[str, torch.Tensor]],
+        local_weights_sum,
         test_losses: List[float],
+        num_users,
     ) -> Dict[str, torch.Tensor]:
         """
         Returns the mean of the weights.
@@ -94,20 +99,10 @@ class MeanWeights(AbstractGlobalUpdate):
         :return: global model state dictionary,
             which is the average of all local models provided
         """
-        weights_scalar = np.divide(test_losses, np.sum(test_losses))
-        w_avg = copy.deepcopy(local_model_weights[0])
-        for key in w_avg.keys():
-            for i in range(1, len(local_model_weights)):
-                w_avg[key] += local_model_weights[i][key]
+        return np.divide(local_weights_sum, num_users)
 
-            if self.args.reweight_loss_avg == 1:
-                if w_avg[key].dtype == torch.float32:
-                    w_avg[key] *= weights_scalar[i].astype(np.float64)
-                else:
-                    w_avg[key] *= weights_scalar[i].astype(np.int64)
-            else:
-                w_avg[key] = torch.div(w_avg[key], len(local_model_weights))
-        return w_avg
+    def update_global_model(self, global_model, global_weights, **kwargs) -> None:
+        utils.updateFromNumpyFlatArray(global_weights, global_model)
 
 
 class MeanWeightsSparsified(AbstractGlobalUpdate):
@@ -119,9 +114,9 @@ class MeanWeightsSparsified(AbstractGlobalUpdate):
 
     def aggregate_weights(
         self,
-        local_model_weights: List[Dict[str, torch.Tensor]],
+        local_weights_sum,
         global_model,
-        local_bitmasks,
+        local_bitmasks_sum,
     ) -> Dict[str, torch.Tensor]:
         """
         Returns the mean of the weights.
@@ -135,13 +130,11 @@ class MeanWeightsSparsified(AbstractGlobalUpdate):
         :return: global model state dictionary,
             which is the average of all local models provided
         """
-        sum_bitmask = np.sum(local_bitmasks, axis=0)
-        sum_update = np.sum(local_model_weights, axis=0)
         weigted_local_model_sum = np.divide(
-            sum_update,
-            sum_bitmask,
-            out=np.zeros_like(sum_update),
-            where=sum_bitmask != 0,
+            local_weights_sum,
+            local_bitmasks_sum,
+            out=np.zeros_like(local_weights_sum),
+            where=local_bitmasks_sum != 0,
         )
         flat_glob = utils.flatten(global_model)
         return flat_glob + self.global_learning_rate * weigted_local_model_sum
@@ -273,21 +266,11 @@ class AverageWeightsWithTestLoss(AbstractGlobalUpdate):
 class qFedAvgGlobalUpdate(AbstractGlobalUpdate):
     """Aggregate weights by using average based on the qFedAvg loss."""
 
-    def aggregate_weights(
-        self,
-        local_model_weights: List[Dict[str, torch.Tensor]],
-        test_losses: List[float],
-    ) -> Dict[str, torch.Tensor]:
-        """
-        Empty Method as it is not required
-        """
-        raise Exception("Not Implemented")
-
     @staticmethod
-    def update_global_model(
+    def aggregate_weights(
         global_model: torch.nn.Module,
-        local_deltas: List[Dict[str, torch.Tensor]],
-        local_hs: List[Dict[str, torch.Tensor]],
+        delta_sum: np.array,
+        h_sum: np.array,
     ) -> Dict[str, torch.Tensor]:
         """
         Update global model with global weights
@@ -301,15 +284,14 @@ class qFedAvgGlobalUpdate(AbstractGlobalUpdate):
 
         :return: updated global model with qFedAvg
         """
-        delta_sum = dict_sum(local_deltas)
-        h_sum = dict_sum(local_hs)
-
-        updated_global_model = copy.deepcopy(global_model.state_dict())
-        for key in list(updated_global_model.keys()):
-            updated_global_model[key] -= delta_sum[key] / h_sum[key]
-
-        global_model.load_state_dict(updated_global_model, strict=False)
-        return updated_global_model
+        weigted_local_model_sum = np.divide(
+            delta_sum,
+            h_sum,
+            out=np.zeros_like(delta_sum),
+            where=h_sum != 0,
+        )
+        flat_glob = utils.flatten(global_model)
+        return flat_glob - weigted_local_model_sum
 
 
 NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {

@@ -1,14 +1,29 @@
+import argparse
 import itertools
 import os
 import subprocess
 import time
 
+import torch
 import yaml
 from loguru import logger
 from tqdm import tqdm
 
+parser = argparse.ArgumentParser()
 
-def parse_yml(path: str = "configs.yml"):
+parser.add_argument("--config-file", "-config", type=str, required=True)
+
+MODEL_IDX = 0
+DATASET_IDX = 7
+
+IGNORE_EXPERIMENTS = [
+    ("resnet18", "cifar"),
+    ("vgg11_bn", "cifar"),
+    ("small_cnn", "tiny-imagenet"),
+]
+
+
+def parse_yml(path: str = "scripts/configs_irem.yml"):
     with open(path, "r") as stream:
         try:
             logger.info("Parsing YAML file.")
@@ -18,12 +33,10 @@ def parse_yml(path: str = "configs.yml"):
             return None
 
 
-def generate_command_args(combination, gpu, device, timestamp):
+def generate_command_args(combination, timestamp):
     fl_method = combination[11]
 
     command_args = {
-        "--gpu": gpu,
-        "--device": device,
         "--model": combination[0],
         "--lr": combination[1],
         "--local_ep": combination[2],
@@ -54,22 +67,9 @@ def generate_command_args(combination, gpu, device, timestamp):
 
 
 def main():
-    gpu = None
-    device = "cpu"
-    val = input("do u have gpu😈 (y or n): ")
-    if val == "y":
-        gpu = 0
-        device = "cuda"
-    elif val == "n":
-        val_device = input("do u wanna use mac mps thingy (y or n):")
-        if val_device == "y":
-            device = "mps"
-        elif val_device != "n":
-            logger.warning("i dont understand ur answer, so assigning u cpu ☠️")
-    else:
-        raise Exception("do u have gpu or not? pls specify")
+    args = parser.parse_args()
 
-    configs = parse_yml()
+    configs = parse_yml(path=args.config_file)
     if configs is None:
         raise Exception("Unable to read config file!")
     if "sparsification_ratio" in configs:
@@ -158,11 +158,19 @@ def main():
                 )
             )
 
+    # Remove unwanted experiments:
+
     timestamp = time.time()
+    final_list = []
+    for exp in parameter_combinations:
+        if not (exp[MODEL_IDX], exp[DATASET_IDX]) in IGNORE_EXPERIMENTS:
+            final_list.append(exp)
+
+    parameter_combinations = final_list
 
     # Launch experiments
     for i, combination in enumerate(tqdm(parameter_combinations)):
-        command_args = generate_command_args(combination, gpu, device, timestamp)
+        command_args = generate_command_args(combination, timestamp)
         command = [f"{k}={v}" for k, v in command_args.items()]
         command.insert(0, f"{os.getcwd()}/src/federated_main.py")  # + command
         command.insert(0, "python3")

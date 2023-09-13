@@ -3,9 +3,8 @@
 # Python version: 3.6
 
 import copy
-from typing import Dict, Type
+from typing import Dict, OrderedDict, Type
 
-import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
@@ -77,12 +76,11 @@ class LocalUpdate:
             batch_size=self.args.local_bs,
             shuffle=False,
         )
-        if args.gpu and args.device == "cuda":
-            self.device = "cuda"
-        elif args.gpu and args.device == "mps":
-            self.device = "mps"
-        else:
-            self.device = "cpu"
+        self.device = torch.device(
+            "cuda"
+            if torch.cuda.is_available()
+            else ("mps" if torch.backends.mps.is_built() else "cpu")
+        )
 
         self.criterion = nn.NLLLoss().to(self.device)
 
@@ -92,14 +90,7 @@ class LocalUpdate:
         """
         Configures the optimizer for the local updates.
         """
-        if self.args.optimizer == "sgd":
-            optimizer = torch.optim.SGD(
-                model.parameters(), lr=self.args.lr, momentum=0.5
-            )
-        elif self.args.optimizer == "adam":
-            optimizer = torch.optim.Adam(
-                model.parameters(), lr=self.args.lr, weight_decay=1e-4
-            )
+        optimizer = torch.optim.SGD(model.parameters(), lr=self.args.lr, momentum=0.5)
         return optimizer
 
     def calculate_loss(self, model, images, labels):
@@ -350,39 +341,54 @@ class qFedAvgLocalUpdate(LocalUpdate):
             train_loss /= len(self.trainloader.dataset)
             training_losses.append(train_loss)
 
-            # if iter == 0:
-            #     base_client_loss = avg_loss_per_local_training
-            # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
+        model.eval()
+        with torch.no_grad():
+            # qFedAvg update to the model
+            F = sum(training_losses) / len(training_losses)
+            if self.args.q is None:
+                raise ValueError(
+                    "q argument must be passed as argument for fl_method=qFedAvg"
+                )
+            F += self.args.eps
+            Fq = torch.pow(torch.tensor(F, dtype=torch.float32), self.args.q)
+            L = 1.0 / self.args.lr
 
-        # qFedAvg update to the model
-        F = sum(training_losses) / len(training_losses)
-        if self.args.q is None:
-            raise ValueError(
-                "q argument must be passed as argument for fl_method=qFedAvg"
+            delta_weights, delta, h, h_expanded = (
+                OrderedDict(),
+                OrderedDict(),
+                OrderedDict(),
+                OrderedDict(),
             )
 
-        if self.args.eps is None:
-            # use default eps value to avoid zero loss
-            F += 1e-6
-        F += self.args.eps
-        Fq = np.float_power(F, self.args.q)
-        L = 1.0 / self.args.lr
+            for key in list(model.state_dict().keys()):
+                # Line 6 calculations qFedAvg algorithm
+                delta_weights[key] = L * (base_model[key] - model.state_dict()[key])
+                delta[key] = Fq * delta_weights[key]
 
-        delta_weights, delta, h = {}, {}, {}
-        updated_model = copy.deepcopy(model.state_dict())
-        for key in list(updated_model.keys()):
-            # Line 6 calculations qFedAvg algorithm
-            delta_weights[key] = L * (base_model[key] - updated_model[key])
-            delta[key] = Fq * delta_weights[key]
+                # Lemma 3 in the qFedAvg paper provides the connection between the Local
+                # Lipchitz constant at q=0 and when q>0. It is used to estimate the learning rate
+                # as the learning rate is set as the inverse of lipschitz constant.
+                size = 1
+                h[key] = Fq * (
+                    (
+                        self.args.q
+                        * torch.linalg.norm(torch.flatten(delta_weights[key]), ord=2)
+                        ** 2
+                    )
+                    / F
+                    + L
+                )
 
-            # Lemma 3 in the qFedAvg paper provides the connection between the Local
-            # Lipchitz constant at q=0 and when q>0. It is used to estimate the learning rate
-            # as the learning rate is set as the inverse of lipschitz constant.
-            h[key] = Fq * (
-                (self.args.q * torch.norm(delta_weights[key], p=2) ** 2) / F + L
+                for dim in model.state_dict()[key].shape:
+                    size *= dim
+                h_expanded[key] = torch.full((size,), h[key])
+
+            return (
+                utils.flatten(delta, is_dict=True),
+                utils.flatten(h_expanded, is_dict=True),
+                model,
+                sum(epoch_loss) / len(epoch_loss),
             )
-
-        return delta, h, model, sum(epoch_loss) / len(epoch_loss)
 
 
 NAME_TO_LOCAL_UPDATE: Dict[str, Type[LocalUpdate]] = {
@@ -401,12 +407,11 @@ def test_inference(args, model, test_dataset):
     model.eval()
     loss, total, correct = 0.0, 0.0, 0.0
 
-    if args.gpu and args.device == "cuda":
-        device = "cuda"
-    elif args.gpu and args.device == "mps":
-        device = "mps"
-    else:
-        device = "cpu"
+    device = torch.device(
+        "cuda"
+        if torch.cuda.is_available()
+        else ("mps" if torch.backends.mps.is_built() else "cpu")
+    )
 
     criterion = nn.NLLLoss().to(device)
     testloader = DataLoader(test_dataset, batch_size=128, shuffle=False)

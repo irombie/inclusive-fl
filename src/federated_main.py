@@ -7,6 +7,7 @@ import copy
 import os
 import pickle
 import time
+import traceback
 from datetime import datetime
 
 import numpy as np
@@ -15,11 +16,12 @@ from tqdm import tqdm
 
 import wandb
 from global_updates import get_global_update
-from models import VGG, SmallCNN, CNNFashion_Mnist, ResNet9, ResNet18
+from models import VGG, CNNFashion_Mnist, ResNet9, ResNet18, SmallCNN
 from options import args_parser
 from update import get_local_update, test_inference
 from utils import (
     exp_details,
+    flatten,
     get_dataset,
     set_seed,
     temperatured_softmax,
@@ -45,12 +47,11 @@ def main():
         tag_list.append(f"{k}:{args_dict[k]}")
     run = wandb.init(project=args.wandb_name, config=args, name=run_name, tags=tag_list)
 
-    if args.gpu and args.device == "cuda":
-        device = "cuda"
-    elif args.gpu and args.device == "mps":
-        device = "mps"
-    else:
-        device = "cpu"
+    device = torch.device(
+        "cuda"
+        if torch.cuda.is_available()
+        else ("mps" if torch.backends.mps.is_built() else "cpu")
+    )
 
     set_seed(args.seed, False)
 
@@ -127,11 +128,10 @@ def main():
     ckpt_dict["global_lr"] = args.global_lr
     ckpt_dict["wandb_run_name"] = run_name
 
-    local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
+    list_acc = []
 
     for epoch in tqdm(range(args.epochs)):
-        local_weights, local_losses = [], []
-        local_deltas, local_hs = [], []
+        local_losses = []
         print(f"\n | Global Training Round : {epoch+1} |\n")
 
         m = max(int(args.frac * args.num_users), 1)
@@ -142,8 +142,16 @@ def main():
 
         valid_accs, valid_loss = [], []
 
-        # Getting the validation loss for all users' data of the global model
+        global_flat = flatten(global_model)
+        local_weights_sum, local_bitmasks_sum, local_delta_sum, local_h_sum = (
+            np.zeros_like(global_flat),
+            np.zeros_like(global_flat),
+            np.zeros_like(global_flat),
+            np.zeros_like(global_flat),
+        )
+
         for c in idxs_users:
+            # Getting the validation loss for all users' data of the global model
             local_update = get_local_update(
                 args=args,
                 train_dataset=train_dataset,
@@ -156,9 +164,7 @@ def main():
                 global_model=global_model,
             )
 
-            acc, loss = local_update.inference(
-                model=local_models[c], dataset_type="valid"
-            )
+            acc, loss = local_update.inference(model=global_model, dataset_type="valid")
 
             valid_accs.append(acc)
             valid_losses.append(loss)
@@ -187,10 +193,10 @@ def main():
             client_prob_dist = {
                 idxs_users[i]: client_prob_dist[i] for i in range(len(client_prob_dist))
             }
-        global_model.train()
-        list_acc = []
-        local_bitmasks = []
+
         for idx in idxs_users:
+            local_model = copy.deepcopy(global_model)
+            ## Calculate local update
             local_update = get_local_update(
                 args=args,
                 train_dataset=train_dataset,
@@ -207,29 +213,32 @@ def main():
             # of this nature
 
             if args.fl_method == "FedSyn":
-                sparsification_percentage = None
+                sparsification_percentage = args.sparsification_ratio
                 if args.use_fair_sparsification:
                     sparsification_percentage = client_prob_dist[idx]
                     print(f"Sparsification percentage {sparsification_percentage}")
-                    assert sparsification_percentage is not None
+                # assert sparsification_percentage is not None
                 w, flat_update, bitmask, loss = local_update.update_weights(
-                    model=local_models[idx],
+                    model=local_model,
                     sparsification_percentage=sparsification_percentage,
                     global_round=epoch,
                 )
-                local_weights.append(copy.deepcopy(flat_update))
-                local_bitmasks.append(bitmask)
+
+                local_weights_sum += flat_update
+                local_bitmasks_sum += bitmask
             elif args.fl_method == "qFedAvg":
                 delta, h, w, loss = local_update.update_weights(
-                    model=local_models[idx], global_round=epoch
+                    model=local_model, global_round=epoch
                 )
-                local_deltas.append(copy.deepcopy(delta))
-                local_hs.append(copy.deepcopy(h))
+                local_delta_sum += delta
+                local_h_sum += h
+                local_bitmasks_sum += np.ones_like(local_bitmasks_sum)
             else:
                 w, loss = local_update.update_weights(
-                    model=local_models[idx], global_round=epoch
+                    model=local_model, global_round=epoch
                 )
-                local_weights.append(copy.deepcopy(w.state_dict()))
+                local_weights_sum += flatten(local_model)
+                local_bitmasks_sum += np.ones_like(local_bitmasks_sum)
 
             acc, loss = local_update.inference(model=w, dataset_type="train")
             list_acc.append(acc)
@@ -246,12 +255,7 @@ def main():
             }
         )
 
-        num_client_params_sent = [
-            sum(local_bitmasks[i]) for i in range(len(local_bitmasks))
-        ]
-        # Uncommented to reduce clutter.
-        # for i, params_sent in zip(idxs_users, num_client_params_sent):
-        #     run.log({f"Number of parameters sent by client idx:{i}": params_sent})
+        num_client_params_sent = local_bitmasks_sum
         run.log(
             {
                 "Standard deviation of number of parameters sent:": np.std(
@@ -259,7 +263,12 @@ def main():
                 )
             }
         )
-        run.log({"Mean of number of parameters sent:": np.mean(num_client_params_sent)})
+        run.log(
+            {
+                "Mean of number of parameters sent:": np.sum(num_client_params_sent)
+                / len(idxs_users)
+            }
+        )
 
         acc_avg = sum(list_acc) / len(list_acc)
         train_accuracy.append(acc_avg)
@@ -267,32 +276,31 @@ def main():
         # update global weights
         if args.fl_method == "FedSyn":
             global_w = global_update.aggregate_weights(
-                local_weights, global_model, local_bitmasks
+                local_weights_sum, global_model, local_bitmasks_sum
             )
             # update models
             updateFromNumpyFlatArray(global_w, global_model)
-            local_models = [copy.deepcopy(global_model) for _ in range(args.num_users)]
         elif args.fl_method == "qFedAvg":
-            global_weights = global_update.update_global_model(
-                global_model, local_deltas, local_hs
+            global_weights = global_update.aggregate_weights(
+                global_model, local_delta_sum, local_h_sum
             )
-            global_update.update_local_models(local_models, global_weights)
+            updateFromNumpyFlatArray(global_weights, global_model)
         else:
             global_weights = global_update.aggregate_weights(
-                local_weights, valid_losses
+                local_weights_sum, valid_losses, len(idxs_users)
             )
             global_update.update_global_model(global_model, global_weights)
-            global_update.update_local_models(local_models, global_weights)
 
         if epoch % int(args.save_every) == 0:
             ckpt_dict["state_dict"] = global_model.state_dict()
-            if not os.path.exists(args.ckpt_path):
-                os.makedirs(args.ckpt_path)
-            torch.save(
-                ckpt_dict,
-                f"{args.ckpt_path}/{args.fl_method}_{args.model}_{args.dataset}_global_model_{epoch}_{dt_string}.pt",
-            )
+            ckpt_dir = os.path.join(args.ckpt_path, "")
 
+            if not os.path.exists(ckpt_dir):
+                os.makedirs(ckpt_dir)
+
+            filename = f"{args.fl_method}_{args.model}_{args.dataset}_global_model_{epoch}_{dt_string}.pt"
+            filepath = os.path.join(ckpt_dir, filename)
+            torch.save(ckpt_dict, filepath)
         loss_avg = sum(local_losses) / len(local_losses)
 
         train_loss.append(loss_avg)
@@ -316,9 +324,7 @@ def main():
                 global_model=global_model,
             )
 
-            acc, loss = local_update.inference(
-                model=local_models[c], dataset_type="test"
-            )
+            acc, loss = local_update.inference(model=global_model, dataset_type="test")
 
             test_accs.append(acc)
             test_losses.append(loss)
@@ -361,19 +367,14 @@ def main():
     print("|---- Avg Train Accuracy: {:.2f}%".format(100 * train_accuracy[-1]))
     print("|---- Test Accuracy: {:.2f}%".format(100 * test_acc))
 
-    # Saving the objects train_loss and train_accuracy:
-    file_name = os.path.join(
-        os.path.abspath(""),
-        "save",
-        "objects",
-        f"{args.dataset}_{args.model}_ \
-                            {args.epochs}_C[{args.frac}]_iid[{args.iid}]_E[{args.local_ep}]_B[{args.local_bs}].pkl",
-    )
-    with open(file_name, "wb") as f:
-        pickle.dump([train_loss, train_accuracy], f)
-
     print("\n Total Run Time: {0:0.4f}".format(time.time() - start_time))
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+        wandb.finish(exit_code=0)
+    except Exception as e:
+        print(f"Experiment failed due to {e}")
+        print(traceback.format_exc())
+        wandb.finish(exit_code=-1)

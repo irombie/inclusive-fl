@@ -47,7 +47,11 @@ def main():
         tag_list.append(f"{k}:{args_dict[k]}")
     run = wandb.init(project=args.wandb_name, config=args, name=run_name, tags=tag_list)
 
-    device = torch.device('cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_built() else 'cpu'))
+    device = torch.device(
+        "cuda"
+        if torch.cuda.is_available()
+        else ("mps" if torch.backends.mps.is_built() else "cpu")
+    )
 
     set_seed(args.seed, False)
 
@@ -228,6 +232,7 @@ def main():
                 )
                 local_delta_sum += delta
                 local_h_sum += h
+                local_bitmasks_sum += np.ones_like(local_bitmasks_sum)
             else:
                 w, loss = local_update.update_weights(
                     model=local_model, global_round=epoch
@@ -285,14 +290,14 @@ def main():
                 local_weights_sum, valid_losses, len(idxs_users)
             )
             global_update.update_global_model(global_model, global_weights)
-        
+
         if epoch % int(args.save_every) == 0:
             ckpt_dict["state_dict"] = global_model.state_dict()
             ckpt_dir = os.path.join(args.ckpt_path, "")
-            
+
             if not os.path.exists(ckpt_dir):
                 os.makedirs(ckpt_dir)
-            
+
             filename = f"{args.fl_method}_{args.model}_{args.dataset}_global_model_{epoch}_{dt_string}.pt"
             filepath = os.path.join(ckpt_dir, filename)
             torch.save(ckpt_dict, filepath)

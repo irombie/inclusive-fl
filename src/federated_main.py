@@ -202,9 +202,9 @@ def main():
                 train_dataset=train_dataset,
                 test_dataset=test_dataset,
                 valid_dataset=valid_dataset,
-                train_idxs=train_user_groups[c],
-                test_idxs=test_user_groups[c],
-                valid_idxs=valid_user_groups[c],
+                train_idxs=train_user_groups[idx],
+                test_idxs=test_user_groups[idx],
+                valid_idxs=valid_user_groups[idx],
                 logger=run,
                 global_model=global_model,
             )

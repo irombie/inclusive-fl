@@ -1,17 +1,17 @@
+import argparse
 import itertools
 import os
 import subprocess
 import time
 
+import torch
 import yaml
 from loguru import logger
 from tqdm import tqdm
-import argparse
-import torch
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--config-file', '-config', type=str, required=True)
+parser.add_argument("--config-file", "-config", type=str, required=True)
 
 MODEL_IDX = 0
 DATASET_IDX = 7
@@ -23,8 +23,7 @@ IGNORE_EXPERIMENTS = [
 ]
 
 
-
-def parse_yml(path: str = "scripts/YAMALAMDINGDONG.yml"):
+def parse_yml(path: str = "scripts/configs_irem.yml"):
     with open(path, "r") as stream:
         try:
             logger.info("Parsing YAML file.")
@@ -69,9 +68,8 @@ def generate_command_args(combination, timestamp):
 
 def main():
     args = parser.parse_args()
-    
 
-    configs = parse_yml(path = args.config_file)
+    configs = parse_yml(path=args.config_file)
     if configs is None:
         raise Exception("Unable to read config file!")
     if "sparsification_ratio" in configs:

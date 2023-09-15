@@ -614,9 +614,11 @@ def get_bitmask_per_method(
         np.put(bitmask, max_indices, 1)
         return bitmask
     elif sparsification_type == "rtopk":
-        assert (
-            choose_from_top_r_percentile >= sparse_ratio
-        ), "choose_from_top_r_percentile for rtopk should be larger than sparse_ratio"
+        if choose_from_top_r_percentile < sparse_ratio:
+            choose_from_top_r_percentile = sparse_ratio
+        # assert (
+        #     choose_from_top_r_percentile >= sparse_ratio
+        # ), "choose_from_top_r_percentile for rtopk should be larger than sparse_ratio"
         num_params = int(choose_from_top_r_percentile * len(flat_model))
         max_indices = np.argpartition(np.absolute(flat_model), -num_params)[
             -num_params:

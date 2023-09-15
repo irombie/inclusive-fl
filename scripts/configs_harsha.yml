@@ -1,5 +1,5 @@
-dataset: ["tiny-imagenet"]
-model: ['vgg11_bn', 'resenet18', 'resnet9']
+dataset: ["utkface"]
+model: ['vgg11_bn', 'resnet18', 'resnet9']
 epochs: [50]
 lr: [0.01]
 iid: [0]
@@ -8,9 +8,10 @@ frac: [0.5]
 local_ep: [5]
 local_bs: [16]
 q: [0.01, 0.001] #qfedavg,
-fl_method:  [qFedAvg, 'FedSyn']
+fl_method:  ['qFedAvg', 'FedSyn']
 mu: [0.01]
-sparsification_ratio: [0.5] #fedsyn
+sparsification_ratio: [0.2, 0.5] #fedsyn
 sparsification_type: ['rtopk', 'topk'] #fedsyn
 dist_noniid: [0.5, 0.8]
 use_fair_sparsification: [0, 1] #fedsyn
+seed: [1234, 42]

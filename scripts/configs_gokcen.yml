@@ -1,5 +1,5 @@
-dataset: ["utkface"]
-model: ['vgg11_bn', 'resnet18', 'resnet9']
+dataset: ["tiny-imagenet"]
+model: ['resnet18']
 epochs: [50]
 lr: [0.01]
 iid: [0]
@@ -14,4 +14,4 @@ sparsification_ratio: [0.2, 0.5] #fedsyn
 sparsification_type: ['rtopk', 'topk'] #fedsyn
 dist_noniid: [0.5, 0.8]
 use_fair_sparsification: [0, 1] #fedsyn
-seed: [1234, 42]
+seed: [42]

@@ -372,8 +372,7 @@ class qFedAvgLocalUpdate(LocalUpdate):
                 h[key] = Fq * (
                     (
                         self.args.q
-                        * torch.linalg.norm(torch.flatten(delta_weights[key]), ord=2)
-                        ** 2
+                        * torch.norm(torch.flatten(delta_weights[key]), 2) ** 2
                     )
                     / F
                     + L

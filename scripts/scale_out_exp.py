@@ -49,7 +49,7 @@ def generate_command_args(combination, timestamp):
         "--num_users": combination[9],
         "--epochs": combination[10],
         "--fl_method": fl_method,
-        "--wandb_name": f"test_suite_{timestamp}",
+        "--wandb_name": f"test_suite_utkface_resnet9_irem",
     }
 
     if fl_method == "FedProx":

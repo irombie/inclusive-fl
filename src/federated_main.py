@@ -349,9 +349,7 @@ def main():
                 )
             }
         )
-        data = [[t_loss] for t_loss in test_losses]
-        print(data)
-        table = wandb.Table(data=data, columns=["test losses"])
+        table = wandb.Table(data=[[t_loss] for t_loss in test_losses])
         run.log(
             {
                 f"client_test_loss_epoch_{epoch}": wandb.plot.histogram(

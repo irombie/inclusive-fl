@@ -10,3 +10,6 @@ loguru==0.7.0
 wget==3.2
 parse==1.19.1
 prettytable==3.9.0
+tensorflow-gpu==1.10
+Pillow
+scipy

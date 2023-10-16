@@ -15,7 +15,7 @@ import torch
 from tqdm import tqdm
 
 import wandb
-from global_updates import get_global_update
+from aggregation import get_global_update
 from models import VGG, CNNFashion_Mnist, ResNet9, ResNet18, SmallCNN
 from options import args_parser
 from update import get_local_update, test_inference
@@ -29,14 +29,8 @@ from utils import (
 )
 
 
-def main():
+def main(args):
     start_time = time.time()
-
-    # define paths
-    path_project = os.path.abspath("..")
-
-    args = args_parser()
-    exp_details(args)
 
     now = datetime.now()
     dt_string = now.strftime("%d_%m_%Y-%H_%M")
@@ -371,9 +365,30 @@ def main():
 
 
 if __name__ == "__main__":
+    args = args_parser()
+    exp_details(args)
+
     try:
-        main()
-        wandb.finish(exit_code=0)
+        if args.fl_method=="qffedavg":
+            os.system(f"python src/fair_flearn/main.py --dataset={args.dataset} --optimizer=qffedavg  \
+            --learning_rate={args.lr} \
+            --learning_rate_lambda=0.01 \
+            --num_rounds={args.epochs} \
+            --eval_every=1 \
+            --clients_per_round={args.num_users} \
+            --batch_size={args.local_bs} \
+            --q={args.q} \
+            --model='svm' \
+            --sampling=1  \
+            --num_epochs={args.local_ep} \
+            --data_partition_seed={args.seed} \
+            --log_interval=10 \
+            --static_step_size=0 \
+            --track_individual_accuracy=0 \
+            --output='./log_qffedvg_{args.dataset}_q_{args.q}_{args.local_bs}_{args.local_ep}_{args.num_users}_{args.epochs}_{args.seed}'")
+        else:
+            main(args)
+            wandb.finish(exit_code=0)
     except Exception as e:
         print(f"Experiment failed due to {e}")
         print(traceback.format_exc())

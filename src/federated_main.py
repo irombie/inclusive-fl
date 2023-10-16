@@ -11,6 +11,7 @@ import traceback
 from datetime import datetime
 
 import numpy as np
+import pandas as pd
 import torch
 from tqdm import tqdm
 
@@ -349,11 +350,13 @@ def main():
                 )
             }
         )
-        table = wandb.Table(data=[[t_loss] for t_loss in test_losses])
+        df = pd.DataFrame([[t_loss] for t_loss in test_losses], columns=["scores"])
+        table = wandb.Table(data=df, columns=["scores"])
+        run.log({f"test_loss_epoch_{epoch}": table})
         run.log(
             {
                 f"client_test_loss_epoch_{epoch}": wandb.plot.histogram(
-                    table, "test losses", title="Histogram of Client Test Losses"
+                    table, "scores", title="Histogram of Client Test Losses"
                 )
             }
         )

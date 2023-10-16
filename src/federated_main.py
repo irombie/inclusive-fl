@@ -1,11 +1,11 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Python version: 3.6
+# Python version: 3.11
 
 
 import copy
 import os
 import pickle
+import sys
 import time
 import traceback
 from datetime import datetime
@@ -30,6 +30,11 @@ from utils import (
 
 
 def main():
+    if sys.version_info[0:2] != (3, 11):
+        print()
+        raise Exception(
+            f"Code requires python 3.11. You are using {sys.version_info[0:2]}. Please update your conda env and install requirements.txt on the new env."
+        )
     start_time = time.time()
 
     # define paths
@@ -40,7 +45,7 @@ def main():
 
     now = datetime.now()
     dt_string = now.strftime("%d_%m_%Y-%H_%M")
-    run_name = f"{args.fl_method}_{args.dataset}_clients_{args.num_users}_frac_{args.frac}_{args.sparsification_ratio}_{time.time()}"
+    run_name = f"{args.fl_method}_{args.dataset}_clients_{args.model}_frac_{args.num_users}_{args.frac}_{args.sparsification_ratio}_{time.time()}"
     args_dict = vars(args)
     tag_list = []
     for k in args_dict:
@@ -341,6 +346,23 @@ def main():
             {
                 f"Local Model Stddev of Test Losses": np.std(
                     np.array(test_losses).flatten()
+                )
+            }
+        )
+        data = [[t_loss] for t_loss in test_losses]
+        print(data)
+        table = wandb.Table(data=data, columns=["test losses"])
+        run.log(
+            {
+                f"client_test_loss_epoch_{epoch}": wandb.plot.histogram(
+                    table, "test losses", title="Histogram of Client Test Losses"
+                )
+            }
+        )
+        run.log(
+            {
+                f"Local Model Stddev of Test Accuracies": np.std(
+                    np.array(test_accs).flatten()
                 )
             }
         )

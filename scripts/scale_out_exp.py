@@ -33,7 +33,7 @@ def parse_yml(path: str = "scripts/configs_irem.yml"):
             return None
 
 
-def generate_command_args(combination, timestamp):
+def generate_command_args(combination):
     fl_method = combination[11]
 
     command_args = {
@@ -49,7 +49,7 @@ def generate_command_args(combination, timestamp):
         "--num_users": combination[9],
         "--epochs": combination[10],
         "--fl_method": fl_method,
-        "--wandb_name": f"test_suite_utkface_resnet9_irem",
+        "--wandb_name": f"test_suite_{combination[7]}_{combination[0]}",
     }
 
     if fl_method == "FedProx":
@@ -159,8 +159,6 @@ def main():
             )
 
     # Remove unwanted experiments:
-
-    timestamp = time.time()
     final_list = []
     for exp in parameter_combinations:
         if not (exp[MODEL_IDX], exp[DATASET_IDX]) in IGNORE_EXPERIMENTS:
@@ -170,10 +168,12 @@ def main():
 
     # Launch experiments
     for i, combination in enumerate(tqdm(parameter_combinations)):
-        command_args = generate_command_args(combination, timestamp)
+        command_args = generate_command_args(combination)
         command = [f"{k}={v}" for k, v in command_args.items()]
         command.insert(0, f"{os.getcwd()}/src/federated_main.py")  # + command
-        command.insert(0, "python3")
+        command.insert(
+            0, "python3"
+        )  # might need to change to python depending on how it is aliased in your machine
 
         logger.info(
             f'Launching experiment {i+1}/{len(parameter_combinations)}: {" ".join(command)}'

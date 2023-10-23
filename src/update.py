@@ -25,7 +25,8 @@ class DatasetSplit(Dataset):
     def __getitem__(self, item):
         try:
             image, label = self.dataset[self.idxs[item]]
-        except:
+        except Exception as e:
+            print(e)
             # print("IN EXCEPT -- OR UTKFACE")
             image = self.dataset.dataset.images[self.idxs[item]]
             label = [d["ethnicity"] for d in self.dataset.dataset.labels][
@@ -82,7 +83,10 @@ class LocalUpdate:
             else ("mps" if torch.backends.mps.is_built() else "cpu")
         )
 
-        self.criterion = nn.NLLLoss().to(self.device)
+        if args.dataset == "vehicle":
+            self.criterion = nn.HingeEmbeddingLoss().to(self.device)
+        else:
+            self.criterion = nn.NLLLoss().to(self.device)
 
         self.global_model = global_model
 
@@ -90,7 +94,10 @@ class LocalUpdate:
         """
         Configures the optimizer for the local updates.
         """
-        optimizer = torch.optim.SGD(model.parameters(), lr=self.args.lr, momentum=0.5)
+        if self.args.model == "mclr":
+            optimizer = torch.optim.SGD(model.parameters(), lr=self.args.lr, weight_decay=0.001)
+        else:
+            optimizer = torch.optim.SGD(model.parameters(), lr=self.args.lr, momentum=0.5)
         return optimizer
 
     def calculate_loss(self, model, images, labels):
@@ -412,7 +419,11 @@ def test_inference(args, model, test_dataset):
         else ("mps" if torch.backends.mps.is_built() else "cpu")
     )
 
-    criterion = nn.NLLLoss().to(device)
+    if args.dataset == "vehicle":
+        criterion = nn.HingeEmbeddingLoss().to(device)
+    else:
+        criterion = nn.NLLLoss().to(device)
+    print(len(test_dataset))
     testloader = DataLoader(test_dataset, batch_size=128, shuffle=False)
 
     for batch_idx, (images, labels) in enumerate(testloader):

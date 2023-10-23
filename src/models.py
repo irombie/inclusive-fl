@@ -133,6 +133,7 @@ def conv_bn(channels_in, channels_out, kernel_size=3, stride=1, padding=1, group
             nn.BatchNorm2d(channels_out),
             nn.ReLU(inplace=True)
     )
+
 class ResNet9(nn.Module):
     def __init__(self, num_classes: int, args) -> None:
         super().__init__()
@@ -155,3 +156,12 @@ class ResNet9(nn.Module):
     def forward(self, x):
         x = self.model(x)
         return F.log_softmax(x, dim=1)
+    
+class DecisionBoundaryClassifier(nn.Module):
+    """ Works for SVM, LR and MCLR """
+    def __init__(self, input_dim, output_dim):
+        super(DecisionBoundaryClassifier, self).__init__()
+        self.fc = nn.Linear(input_dim, output_dim)
+
+    def forward(self, x):
+        return F.log_softmax(self.fc(x.float()), dim=1)

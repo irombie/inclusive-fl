@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 import wandb
 from aggregation import get_global_update
-from models import VGG, CNNFashion_Mnist, ResNet9, ResNet18, SmallCNN
+from models import VGG, CNNFashion_Mnist, ResNet9, ResNet18, SmallCNN, DecisionBoundaryClassifier
 from options import args_parser
 from update import get_local_update, test_inference
 from utils import (
@@ -98,6 +98,17 @@ def main(args):
             global_model = ResNet9(num_classes=200, args=args)
         else:
             exit("Error: Model not implemented!")
+
+    elif args.dataset == "vehicle":
+        if args.model == "lr" or args.model == "svm" or args.model == "mclr":
+            global_model = DecisionBoundaryClassifier(100, 2)
+        else:
+            exit("Error: Model not implemented!")
+    
+    elif args.dataset == "synthetic":
+        if args.model == "lr" or args.model == "svm" or args.model == "mclr":
+            global_model = DecisionBoundaryClassifier(60, 2)
+    
     else:
         exit("Error: Dataset not implemented!")
 
@@ -369,26 +380,8 @@ if __name__ == "__main__":
     exp_details(args)
 
     try:
-        if args.fl_method=="qffedavg":
-            os.system(f"python src/fair_flearn/main.py --dataset={args.dataset} --optimizer=qffedavg  \
-            --learning_rate={args.lr} \
-            --learning_rate_lambda=0.01 \
-            --num_rounds={args.epochs} \
-            --eval_every=1 \
-            --clients_per_round={args.num_users} \
-            --batch_size={args.local_bs} \
-            --q={args.q} \
-            --model='svm' \
-            --sampling=1  \
-            --num_epochs={args.local_ep} \
-            --data_partition_seed={args.seed} \
-            --log_interval=10 \
-            --static_step_size=0 \
-            --track_individual_accuracy=0 \
-            --output='./log_qffedvg_{args.dataset}_q_{args.q}_{args.local_bs}_{args.local_ep}_{args.num_users}_{args.epochs}_{args.seed}'")
-        else:
-            main(args)
-            wandb.finish(exit_code=0)
+        main(args)
+        wandb.finish(exit_code=0)
     except Exception as e:
         print(f"Experiment failed due to {e}")
         print(traceback.format_exc())

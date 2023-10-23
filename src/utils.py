@@ -3,9 +3,11 @@
 # Python version: 3.6
 import copy
 import os
+import glob
 import random
 import shutil
 import sys
+import scipy
 import tarfile
 import zipfile
 from argparse import Namespace
@@ -357,13 +359,33 @@ class TinyImageNet(ImageFolder):
         assert "val" in self.splits
         normalize_tin_val_folder_structure(os.path.join(self.dataset_folder, "val"))
 
+class VehicleDataset(Dataset):
+    def __init__(self):
+        self.X = self.preprocess(np.load('data/vehicle/data/X.npy'))
+        self.X = torch.from_numpy(self.X)
+        self.targets = torch.from_numpy(np.load('data/vehicle/data/Y.npy'))
+    
+    def __len__(self):
+        return len(self.X)
+    
+    def __getitem__(self, idx):
+        return self.X[idx], self.targets[idx]
+    
+    def preprocess(self, x):
+        means = np.mean(x, axis=0)
+        std = np.std(x, axis=0)
+
+        x = (x - means) * 1.0 / std
+        where_are_NaNs = np.isnan(x)
+        x[where_are_NaNs] = 0
+        return x
 
 def get_dataset(
     args: Union[Namespace, Dict]
 ) -> Tuple[
-    datasets.VisionDataset,
-    datasets.VisionDataset,
-    datasets.VisionDataset,
+    Union[datasets.VisionDataset, Dataset],
+    Union[datasets.VisionDataset, Dataset],
+    Union[datasets.VisionDataset, Dataset],
     Dict[int, List[int]],
     Dict[int, List[int]],
     Dict[int, List[int]],
@@ -383,6 +405,8 @@ def get_dataset(
         args.num_classes = 5
     elif args.dataset == "tiny-imagenet":
         args.num_classes = 200
+    elif args.dataset == "vehicle":
+        args.num_classes = 100
     else:
         raise ValueError("Unrecognized dataset!")
 
@@ -514,6 +538,27 @@ def get_dataset(
         train_labels = torch.tensor(train_valid_dataset.targets)[train_idxs]
         valid_labels = torch.tensor(train_valid_dataset.targets)[valid_idxs]
         test_labels = test_dataset.targets
+
+    elif args["dataset"] == "vehicle":
+        train_test_dataset = VehicleDataset()
+
+        train_valid_idxs, test_idxs = train_test_split(
+            np.arange(len(train_test_dataset)),
+            test_size=0.1,
+            random_state=42,
+            shuffle=True,
+            stratify=train_test_dataset.targets.numpy(),
+        )
+
+        train_split = int(len(train_valid_idxs)*0.9)
+        train_idxs, valid_idxs = train_valid_idxs[:train_split], train_valid_idxs[train_split:]
+
+        train_dataset = Subset(train_test_dataset, train_idxs)
+        valid_dataset = Subset(train_test_dataset, valid_idxs)
+        test_dataset = Subset(train_test_dataset, test_idxs)
+        train_labels = train_test_dataset.targets[train_idxs]
+        valid_labels = train_test_dataset.targets[valid_idxs]
+        test_labels = train_test_dataset.targets[test_idxs]
 
     # sample training data amongst users
     if args["iid"]:

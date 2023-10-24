@@ -350,15 +350,8 @@ def main():
                 )
             }
         )
-        df = pd.DataFrame([[t_loss] for t_loss in test_losses], columns=["scores"])
-        table = wandb.Table(data=df, columns=["scores"])
-        run.log({f"test_loss_epoch_{epoch}": table})
         run.log(
-            {
-                f"client_test_loss_epoch_{epoch}": wandb.plot.histogram(
-                    table, "scores", title="Histogram of Client Test Losses"
-                )
-            }
+            {"client_test_loss_hist": wandb.Histogram(np.array(test_losses).flatten())}
         )
         run.log(
             {

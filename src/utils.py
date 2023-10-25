@@ -641,3 +641,24 @@ def temperatured_softmax(client_losses, softmax_temperature):
     return np.exp(client_losses - np.max(client_losses)) / np.sum(
         np.exp(client_losses - np.max(client_losses))
     )
+
+
+def custom_exponential_sparsity(client_losses, max_sparsity, min_sparsity, temperature):
+    """
+    Calculate sparse ratio for each client based on an exponential formula
+
+    The sparse ratio is bounded between max_sparsity and min_sparsity,
+    such that the client with the highest loss has max_sparsity
+
+    Note that whilst the sparse ratio will be bounded between max_sparsity and
+    min_sparsity, actually achieving min_sparsity is probably infeasible, as this will
+    be achieved when client_loss-max_loss is -infinity.
+    In future, this formula can probably be ammended such that
+    min_sparsity is acheived when the client loss is 0.
+    """
+    assert max_sparsity > min_sparsity, "Max sparsity must be less than min sparsity"
+    client_losses = client_losses / temperature
+    max_client_loss = np.max(client_losses)
+    return (max_sparsity - min_sparsity) * np.exp(
+        client_losses - max_client_loss
+    ) + min_sparsity

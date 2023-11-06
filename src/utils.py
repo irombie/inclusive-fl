@@ -593,7 +593,7 @@ def split_majority_minority(
         when 0 there is no overlap, when 1 there is complete overlap and the majority group=minority group
 
     :return: A Tuple consisting of:
-        - A numpy array of shape (num_classes, num_users) parameterising the distribution of users over each class.
+        - A numpy array of shape (num_classes, num_users) giving a distribution of users over each class.
         - A numpy array denoting the majority classes
         - A numpy array denoting the minority classes
         - A numpy array denoting the majority users

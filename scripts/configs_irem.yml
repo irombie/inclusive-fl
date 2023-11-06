@@ -2,7 +2,7 @@ dataset: ['utkface'] #, "cifar"] # , "tiny-imagenet",
 model: ["resnet9"] # 'vgg11_bn', 'small_cnn'] #'resenet18',
 epochs: [50]
 lr: [0.01] 
-iid: [0]
+distribution: ["non_iid"]
 num_users: [100]
 frac: [0.5]
 local_ep: [5]
@@ -12,6 +12,6 @@ fl_method:  ['FedProx'] #'FedAvg',  'FedSyn'] 'qFedAvg'
 mu: [0.01]
 sparsification_ratio: [0.2, 0.5] #fedsyn
 sparsification_type: ['topk', "rtopk"] #fedsyn
-dist_noniid: [0.5, 0.8]
+dirichlet_param: [0.5, 0.8]
 use_fair_sparsification: [0, 1] #fedsyn
 seed: [42, 1234] #1234

@@ -37,7 +37,7 @@ Then, activate the environment by running `conda activate <envname>`.
 
 * To run the federated experiment with CIFAR on CNN (IID):
 ```bash
-python src/federated_main.py --model=small_cnn --dataset=cifar --iid=1 --epochs=10
+python src/federated_main.py --model=small_cnn --dataset=cifar --distribution=iid  --epochs=10
 ```
 You can change the default values of other parameters to simulate different conditions. 
 
@@ -62,12 +62,12 @@ The default values for various paramters parsed to the experiment are given in `
 * ```--seed:```     Random Seed. Default set to 1.
 
 ## Federated Parameters 
-* ```--iid:```      Distribution of data amongst users. Default set to IID. Set to 0 for non-IID.
+* ```--distribution:```  Distribution of data amongst users. Default set to IID. Options are 'iid', 'non_iid' and 'majority_minority'
 * ```--num_users:```Number of users. Default is 100.
 * ```--frac:```     Fraction of users to be used for federated updates. Default is 0.1.
 * ```--local_ep:``` Number of local training epochs in each user. Default is 10.
 * ```--local_bs:``` Batch size of local updates in each user. Default is 10.
-* ```--dist_noniid:```  Used in non-iid setting (--iid=0). Option to give each user the proportion of each class samples according to Dirichlet distribution. Default set to 0 to omit this option. Set to 1 to select this option. (The default value of other non-IID option for unequal splits --unequal=0 must stay unchanged).
+* ```--dirichlet_param:```  Used in non-iid setting. Option to give each user the proportion of each class samples according to Dirichlet distribution. Default set to 0 to omit this option.
 
 ## Algorithm specific parameters
 * ```--fl_method:``` Name of method to use. Currently supports "FedAvg", "FedProx", "FedBN" and "TestLossWeighted"

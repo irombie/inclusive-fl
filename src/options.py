@@ -21,7 +21,7 @@ def args_parser():
     )
     parser.add_argument("--local_bs", type=int, default=64, help="local batch size: B")
     parser.add_argument("--lr", type=float, default=0.01, help="learning rate")
-    
+
     parser.add_argument(
         "--fl_method",
         type=str,
@@ -40,12 +40,16 @@ def args_parser():
         help="name \
                         of dataset",
     )
-    
+
     parser.add_argument(
-        "--iid", type=int, default=1, help="Default set to IID. Set to 0 for non-IID."
+        "--distribution",
+        type=str,
+        default="iid",
+        choices=["iid", "non_iid", "majority_minority"],
+        help="The distribution to split the data with.",
     )
     parser.add_argument(
-        "--dist_noniid",
+        "--dirichlet_param",
         type=float,
         default=0,
         help="whether to use distribution-based label imbalande for  \
@@ -55,9 +59,23 @@ def args_parser():
         "--min_proportion",
         type=float,
         default=0,
-        help="Minimum proportion of dataset for each user. Used in dist_noniid",
+        help="Minimum proportion of dataset for each user. Used in non_iid",
     )
-    
+
+    # Majority minority
+    parser.add_argument(
+        "--majority_proportion",
+        type=float,
+        default=None,
+        help="the proportion of classes and users in the majority group",
+    )
+    parser.add_argument(
+        "--majority_minority_overlap",
+        type=float,
+        default=None,
+        help="the amount of overlap between the majority and minority groups",
+    )
+
     parser.add_argument("--verbose", type=int, default=1, help="verbose")
     parser.add_argument("--seed", type=int, help="random seed", required=True)
     parser.add_argument(
@@ -120,6 +138,5 @@ def args_parser():
     # arguments for qFedAvg
     parser.add_argument("--q", type=float, default=None, help="q value for qFedAvg")
     parser.add_argument("--eps", type=float, default=1e-6, help="eps value for qFedAvg")
-
     args = parser.parse_args()
     return args

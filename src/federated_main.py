@@ -6,6 +6,7 @@
 import copy
 import os
 import pickle
+import sys
 import time
 import traceback
 from datetime import datetime
@@ -29,8 +30,19 @@ from utils import (
 )
 
 
-def main(args):
+def main():
+    if sys.version_info[0:2] != (3, 11):
+        print()
+        raise Exception(
+            f"Code requires python 3.11. You are using {sys.version_info[0:2]}. Please update your conda env and install requirements.txt on the new env."
+        )
     start_time = time.time()
+
+    # define paths
+    path_project = os.path.abspath("..")
+
+    args = args_parser()
+    exp_details(args)
 
     now = datetime.now()
     dt_string = now.strftime("%d_%m_%Y-%H_%M")
@@ -376,11 +388,8 @@ def main(args):
 
 
 if __name__ == "__main__":
-    args = args_parser()
-    exp_details(args)
-
     try:
-        main(args)
+        main()
         wandb.finish(exit_code=0)
     except Exception as e:
         print(f"Experiment failed due to {e}")

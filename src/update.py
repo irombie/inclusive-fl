@@ -180,6 +180,11 @@ class LocalUpdate:
             # Prediction
             _, pred_labels = torch.max(outputs, 1)
             pred_labels = pred_labels.view(-1)
+
+            if self.args.dataset == "vehicle":
+                pred_labels[pred_labels == 0] = -1
+                labels = labels.view(-1)
+            
             correct += torch.sum(torch.eq(pred_labels, labels)).item()
             total += len(labels)
 
@@ -438,6 +443,11 @@ def test_inference(args, model, test_dataset):
         # Prediction
         _, pred_labels = torch.max(outputs, 1)
         pred_labels = pred_labels.view(-1)
+
+        if args.dataset == "vehicle":
+            pred_labels[pred_labels == 0] = -1
+            labels = labels.view(-1)
+
         correct += torch.sum(torch.eq(pred_labels, labels)).item()
         total += len(labels)
 

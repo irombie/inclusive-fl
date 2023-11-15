@@ -43,14 +43,6 @@ def exp_details(args):
             ),
         ]
     )
-    if args.distribution == "iid":
-        distribution = "IID"
-    elif args.distribution == "non_iid":
-        distribution = "Non-IID"
-    elif args.distribution == "majority_minority":
-        distribution = "Majority-Minority"
-    else:
-        raise ValueError
 
     exp_table.add_row(["Learning Rate", args.lr])
     exp_table.add_row(["Global Rounds", args.epochs])
@@ -58,7 +50,7 @@ def exp_details(args):
     exp_table.add_row(["Local Batch Size", args.local_bs])
     exp_table.add_row(["Number of Users", args.num_users])
     exp_table.add_row(["Fraction of Users", args.frac])
-    exp_table.add_row(["Data Distribution Type", distribution])
+    exp_table.add_row(["Data Distribution Type", args.distribution])
 
     print(exp_table)
     return

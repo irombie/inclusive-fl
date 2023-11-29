@@ -579,9 +579,9 @@ def split_majority_minority(
 
     :param num_users: The number of users
     :param num_classes: The number of classes
-    :param majority proportion: the proprotion of users in the majority group
-        and the porportion of classes in the majority group
-    :param overlap: the extent of overlap between the majority and minorty groups
+    :param majority proportion: the proportion of users in the majority group
+        and the proportion of classes in the majority group
+    :param overlap: the extent of overlap between the majority and minority groups
         when 0 there is no overlap, when 1 there is complete overlap and the majority group=minority group
 
     :return: A Tuple consisting of:
@@ -592,20 +592,35 @@ def split_majority_minority(
         - A numpy array denoting the minority users
     """
 
+    # To ensure each user should have roughly the same number of samples, 'majority_proportion' is used to
+    # split both the classes and users into majority and minority groups, with the majority users more likely
+    # to possess samples from the majority classes than the minority classes.
     num_majority_classes = round(majority_proportion * num_classes)
     num_majority_users = round(majority_proportion * num_users)
     num_minority_users = num_users - num_majority_users
 
+    # We define a distribution over the users for each class. This will tell us how to probabilistically distribute
+    # the samples of that class to the users using 'get_noniid_partition'. The ith row of the 'distribution'
+    # object corresponds to the distribution for the ith class.
     distribution = np.zeros((num_classes, num_users))
-    distribution[:num_majority_classes, :num_majority_users] = (
-        1 - num_minority_users * overlap / num_users
-    ) / num_majority_users
-    distribution[:num_majority_classes, num_majority_users:] = overlap / num_users
-    distribution[num_majority_classes:, num_majority_users:] = (
-        1 - num_majority_users * overlap / num_users
-    ) / num_minority_users
-    distribution[num_majority_classes:, :num_majority_users] = overlap / num_users
 
+    # The probability of a sample from a majority or minority class being assigned to either a majority or minority
+    # user, is determined by 'overlap'. 'overlap' represents the probability that a sample is assigned uniformly
+    # at random across all users, rather than being assigned uniformly across it's group (ie majority or minority).
+
+    uniform_distribution = np.ones((num_classes, num_users)) / num_users
+
+    grouped_distribution = np.zeros((num_classes, num_users))
+    grouped_distribution[:num_majority_classes, :num_majority_users] = (
+        1 / num_majority_users
+    )
+    grouped_distribution[num_majority_classes:, num_majority_users:] = (
+        1 / num_minority_users
+    )
+
+    distribution = uniform_distribution * overlap + (1 - overlap) * grouped_distribution
+
+    # The order of the users doesn't matter, however which classes are chosen for each groups is important and must be able to vary.
     permutation = np.random.permutation(num_classes)
 
     return (

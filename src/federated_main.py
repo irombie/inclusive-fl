@@ -21,7 +21,6 @@ from models import VGG, CNNFashion_Mnist, ResNet9, ResNet18, SmallCNN
 from options import args_parser
 from update import get_local_update, test_inference
 from utils import (
-    custom_exponential_sparsity,
     exp_details,
     flatten,
     get_dataset,
@@ -194,14 +193,9 @@ def main():
 
         client_prob_dist = None
         if args.use_fair_sparsification:
-
-            client_prob_dist = custom_exponential_sparsity(
-                np.array(valid_losses),
-                args.sparsification_ratio,
-                args.min_sparsification_ratio,
-                args.fairness_temperature,
+            client_prob_dist = temperatured_softmax(
+                np.array(valid_losses), args.softmax_temperature
             )
-
             client_prob_dist = {
                 idxs_users[i]: client_prob_dist[i] for i in range(len(client_prob_dist))
             }

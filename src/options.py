@@ -21,7 +21,7 @@ def args_parser():
     )
     parser.add_argument("--local_bs", type=int, default=64, help="local batch size: B")
     parser.add_argument("--lr", type=float, default=0.01, help="learning rate")
-
+    
     parser.add_argument(
         "--fl_method",
         type=str,
@@ -40,7 +40,7 @@ def args_parser():
         help="name \
                         of dataset",
     )
-
+    
     parser.add_argument(
         "--iid", type=int, default=1, help="Default set to IID. Set to 0 for non-IID."
     )
@@ -57,7 +57,7 @@ def args_parser():
         default=0,
         help="Minimum proportion of dataset for each user. Used in dist_noniid",
     )
-
+    
     parser.add_argument("--verbose", type=int, default=1, help="verbose")
     parser.add_argument("--seed", type=int, help="random seed", required=True)
     parser.add_argument(
@@ -108,16 +108,10 @@ def args_parser():
         help="Activate fair sparsification on methods.",
     )
     parser.add_argument(
-        "--fairness_temperature",
+        "--softmax_temperature",
         type=float,
         default=1,
         help="The temperature used in fairness sparsification.",
-    )
-    parser.add_argument(
-        "--min_sparsification_ratio",
-        type=float,
-        default=0,
-        help="Minimum sparsification ratio for custom fair sparsification",
     )
 
     # arguments for FedProx

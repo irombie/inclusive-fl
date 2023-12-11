@@ -6,6 +6,7 @@ import numpy as np
 import torch
 
 import utils
+from utils import dict_sum
 
 
 class AbstractGlobalUpdate(ABC):

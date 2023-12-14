@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--config-file", "-config", type=str, required=True)
+parser.add_argument("--config-file", "-config", type=str, required=False)
 
 MODEL_IDX = 0
 DATASET_IDX = 7
@@ -59,9 +59,11 @@ def generate_command_args(combination):
         command_args["--epochs"] = combination[13]
     elif fl_method == "FedSyn":
         command_args["--sparsification_ratio"] = combination[12]
-        command_args["--sparsification_type"] = combination[13]
-        command_args["--use_fair_sparsification"] = combination[14]
-        command_args["--choose_from_top_r_percentile"] = combination[15]
+        command_args["--use_fair_sparsification"] = combination[15]
+        if combination[15] == 1:
+            command_args["--min_sparsification_ratio"] = combination[13]
+            command_args["fairness_temperature"] = combination[16]
+        command_args["--sparsification_type"] = combination[14]
 
     return command_args
 
@@ -72,7 +74,7 @@ def main():
     configs = parse_yml(path=args.config_file)
     if configs is None:
         raise Exception("Unable to read config file!")
-    if "sparsification_ratio" in configs:
+    if "sparsification_ratio" in configs and "sparsification_type" == "rtopk":
         configs["choose_from_top_r_percentile"] = [
             1.5 * float(num) for num in configs["sparsification_ratio"]
         ]
@@ -152,9 +154,10 @@ def main():
                     configs["epochs"],
                     [fl_method],
                     configs["sparsification_ratio"],
+                    configs["min_sparsification_ratio"],
                     configs["sparsification_type"],
                     configs["use_fair_sparsification"],
-                    configs["choose_from_top_r_percentile"],
+                    configs["fairness_temperature"],
                 )
             )
 

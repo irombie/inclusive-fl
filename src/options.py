@@ -126,10 +126,16 @@ def args_parser():
         help="Activate fair sparsification on methods.",
     )
     parser.add_argument(
-        "--softmax_temperature",
+        "--fairness_temperature",
         type=float,
         default=1,
         help="The temperature used in fairness sparsification.",
+    )
+    parser.add_argument(
+        "--min_sparsification_ratio",
+        type=float,
+        default=0,
+        help="Minimum sparsification ratio for custom fair sparsification",
     )
 
     # arguments for FedProx

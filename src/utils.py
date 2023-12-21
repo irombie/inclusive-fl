@@ -617,8 +617,12 @@ def split_majority_minority(
     grouped_distribution[num_majority_classes:, num_majority_users:] = (
         1 / num_minority_users
     )
-
+    # this sums to 1 across users for each class, because uniform_distribution and grouped_distribution both
+    # sum to 1 across users for each class
     distribution = uniform_distribution * overlap + (1 - overlap) * grouped_distribution
+    assert (
+        distribution.sum(axis=1).round(3) == 1
+    ).all(), "distribution must sum to 1 across users for each class"
 
     # The order of the users doesn't matter, however which classes are chosen for each groups is important and must be able to vary.
     permutation = np.random.permutation(num_classes)

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.11
 
-
+import json
 import copy
 import os
 import pickle
@@ -27,6 +27,7 @@ from utils import (
     set_seed,
     temperatured_softmax,
     updateFromNumpyFlatArray,
+    GroupedDataset
 )
 
 
@@ -61,15 +62,34 @@ def main():
 
     set_seed(args.seed, False)
 
-    # load dataset and user groups
-    (
-        train_dataset,
-        test_dataset,
-        valid_dataset,
-        train_user_groups,
-        test_user_groups,
-        valid_user_groups,
-    ) = get_dataset(args)
+    if args.dataset == "vehicle-grouped" or args.dataset == "synthetic" or args.dataset == "synthetic-hybrid":
+        train_data = "/home/krypticmouse/Desktop/Federated-Learning-PyTorch/data/synthetic/data/mytrain.json"
+        test_data = "/home/krypticmouse/Desktop/Federated-Learning-PyTorch/data/synthetic/data/mytest.json"
+
+        with open(train_data) as f:
+            train_data = json.load(f)
+        
+        with open(test_data) as f:
+            test_data = json.load(f)
+
+        train_dataset = []
+        test_dataset = []
+
+        for i in train_data["users"]:
+            train_dataset.append(GroupedDataset(train_data["users"][i]["x"], train_data["users"][i]["y"]))
+            test_dataset.append(GroupedDataset(test_data["users"][i]["x"], test_data["users"][i]["y"]))
+
+        valid_dataset = test_dataset
+    else:
+        # load dataset and user groups
+        (
+            train_dataset,
+            test_dataset,
+            valid_dataset,
+            train_user_groups,
+            test_user_groups,
+            valid_user_groups,
+        ) = get_dataset(args)
 
     # BUILD MODEL
     if args.dataset == "fashionmnist":

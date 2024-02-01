@@ -14,6 +14,7 @@ from argparse import Namespace
 from collections import OrderedDict, defaultdict
 from typing import Dict, List, Tuple, Union
 
+import json
 import numpy as np
 import pandas as pd
 import torch
@@ -379,6 +380,18 @@ class VehicleDataset(Dataset):
         where_are_NaNs = np.isnan(x)
         x[where_are_NaNs] = 0
         return x
+    
+class GroupedDataset(Dataset):
+    def __init__(self, X, Y):
+        self.X = X
+        self.Y = Y
+    
+    def __len__(self):
+        return len(self.X)
+    
+    def __getitem__(self, idx):
+        return torch.tensor(self.X[idx]), torch.tensor(self.Y[idx])
+
 
 def get_dataset(
     args: Union[Namespace, Dict]
@@ -559,6 +572,7 @@ def get_dataset(
         train_labels = train_test_dataset.targets[train_idxs]
         valid_labels = train_test_dataset.targets[valid_idxs]
         test_labels = train_test_dataset.targets[test_idxs]
+    
 
     # sample training data amongst users
     if args["iid"]:

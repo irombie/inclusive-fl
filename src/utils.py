@@ -15,6 +15,7 @@ from typing import Dict, List, Tuple, Union
 import numpy as np
 import pandas as pd
 import torch
+import wandb
 import wget
 from parse import parse
 from PIL import Image
@@ -42,13 +43,14 @@ def exp_details(args):
             ),
         ]
     )
+
     exp_table.add_row(["Learning Rate", args.lr])
     exp_table.add_row(["Global Rounds", args.epochs])
     exp_table.add_row(["Local Epochs", args.local_ep])
     exp_table.add_row(["Local Batch Size", args.local_bs])
     exp_table.add_row(["Number of Users", args.num_users])
     exp_table.add_row(["Fraction of Users", args.frac])
-    exp_table.add_row(["Data Distribution Type", "IID" if args.iid else "Non-IID"])
+    exp_table.add_row(["Data Distribution Type", args.distribution])
 
     print(exp_table)
     return
@@ -516,12 +518,12 @@ def get_dataset(
         test_labels = test_dataset.targets
 
     # sample training data amongst users
-    if args["iid"]:
+    if args["distribution"] == "iid":
         train_user_groups = get_iid_partition(train_dataset, args["num_users"])
         valid_user_groups = get_iid_partition(valid_dataset, args["num_users"])
         test_user_groups = get_iid_partition(test_labels, args["num_users"])
 
-    elif args["dist_noniid"]:
+    elif args["distribution"] == "non_iid":
         # users receive unequal data within classes
         distribution = paramaterise_noniid_distribution(
             args["num_users"],
@@ -534,6 +536,31 @@ def get_dataset(
         valid_user_groups = get_noniid_partition(valid_labels, distribution)
         test_user_groups = get_noniid_partition(test_labels, distribution)
 
+    elif args["distribution"] == "majority_minority":
+        (
+            distribution,
+            majority_classes,
+            minority_classes,
+            majority_users,
+            minority_users,
+        ) = split_majority_minority(
+            args["num_users"],
+            args["num_classes"],
+            args["majority_proportion"],
+            args["majority_minority_overlap"],
+        )
+        train_user_groups = get_noniid_partition(train_labels, distribution)
+        valid_user_groups = get_noniid_partition(valid_labels, distribution)
+        test_user_groups = get_noniid_partition(test_labels, distribution)
+        wandb.log(
+            {
+                "majority_classes": majority_classes,
+                "minority_classes": minority_classes,
+                "majority_users": majority_users,
+                "minority_users": minority_users,
+            }
+        )
+
     return (
         train_dataset,
         test_dataset,
@@ -541,6 +568,71 @@ def get_dataset(
         train_user_groups,
         test_user_groups,
         valid_user_groups,
+    )
+
+
+def split_majority_minority(
+    num_users: int, num_classes: int, majority_proportion: float, overlap: float
+):
+    """
+    Split the classes and users into a majority and minority group
+
+    :param num_users: The number of users
+    :param num_classes: The number of classes
+    :param majority proportion: the proportion of users in the majority group
+        and the proportion of classes in the majority group
+    :param overlap: the extent of overlap between the majority and minority groups
+        when 0 there is no overlap, when 1 there is complete overlap and the majority group=minority group
+
+    :return: A Tuple consisting of:
+        - A numpy array of shape (num_classes, num_users) giving a distribution of users over each class.
+        - A numpy array denoting the majority classes
+        - A numpy array denoting the minority classes
+        - A numpy array denoting the majority users
+        - A numpy array denoting the minority users
+    """
+
+    # To ensure each user should have roughly the same number of samples, 'majority_proportion' is used to
+    # split both the classes and users into majority and minority groups, with the majority users more likely
+    # to possess samples from the majority classes than the minority classes.
+    num_majority_classes = round(majority_proportion * num_classes)
+    num_majority_users = round(majority_proportion * num_users)
+    num_minority_users = num_users - num_majority_users
+
+    # We define a distribution over the users for each class. This will tell us how to probabilistically distribute
+    # the samples of that class to the users using 'get_noniid_partition'. The ith row of the 'distribution'
+    # object corresponds to the distribution for the ith class.
+    distribution = np.zeros((num_classes, num_users))
+
+    # The probability of a sample from a majority or minority class being assigned to either a majority or minority
+    # user, is determined by 'overlap'. 'overlap' represents the probability that a sample is assigned uniformly
+    # at random across all users, rather than being assigned uniformly across it's group (ie majority or minority).
+
+    uniform_distribution = np.ones((num_classes, num_users)) / num_users
+
+    grouped_distribution = np.zeros((num_classes, num_users))
+    grouped_distribution[:num_majority_classes, :num_majority_users] = (
+        1 / num_majority_users
+    )
+    grouped_distribution[num_majority_classes:, num_majority_users:] = (
+        1 / num_minority_users
+    )
+    # this sums to 1 across users for each class, because uniform_distribution and grouped_distribution both
+    # sum to 1 across users for each class
+    distribution = uniform_distribution * overlap + (1 - overlap) * grouped_distribution
+    assert (
+        distribution.sum(axis=1).round(3) == 1
+    ).all(), "distribution must sum to 1 across users for each class"
+
+    # The order of the users doesn't matter, however which classes are chosen for each groups is important and must be able to vary.
+    permutation = np.random.permutation(num_classes)
+
+    return (
+        distribution[np.argsort(permutation)],
+        permutation[:num_majority_classes],
+        permutation[num_majority_classes:],
+        np.arange(num_majority_users),
+        np.arange(num_majority_users, num_users),
     )
 
 

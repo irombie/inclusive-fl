@@ -74,10 +74,12 @@ def main():
     configs = parse_yml(path=args.config_file)
     if configs is None:
         raise Exception("Unable to read config file!")
-    if "sparsification_ratio" in configs and "sparsification_type" == "rtopk":
-        configs["choose_from_top_r_percentile"] = [
-            1.5 * float(num) for num in configs["sparsification_ratio"]
-        ]
+
+    # TODO: Fix this. Always false: "sparsification_type" == "rtopk"??
+    # if "sparsification_ratio" in configs and "sparsification_type" == "rtopk":
+    #     configs["choose_from_top_r_percentile"] = [
+    #         1.5 * float(num) for num in configs["sparsification_ratio"]
+    #     ]
 
     # Generate all parameter combinations
     parameter_combinations = []

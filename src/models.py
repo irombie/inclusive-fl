@@ -14,11 +14,11 @@ class MLP(nn.Module):
     The hyperparameters are not optimized.
     """
 
-    def __init__(self):
+    def __init__(self, args):
         super(MLP, self).__init__()
-        self.fc1 = nn.Linear(60, 256)
+        self.fc1 = nn.Linear(args.num_features, 256)
         self.fc2 = nn.Linear(256, 256)
-        self.fc3 = nn.Linear(256, 10)
+        self.fc3 = nn.Linear(256, args.num_classes)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))

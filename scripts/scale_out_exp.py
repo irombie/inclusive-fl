@@ -64,6 +64,10 @@ def generate_command_args(combination):
             command_args["--min_sparsification_ratio"] = combination[13]
             command_args["fairness_temperature"] = combination[16]
         command_args["--sparsification_type"] = combination[14]
+    if combination[7] == "synthetic":
+        command_args["--data_path"] = combination[-3]
+        command_args["--num_features"] = combination[-2]
+        command_args["--num_classes"] = combination[-1]
 
     return command_args
 
@@ -162,6 +166,15 @@ def main():
                     configs["fairness_temperature"],
                 )
             )
+
+    for i, exp in enumerate(parameter_combinations):
+        if exp[DATASET_IDX] == "synthetic":
+            for cfgs in zip(
+                configs["data_path"],
+                configs["num_features"],
+                configs["num_classes"],
+            ):
+                parameter_combinations[i] = exp + cfgs
 
     # Remove unwanted experiments:
     final_list = []

@@ -137,6 +137,24 @@ def args_parser():
         default=0,
         help="Minimum sparsification ratio for custom fair sparsification",
     )
+    parser.add_argument(
+        "--data_path",
+        type=str,
+        required=False,
+        help="Path to the data. Only required for synthetic datasets.",
+    )
+    parser.add_argument(
+        "--num_features",
+        type=int,
+        required=False,
+        help="Number of features in the dataset. Only required for synthetic datasets.",
+    )
+    parser.add_argument(
+        "--num_classes",
+        type=int,
+        required=False,
+        help="Number of classes in the dataset. Only required for synthetic datasets.",
+    )
 
     # arguments for FedProx
     parser.add_argument("--mu", type=float, default=None, help="mu value for FedProx")

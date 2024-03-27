@@ -107,7 +107,7 @@ def main():
             exit("Error: Model not implemented!")
     elif args.dataset == "synthetic":
         if args.model.lower() == "mlp":
-            global_model = MLP()
+            global_model = MLP(args)
         else:
             # TODO: Replace with sys.exit
             exit("Error: Model not implemented for the dataset!")

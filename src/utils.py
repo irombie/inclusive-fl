@@ -485,7 +485,7 @@ def get_dataset(
     elif args.dataset == "tiny-imagenet":
         args.num_classes = 200
     elif args.dataset == "synthetic":
-        args.num_classes = 10
+        pass
     else:
         raise ValueError("Unrecognized dataset!")
 
@@ -619,11 +619,8 @@ def get_dataset(
         test_labels = test_dataset.targets
 
     elif args["dataset"] == "synthetic":
-        # TODO: Add data path to args
-        # data_path = Path(args["data_path"]).resolve()
-        data_path = (
-            Path(__file__).parent.parent.resolve() / "data" / "synthetic_data.json"
-        )
+        data_path = Path(__file__).resolve().parent.parent / args["data_path"]
+        print(data_path)
         train_dataset, valid_dataset, test_dataset = SyntheticDataset.load_from_path(
             data_path
         ).split()

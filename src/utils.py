@@ -9,6 +9,7 @@ import shutil
 import sys
 import tarfile
 import zipfile
+import gdown
 from argparse import Namespace
 from collections import OrderedDict, defaultdict
 from pathlib import Path
@@ -27,6 +28,10 @@ from torch.utils.data import Dataset, Subset
 from torchvision import datasets, transforms
 from torchvision.datasets import ImageFolder
 from torchvision.datasets.utils import download_and_extract_archive, verify_str_arg
+
+
+SYNTHETIC_DATA_ID = "1ANMMlbmTwg4JiggXE8FqFOg-ZErMlZzi"
+SYNTHETIC_DATA_URL = f"https://drive.google.com/uc?id={SYNTHETIC_DATA_ID}"
 
 
 def exp_details(args):
@@ -459,6 +464,19 @@ class TinyImageNet(ImageFolder):
         normalize_tin_val_folder_structure(os.path.join(self.dataset_folder, "val"))
 
 
+def fetch_synthetic_data(url: str, path: str | Path):
+    """
+    Fetch the synthetic data from the given URL and save it to the given path.
+
+    :param url: URL to fetch the synthetic data from
+    :param path: path to save the synthetic data to
+    """
+    path = Path(path).resolve() / "synthetic_data.zip"
+    if not path.exists():
+        gdown.download(url, path.as_posix())
+    return path
+
+
 def get_dataset(
     args: Union[Namespace, Dict]
 ) -> Tuple[
@@ -619,11 +637,15 @@ def get_dataset(
         test_labels = test_dataset.targets
 
     elif args["dataset"] == "synthetic":
-        data_path = Path(__file__).resolve().parent.parent / args["data_path"]
-        print(data_path)
-        train_dataset, valid_dataset, test_dataset = SyntheticDataset.load_from_path(
-            data_path
-        ).split()
+        data_dir = "../data"
+        data_zip = fetch_synthetic_data(SYNTHETIC_DATA_URL, data_dir)
+        with zipfile.ZipFile(data_zip, "r") as zip_ref:
+            fname = f"data/synthetic_data_nusers_{args['num_users']}_nclasses_{args['num_classes']}_ndims_{args['num_features']}.json"
+            with zip_ref.open(fname) as f:
+                data = json.load(f)
+                X = [np.array(x) for x in data["X"]]
+                y = [np.array(y) for y in data["y"]]
+            train_dataset, valid_dataset, test_dataset = SyntheticDataset(X, y).split()
         train_labels = torch.from_numpy(train_dataset.y)
         valid_labels = torch.from_numpy(valid_dataset.y)
         test_labels = torch.from_numpy(test_dataset.y)

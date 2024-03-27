@@ -138,12 +138,6 @@ def args_parser():
         help="Minimum sparsification ratio for custom fair sparsification",
     )
     parser.add_argument(
-        "--data_path",
-        type=str,
-        required=False,
-        help="Path to the data. Only required for synthetic datasets.",
-    )
-    parser.add_argument(
         "--num_features",
         type=int,
         required=False,

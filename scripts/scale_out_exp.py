@@ -64,11 +64,16 @@ def generate_command_args(combination):
             command_args["--min_sparsification_ratio"] = combination[13]
             command_args["fairness_temperature"] = combination[16]
         command_args["--sparsification_type"] = combination[14]
+
     if combination[7] == "synthetic":
-        command_args["--data_path"] = combination[-3]
+        if combination[5] == "majority_minority":
+            command_args["--majority_proportion"] = combination[-4]
+            command_args["--majority_minority_overlap"] = combination[-3]
         command_args["--num_features"] = combination[-2]
         command_args["--num_classes"] = combination[-1]
-
+    elif combination[5] == "majority_minority":
+        command_args["--majority_proportion"] = combination[-2]
+        command_args["--majority_minority_overlap"] = combination[-1]
     return command_args
 
 
@@ -168,13 +173,18 @@ def main():
             )
 
     for i, exp in enumerate(parameter_combinations):
+        if exp[5] == "majority_minority":
+            for cfgs in zip(
+                configs["majority_proportion"],
+                configs["majority_minority_overlap"],
+            ):
+                parameter_combinations[i] += cfgs
         if exp[DATASET_IDX] == "synthetic":
             for cfgs in zip(
-                configs["data_path"],
                 configs["num_features"],
                 configs["num_classes"],
             ):
-                parameter_combinations[i] = exp + cfgs
+                parameter_combinations[i] += cfgs
 
     # Remove unwanted experiments:
     final_list = []

@@ -149,6 +149,12 @@ def args_parser():
         required=False,
         help="Number of classes in the dataset. Only required for synthetic datasets.",
     )
+    parser.add_argument(
+        "--gdrive_id",
+        type=str,
+        default=None,
+        help="Google Drive ID for downloading the synthetic dataset.",
+    )
 
     # arguments for FedProx
     parser.add_argument("--mu", type=float, default=None, help="mu value for FedProx")

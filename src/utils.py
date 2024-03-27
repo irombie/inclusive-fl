@@ -30,10 +30,6 @@ from torchvision.datasets import ImageFolder
 from torchvision.datasets.utils import download_and_extract_archive, verify_str_arg
 
 
-SYNTHETIC_DATA_ID = "1ANMMlbmTwg4JiggXE8FqFOg-ZErMlZzi"
-SYNTHETIC_DATA_URL = f"https://drive.google.com/uc?id={SYNTHETIC_DATA_ID}"
-
-
 def exp_details(args):
     exp_table = PrettyTable()
     exp_table.field_names = ["Experiment Parameter", "Value"]
@@ -638,7 +634,8 @@ def get_dataset(
 
     elif args["dataset"] == "synthetic":
         data_dir = "../data"
-        data_zip = fetch_synthetic_data(SYNTHETIC_DATA_URL, data_dir)
+        synthetic_data_url = f"https://drive.google.com/uc?id={args['gdrive_id']}"
+        data_zip = fetch_synthetic_data(synthetic_data_url, data_dir)
         with zipfile.ZipFile(data_zip, "r") as zip_ref:
             fname = f"data/synthetic_data_nusers_{args['num_users']}_nclasses_{args['num_classes']}_ndims_{args['num_features']}.json"
             with zip_ref.open(fname) as f:

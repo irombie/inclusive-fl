@@ -69,6 +69,7 @@ def generate_command_args(combination):
         if combination[5] == "majority_minority":
             command_args["--majority_proportion"] = combination[-4]
             command_args["--majority_minority_overlap"] = combination[-3]
+        command_args["--gdrive_id"] = combination[-3]
         command_args["--num_features"] = combination[-2]
         command_args["--num_classes"] = combination[-1]
     elif combination[5] == "majority_minority":
@@ -184,7 +185,7 @@ def main():
                 configs["num_features"],
                 configs["num_classes"],
             ):
-                parameter_combinations[i] += cfgs
+                parameter_combinations[i] += (configs["gdrive_id"],) + cfgs
 
     # Remove unwanted experiments:
     final_list = []

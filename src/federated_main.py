@@ -15,7 +15,15 @@ from tqdm import tqdm
 
 import wandb
 from global_updates import get_global_update
-from models import VGG, CNNFashion_Mnist, ResNet9, ResNet18, SmallCNN, MLP
+from models import (
+    VGG,
+    CNNFashion_Mnist,
+    ResNet9,
+    ResNet18,
+    SmallCNN,
+    MLP,
+    LogisticRegression,
+)
 from options import args_parser
 from update import get_local_update, test_inference
 from utils import (
@@ -108,6 +116,8 @@ def main():
     elif args.dataset == "synthetic":
         if args.model.lower() == "mlp":
             global_model = MLP(args)
+        elif args.model.lower() == "logistic":
+            global_model = LogisticRegression(args)
         else:
             # TODO: Replace with sys.exit
             exit("Error: Model not implemented for the dataset!")

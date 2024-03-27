@@ -8,6 +8,20 @@ from torch import nn
 from torchvision.models import resnet18, vgg11_bn
 
 
+class LogisticRegression(nn.Module):
+    """
+    Logistic regression model for the synthetic dataset.
+    """
+
+    def __init__(self, args):
+        super(LogisticRegression, self).__init__()
+        self.fc = nn.Linear(args.num_features, args.num_classes)
+
+    def forward(self, x):
+        x = self.fc(x)
+        return F.log_softmax(x, dim=1)
+
+
 class MLP(nn.Module):
     """
     This is an hardcoded MLP model for the synthetic dataset.

@@ -634,6 +634,9 @@ def get_dataset(
 
     elif args["dataset"] == "synthetic":
         data_dir = "../data"
+
+        if not os.path.exists(data_dir):
+             os.makedirs(data_dir)
         synthetic_data_url = f"https://drive.google.com/uc?id={args['gdrive_id']}"
         data_zip = fetch_synthetic_data(synthetic_data_url, data_dir)
         with zipfile.ZipFile(data_zip, "r") as zip_ref:

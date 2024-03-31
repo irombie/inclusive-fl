@@ -85,11 +85,8 @@ def main():
     if configs is None:
         raise Exception("Unable to read config file!")
 
-    # TODO: Fix this. Always false: "sparsification_type" == "rtopk"??
-    # if "sparsification_ratio" in configs and "sparsification_type" == "rtopk":
-    #     configs["choose_from_top_r_percentile"] = [
-    #         1.5 * float(num) for num in configs["sparsification_ratio"]
-    #     ]
+    if ("sparsification_ratio" in configs.keys()) and ('rtopk' in configs['sparsification_type']):
+        configs["choose_from_top_r_percentile"] = [1.5 * float(num) for num in configs["sparsification_ratio"]]
 
     # Generate all parameter combinations
     parameter_combinations = []

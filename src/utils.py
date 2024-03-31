@@ -2,15 +2,18 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 import copy
+import json
 import os
 import random
 import shutil
 import sys
 import tarfile
 import zipfile
+import gdown
 from argparse import Namespace
 from collections import OrderedDict, defaultdict
-from typing import Dict, List, Tuple, Union
+from pathlib import Path
+from typing import Dict, List, Tuple, Union, Callable
 
 import numpy as np
 import pandas as pd
@@ -240,6 +243,103 @@ class UTKFaceDataset(Dataset):
         return image, labels
 
 
+class SyntheticDataset(Dataset):
+    """Synthetic dataset generated using the function generate_synthetic_data"""
+
+    def __init__(self, X: list[np.ndarray], y: list[np.ndarray]):
+        """
+        Returns synthetic dataset at the given path.
+
+        :params path: path to the synthetic data file
+        """
+        self.n_users = len(X)
+        self.n_samples_per_user = [len(x) for x in X]
+        self.n_samples = sum(self.n_samples_per_user)
+        self.cumulative_samples = np.cumsum([0] + self.n_samples_per_user)
+        self.user_idx = {
+            i: np.arange(start, end).tolist()
+            for i, (start, end) in enumerate(
+                zip(self.cumulative_samples, self.cumulative_samples[1:])
+            )
+        }
+        self.X = np.concatenate(X).astype(np.float32)
+        self.y = np.concatenate(y).astype(np.int64)
+        self.validate_data(self.X, self.y)
+
+    def __len__(self) -> int:
+        return self.n_samples
+
+    def __getitem__(self, idx: int) -> Tuple[np.ndarray, int]:
+        """
+        Get an item from the dataset.
+
+        :param idx: index of the item
+        :return: a tuple containing the input data and the label
+        """
+        return self.X[idx], self.y[idx]
+
+    def split(
+        self, valid_ratio: float = 0.1, test_ratio: float = 0.1
+    ) -> tuple["SyntheticDataset", "SyntheticDataset", "SyntheticDataset"]:
+        """
+        Split the data into training and validation sets.
+
+        :param valid_ratio: proportion of the data to include in the validation set
+        :param test_ratio: proportion of the data to include in the test set
+        :return: training and validation datasets
+        """
+        X_train, y_train = [], []
+        X_valid, y_valid = [], []
+        X_test, y_test = [], []
+        for idx in self.user_idx.values():
+            valid_size = int(len(idx) * valid_ratio)
+            test_size = int(len(idx) * test_ratio)
+
+            train_idx = idx[: -valid_size - test_size]
+            valid_idx = idx[-valid_size - test_size : -test_size]
+            test_idx = idx[-test_size:]
+
+            X_train.append(self.X[train_idx])
+            y_train.append(self.y[train_idx])
+            X_valid.append(self.X[valid_idx])
+            y_valid.append(self.y[valid_idx])
+            X_test.append(self.X[test_idx])
+            y_test.append(self.y[test_idx])
+
+        train_dataset = SyntheticDataset(X_train, y_train)
+        valid_dataset = SyntheticDataset(X_valid, y_valid)
+        test_dataset = SyntheticDataset(X_test, y_test)
+        return train_dataset, valid_dataset, test_dataset
+
+    @staticmethod
+    def validate_data(X: list[np.ndarray], y: list[np.ndarray]) -> bool:
+        """
+        Validate the synthetic data.
+
+        :param X: input data
+        :param y: labels
+        :return: whether the data is valid
+        """
+        assert X.ndim == 2
+        assert y.ndim == 1
+        assert len(y) != 0
+        assert len(X) == len(y)
+
+    @classmethod
+    def load_from_path(cls, path: str | Path) -> "SyntheticDataset":
+        """
+        Load the synthetic dataset from the given path.
+
+        :param path: path to the synthetic data file
+        :return: the synthetic dataset
+        """
+        with open(path, mode="r", encoding="utf-8") as f:
+            data = json.load(f)
+        X = [np.asarray(x) for x in data["X"]]
+        y = [np.asarray(y) for y in data["y"]]
+        return cls(X, y)
+
+
 def get_utkface(data_dir, zfile, extract_dir, apply_transform, label_type="ethnicity"):
     """
     Returns train/test/validation utkface datasets.
@@ -360,6 +460,19 @@ class TinyImageNet(ImageFolder):
         normalize_tin_val_folder_structure(os.path.join(self.dataset_folder, "val"))
 
 
+def fetch_synthetic_data(url: str, path: str | Path):
+    """
+    Fetch the synthetic data from the given URL and save it to the given path.
+
+    :param url: URL to fetch the synthetic data from
+    :param path: path to save the synthetic data to
+    """
+    path = Path(path).resolve() / "synthetic_data.zip"
+    if not path.exists():
+        gdown.download(url, path.as_posix())
+    return path
+
+
 def get_dataset(
     args: Union[Namespace, Dict]
 ) -> Tuple[
@@ -385,6 +498,8 @@ def get_dataset(
         args.num_classes = 5
     elif args.dataset == "tiny-imagenet":
         args.num_classes = 200
+    elif args.dataset == "synthetic":
+        pass
     else:
         raise ValueError("Unrecognized dataset!")
 
@@ -517,6 +632,24 @@ def get_dataset(
         valid_labels = torch.tensor(train_valid_dataset.targets)[valid_idxs]
         test_labels = test_dataset.targets
 
+    elif args["dataset"] == "synthetic":
+        data_dir = "../data"
+
+        if not os.path.exists(data_dir):
+             os.makedirs(data_dir)
+        synthetic_data_url = f"https://drive.google.com/uc?id={args['gdrive_id']}"
+        data_zip = fetch_synthetic_data(synthetic_data_url, data_dir)
+        with zipfile.ZipFile(data_zip, "r") as zip_ref:
+            fname = f"data/synthetic_data_nusers_{args['num_users']}_nclasses_{args['num_classes']}_ndims_{args['num_features']}.json"
+            with zip_ref.open(fname) as f:
+                data = json.load(f)
+                X = [np.array(x) for x in data["X"]]
+                y = [np.array(y) for y in data["y"]]
+            train_dataset, valid_dataset, test_dataset = SyntheticDataset(X, y).split()
+        train_labels = torch.from_numpy(train_dataset.y)
+        valid_labels = torch.from_numpy(valid_dataset.y)
+        test_labels = torch.from_numpy(test_dataset.y)
+
     # sample training data amongst users
     if args["distribution"] == "iid":
         train_user_groups = get_iid_partition(train_dataset, args["num_users"])
@@ -525,16 +658,21 @@ def get_dataset(
 
     elif args["distribution"] == "non_iid":
         # users receive unequal data within classes
-        distribution = paramaterise_noniid_distribution(
-            args["num_users"],
-            args["num_classes"],
-            train_labels,
-            float(args["dist_noniid"]),
-            args["min_proportion"],
-        )
-        train_user_groups = get_noniid_partition(train_labels, distribution)
-        valid_user_groups = get_noniid_partition(valid_labels, distribution)
-        test_user_groups = get_noniid_partition(test_labels, distribution)
+        if args["dataset"] == "synthetic":
+            train_user_groups = train_dataset.user_idx
+            valid_user_groups = valid_dataset.user_idx
+            test_user_groups = test_dataset.user_idx
+        else:
+            distribution = paramaterise_noniid_distribution(
+                args["num_users"],
+                args["num_classes"],
+                train_labels,
+                float(args["dirichlet_param"]),
+                args["min_proportion"],
+            )
+            train_user_groups = get_noniid_partition(train_labels, distribution)
+            valid_user_groups = get_noniid_partition(valid_labels, distribution)
+            test_user_groups = get_noniid_partition(test_labels, distribution)
 
     elif args["distribution"] == "majority_minority":
         (

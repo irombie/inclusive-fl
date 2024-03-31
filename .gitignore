@@ -2,6 +2,7 @@
 __pycache__
 save/
 data/
+plots/
 logs/
 wandb/
 .vscode/

@@ -65,6 +65,16 @@ def generate_command_args(combination):
             command_args["fairness_temperature"] = combination[16]
         command_args["--sparsification_type"] = combination[14]
 
+    if combination[7] == "synthetic":
+        if combination[5] == "majority_minority":
+            command_args["--majority_proportion"] = combination[-4]
+            command_args["--majority_minority_overlap"] = combination[-3]
+        command_args["--gdrive_id"] = combination[-3]
+        command_args["--num_features"] = combination[-2]
+        command_args["--num_classes"] = combination[-1]
+    elif combination[5] == "majority_minority":
+        command_args["--majority_proportion"] = combination[-2]
+        command_args["--majority_minority_overlap"] = combination[-1]
     return command_args
 
 
@@ -74,10 +84,9 @@ def main():
     configs = parse_yml(path=args.config_file)
     if configs is None:
         raise Exception("Unable to read config file!")
-    if "sparsification_ratio" in configs and "sparsification_type" == "rtopk":
-        configs["choose_from_top_r_percentile"] = [
-            1.5 * float(num) for num in configs["sparsification_ratio"]
-        ]
+
+    if ("sparsification_ratio" in configs.keys()) and ('rtopk' in configs['sparsification_type']):
+        configs["choose_from_top_r_percentile"] = [1.5 * float(num) for num in configs["sparsification_ratio"]]
 
     # Generate all parameter combinations
     parameter_combinations = []
@@ -160,6 +169,20 @@ def main():
                     configs["fairness_temperature"],
                 )
             )
+
+    for i, exp in enumerate(parameter_combinations):
+        if exp[5] == "majority_minority":
+            for cfgs in zip(
+                configs["majority_proportion"],
+                configs["majority_minority_overlap"],
+            ):
+                parameter_combinations[i] += cfgs
+        if exp[DATASET_IDX] == "synthetic":
+            for cfgs in zip(
+                configs["num_features"],
+                configs["num_classes"],
+            ):
+                parameter_combinations[i] += (configs["gdrive_id"],) + cfgs
 
     # Remove unwanted experiments:
     final_list = []

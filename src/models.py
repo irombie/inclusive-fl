@@ -8,6 +8,39 @@ from torch import nn
 from torchvision.models import resnet18, vgg11_bn
 
 
+class LogisticRegression(nn.Module):
+    """
+    Logistic regression model for the synthetic dataset.
+    """
+
+    def __init__(self, args):
+        super(LogisticRegression, self).__init__()
+        self.fc = nn.Linear(args.num_features, args.num_classes)
+
+    def forward(self, x):
+        x = self.fc(x)
+        return F.log_softmax(x, dim=1)
+
+
+class MLP(nn.Module):
+    """
+    This is an hardcoded MLP model for the synthetic dataset.
+    The hyperparameters are not optimized.
+    """
+
+    def __init__(self, args):
+        super(MLP, self).__init__()
+        self.fc1 = nn.Linear(args.num_features, 256)
+        self.fc2 = nn.Linear(256, 256)
+        self.fc3 = nn.Linear(256, args.num_classes)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return F.log_softmax(x, dim=1)
+
+
 class CNNFashion_Mnist(nn.Module):
     def __init__(self, args):
         super(CNNFashion_Mnist, self).__init__()
@@ -114,42 +147,58 @@ class Mul(nn.Module):
     def __init__(self, weight):
         super(Mul, self).__init__()
         self.weight = weight
-    def forward(self, x): return x * self.weight
+
+    def forward(self, x):
+        return x * self.weight
+
 
 class Flatten(nn.Module):
-    def forward(self, x): return x.view(x.size(0), -1)
+    def forward(self, x):
+        return x.view(x.size(0), -1)
+
 
 class Residual(nn.Module):
     def __init__(self, module):
         super(Residual, self).__init__()
         self.module = module
-    def forward(self, x): return x + self.module(x)
+
+    def forward(self, x):
+        return x + self.module(x)
+
 
 def conv_bn(channels_in, channels_out, kernel_size=3, stride=1, padding=1, groups=1):
     return nn.Sequential(
-            nn.Conv2d(channels_in, channels_out,
-                         kernel_size=kernel_size, stride=stride, padding=padding,
-                         groups=groups, bias=False),
-            nn.BatchNorm2d(channels_out),
-            nn.ReLU(inplace=True)
+        nn.Conv2d(
+            channels_in,
+            channels_out,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            groups=groups,
+            bias=False,
+        ),
+        nn.BatchNorm2d(channels_out),
+        nn.ReLU(inplace=True),
     )
+
+
 class ResNet9(nn.Module):
     def __init__(self, num_classes: int, args) -> None:
         super().__init__()
         self.num_classes = num_classes
         self.model = nn.Sequential(
-                    conv_bn(3, 64, kernel_size=3, stride=1, padding=1),
-                    conv_bn(64, 128, kernel_size=5, stride=2, padding=2),
-                    Residual(nn.Sequential(conv_bn(128, 128), conv_bn(128, 128))),
-                    conv_bn(128, 256, kernel_size=3, stride=1, padding=1),
-                    nn.MaxPool2d(2),
-                    Residual(nn.Sequential(conv_bn(256, 256), conv_bn(256, 256))),
-                    conv_bn(256, 128, kernel_size=3, stride=1, padding=0),
-                    nn.AdaptiveMaxPool2d((1, 1)),
-                    Flatten(),
-                    nn.Linear(128, self.num_classes, bias=False),
-                    Mul(0.2)
-                )
+            conv_bn(3, 64, kernel_size=3, stride=1, padding=1),
+            conv_bn(64, 128, kernel_size=5, stride=2, padding=2),
+            Residual(nn.Sequential(conv_bn(128, 128), conv_bn(128, 128))),
+            conv_bn(128, 256, kernel_size=3, stride=1, padding=1),
+            nn.MaxPool2d(2),
+            Residual(nn.Sequential(conv_bn(256, 256), conv_bn(256, 256))),
+            conv_bn(256, 128, kernel_size=3, stride=1, padding=0),
+            nn.AdaptiveMaxPool2d((1, 1)),
+            Flatten(),
+            nn.Linear(128, self.num_classes, bias=False),
+            Mul(0.2),
+        )
         self.dataset = args.dataset
 
     def forward(self, x):

@@ -4,20 +4,26 @@
 
 import copy
 import os
-import pickle
 import sys
 import time
 import traceback
 from datetime import datetime
 
 import numpy as np
-import pandas as pd
 import torch
 from tqdm import tqdm
 
 import wandb
 from global_updates import get_global_update
-from models import VGG, CNNFashion_Mnist, ResNet9, ResNet18, SmallCNN
+from models import (
+    VGG,
+    CNNFashion_Mnist,
+    ResNet9,
+    ResNet18,
+    SmallCNN,
+    MLP,
+    LogisticRegression,
+)
 from options import args_parser
 from update import get_local_update, test_inference
 from utils import (
@@ -26,7 +32,6 @@ from utils import (
     flatten,
     get_dataset,
     set_seed,
-    temperatured_softmax,
     updateFromNumpyFlatArray,
 )
 
@@ -34,13 +39,10 @@ from utils import (
 def main():
     if sys.version_info[0:2] != (3, 11):
         print()
-        raise Exception(
+        raise RuntimeError(
             f"Code requires python 3.11. You are using {sys.version_info[0:2]}. Please update your conda env and install requirements.txt on the new env."
         )
     start_time = time.time()
-
-    # define paths
-    path_project = os.path.abspath("..")
 
     args = args_parser()
     exp_details(args)
@@ -111,6 +113,14 @@ def main():
             global_model = ResNet9(num_classes=200, args=args)
         else:
             exit("Error: Model not implemented!")
+    elif args.dataset == "synthetic":
+        if args.model.lower() == "mlp":
+            global_model = MLP(args)
+        elif args.model.lower() == "logistic":
+            global_model = LogisticRegression(args)
+        else:
+            # TODO: Replace with sys.exit
+            exit("Error: Model not implemented for the dataset!")
     else:
         exit("Error: Dataset not implemented!")
 

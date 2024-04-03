@@ -39,8 +39,8 @@ dependencies:
     - smmap==5.0.0
     - sympy==1.11.1
     - tensorboardx==2.6
-    - torch==2.0.0
-    - torchvision==0.15.1
+    - torch==2.2.2
+    - torchvision==0.17.2
     - tqdm==4.65.0
     - typing-extensions==4.5.0
     - urllib3==1.26.15

@@ -13,9 +13,9 @@ class LogisticRegression(nn.Module):
     Logistic regression model for the synthetic dataset.
     """
 
-    def __init__(self, num_features, num_classes):
+    def __init__(self, args):
         super(LogisticRegression, self).__init__()
-        self.fc = nn.Linear(num_features, num_classes)
+        self.fc = nn.Linear(args.num_features, args.num_classes)
 
     def forward(self, x):
         x = self.fc(x)
@@ -28,11 +28,11 @@ class MLP(nn.Module):
     The hyperparameters are not optimized.
     """
 
-    def __init__(self, num_classes, num_features):
+    def __init__(self, args):
         super(MLP, self).__init__()
-        self.fc1 = nn.Linear(num_features, 256)
+        self.fc1 = nn.Linear(args.num_features, 256)
         self.fc2 = nn.Linear(256, 256)
-        self.fc3 = nn.Linear(256, num_classes)
+        self.fc3 = nn.Linear(256, args.num_classes)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -42,7 +42,7 @@ class MLP(nn.Module):
 
 
 class CNNFashion_Mnist(nn.Module):
-    def __init__(self):
+    def __init__(self, args):
         super(CNNFashion_Mnist, self).__init__()
         self.layer1 = nn.Sequential(
             nn.Conv2d(1, 16, kernel_size=5, padding=2),
@@ -67,7 +67,7 @@ class CNNFashion_Mnist(nn.Module):
 
 
 class SmallCNN(nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, args, num_classes):
         super(SmallCNN, self).__init__()
 
         self.normalization = nn.BatchNorm2d
@@ -116,10 +116,11 @@ class SmallCNN(nn.Module):
 
 
 class VGG(nn.Module):
-    def __init__(self, num_classes: int) -> None:
+    def __init__(self, num_classes: int, args) -> None:
         super().__init__()
         self.vgg = vgg11_bn(weights=None)
         self.classifier = nn.Linear(1000, num_classes)
+        self.dataset = args.dataset
 
     def forward(self, x):
         x = self.vgg(x)
@@ -129,16 +130,18 @@ class VGG(nn.Module):
 
 
 class ResNet18(nn.Module):
-    def __init__(self, num_classes: int) -> None:
+    def __init__(self, num_classes: int, args) -> None:
         super().__init__()
         self.resnet = resnet18(weights=None)
-        self.classifier = nn.Linear(self.resnet.fc.in_features, num_classes)
+        self.classifier = nn.Linear(1000, num_classes)
+        self.dataset = args.dataset
 
     def forward(self, x):
         x = self.resnet(x)
         x = self.classifier(x)
 
         return F.log_softmax(x, dim=1)
+
 
 class Mul(nn.Module):
     def __init__(self, weight):
@@ -180,7 +183,7 @@ def conv_bn(channels_in, channels_out, kernel_size=3, stride=1, padding=1, group
 
 
 class ResNet9(nn.Module):
-    def __init__(self, num_classes: int) -> None:
+    def __init__(self, num_classes: int, args) -> None:
         super().__init__()
         self.num_classes = num_classes
         self.model = nn.Sequential(
@@ -196,6 +199,7 @@ class ResNet9(nn.Module):
             nn.Linear(128, self.num_classes, bias=False),
             Mul(0.2),
         )
+        self.dataset = args.dataset
 
     def forward(self, x):
         x = self.model(x)

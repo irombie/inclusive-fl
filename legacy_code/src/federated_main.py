@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.11
 
+
 import copy
 import os
 import sys
@@ -35,127 +36,97 @@ from utils import (
 )
 
 
-from fastargs import get_current_config
-from fastargs.decorators import param, section
-from fastargs import Param, Section
-from fastargs.validation import And, OneOf
-
-if sys.version_info[0:2] != (3, 11):
+def main():
+    if sys.version_info[0:2] != (3, 11):
         print()
         raise RuntimeError(
             f"Code requires python 3.11. You are using {sys.version_info[0:2]}. Please update your conda env and install requirements.txt on the new env."
         )
+    start_time = time.time()
 
-Section('model', 'model parameters').params(
-    model_name=Param(str, 'Global model architecture (common across devices)'validator=OneOf(['SmallCNN', 'ResNet9', 'ResNet18', 'MLP', 'LogisticRegression', 'VGG']), required=True),
-    num_classes=Param(int, 'Number of classes', required=True))
+    args = args_parser()
+    exp_details(args)
 
-Section('global_paramters', 'global parameters').params(
-    global_rounds=Param(int, 'number of rounds of training', required=True),
-    num_clients=Param(int, 'number of clients', required=True),
-    client_frac=Param(float, 'Client fraction sampled at each round for training', required=True),
-    global_lr=Param(float, 'global learning rate', default=1),)
+    now = datetime.now()
+    dt_string = now.strftime("%d_%m_%Y-%H_%M")
+    run_name = f"{args.fl_method}_{args.dataset}_clients_{args.model}_frac_{args.num_users}_{args.frac}_{args.sparsification_ratio}_{time.time()}"
+    args_dict = vars(args)
+    tag_list = []
+    for k in args_dict:
+        tag_list.append(f"{k}:{args_dict[k]}")
+    run = wandb.init(project=args.wandb_name, config=args, name=run_name, tags=tag_list)
 
-Section('client_paramters', 'general client parameters').params(
-    local_epochs=Param(int, 'number of local epochs', default=5),
-    local_batch_size=Param(int, 'local batch size', default=64),
-    local_lr=Param(float, 'local learning rate', default=0.01))
+    device = torch.device(
+        "cuda"
+        if torch.cuda.is_available()
+        else ("mps" if torch.backends.mps.is_built() else "cpu")
+    )
 
-Section('fl_method', 'federated learning method').params(
-    fl_method=Param(str, 'federated learning method', validator=OneOf(['FedAvg', 'FedProx', 'qFedAvg', 'FedSyn']), required=True),
-    sparsification_ratio=Param(float, 'sparsification ratio', default=1),
-    sparsification_type=Param(str, 'sparsification type', default='randk'),
-    choose_from_top_r_percentile=Param(float, 'choose from top r percentile', default=1),
-    use_fair_sparsification=Param(int, 'use fair sparsification', default=True),
-    fairness_temperature=Param(float, 'fairness temperature', default=1),
-    min_sparsification_ratio=Param(float, 'minimum sparsification ratio', default=0),
-    mu=Param(float, 'mu value for FedProx', default=None),
-    q=Param(float, 'q value for qFedAvg', default=None),
-    eps=Param(float, 'eps value for qFedAvg', default=1e-6))
+    set_seed(args.seed, False)
 
+    # load dataset and user groups
+    (
+        train_dataset,
+        test_dataset,
+        valid_dataset,
+        train_user_groups,
+        test_user_groups,
+        valid_user_groups,
+    ) = get_dataset(args)
 
-Section('dataset', 'dataset related stuff').params(
-    dataset_name=Param(str, 'Name of dataset', required=True),
-    distribution=Param(str, 'distribution', validator=OneOf(['iid', 'non_iid', 'majority_minority']), required=True),
-    dirichlet_param=Param(float, 'dirichlet param', default=0),
-    min_proportion=Param(float, 'minimum proportion', default=0),
-    majority_proportion=Param(float, 'majority proportion', default=None),
-    majority_minority_overlap=Param(float, 'majority minority overlap', default=None),
-    num_features=Param(int, 'number of features', required=True),
-    num_classes=Param(int, 'number of classes', required=True),
-    gdrive_id=Param(str, 'google drive id', default=None))
+    # BUILD MODEL
+    if args.dataset == "fashionmnist":
+        global_model = CNNFashion_Mnist(args=args)
 
-
-Section('training_harness_params', 'parameters configuring the general training harness').params(
-    verbose=Param(bool, 'verbose', default=True),
-    seed=Param(int, 'random seed', required=True),
-    save_every=Param(int, 'save model every x rounds', default=2),
-    ckpt_path=Param(str, 'path to save checkpoints', default='./checkpoints/'),)
-
-
-
-Section('optimizer', 'optimizer parameters').params(
-    lr=Param(float, 'initial learning rate', default=0.1),
-    warmup_length=Param(int, 'warmup length', default=10),
-    weight_decay=Param(float, 'weight decay', default=1e-4),
-    momentum=Param(float, 'momentum', default=0.9),
-    nesterov=Param(int, 'use nesterov momentum? (1/0)', default=0),
-    scheduler_type=Param(str, 'scheduler type', default='custom_step')
-)
-
-
-Section('training_params', 'harness related stuff').params(
-    ckpt_path=Param(str, 'path to save checkpoints', default='checkpoints'),
-    epochs=Param(int, 'number of epochs', default=150),
-    seed=Param(int, 'random seed', default=42),
-    wandb_project=Param(str, 'wandb project name', required=True))
-
-class FLTrainingHarness:
-    super(FLTrainingHarness, self).__init__()
-    self.config = get_current_config()
-    self.device =  torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_built() else "cpu"))
-    self.run_name = f"{self.config.fl_method}_{self.config.model_name}_{self.config.dataset_name}_{self.config.global_rounds}_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}"
-    self.global_model = self.get_model()
-    self.train_dataset, self.test_dataset, self.valid_dataset, self.train_user_groups, self.test_user_groups, self.valid_user_groups = self.get_dataset()
-
-    @param('model.model_name')
-    @param('model.num_classes')
-    @param('model.num_features')
-    def get_model(self, model_name, num_classes, num_features):
-        model_definition = globals()[model_name]
-
-        if num_features is not None:
-            model = model_definition(num_classes=num_classes, num_features=num_features)
+    elif args.dataset == "cifar":
+        if args.model == "small_cnn":
+            global_model = SmallCNN(args=args, num_classes=10)
+        elif args.model == "vgg11_bn":
+            global_model = VGG(num_classes=10, args=args)
+        elif args.model == "resnet18":
+            global_model = ResNet18(num_classes=10, args=args)
+        elif args.model == "resnet9":
+            global_model = ResNet9(num_classes=10, args=args)
         else:
-            model = model_definition(num_classes=num_classes)
-        model.to(self.device)
+            exit("Error: Model not implemented!")
 
-        
-        return model
+    elif args.dataset == "utkface":
+        if args.model == "small_cnn":
+            global_model = SmallCNN(args=args, num_classes=5)
+        elif args.model == "vgg11_bn":
+            global_model = VGG(num_classes=5, args=args)
+        elif args.model == "resnet18":
+            global_model = ResNet18(num_classes=5, args=args)
+        elif args.model == "resnet9":
+            global_model = ResNet9(num_classes=5, args=args)
+        else:
+            exit("Error: Model not implemented!")
 
+    elif args.dataset == "tiny-imagenet":
+        if args.model == "small_cnn":
+            global_model = SmallCNN(args=args, num_classes=200)
+        elif args.model == "vgg11_bn":
+            global_model = VGG(num_classes=200, args=args)
+        elif args.model == "resnet18":
+            global_model = ResNet18(num_classes=200, args=args)
+        elif args.model == "resnet9":
+            global_model = ResNet9(num_classes=200, args=args)
+        else:
+            exit("Error: Model not implemented!")
+    elif args.dataset == "synthetic":
+        if args.model.lower() == "mlp":
+            global_model = MLP(args)
+        elif args.model.lower() == "logistic":
+            global_model = LogisticRegression(args)
+        else:
+            # TODO: Replace with sys.exit
+            exit("Error: Model not implemented for the dataset!")
+    else:
+        exit("Error: Dataset not implemented!")
 
-    @param('dataset.dataset_name')
-    @param('dataset.batch_size')
-    @param('dataset.train_image_size')
-    @param('dataset.test_image_size')
-    @param('dataset.num_workers')
-    @param('dataset.distribution')
-    @param('dataset.dirichlet_param')
-    @param('dataset.min_proportion')
-    @param('dataset.majority_proportion')
-    @param('dataset.majority_minority_overlap')
-    @param('dataset.num_features')
-    @param('dataset.num_classes')
-    @param('dataset.gdrive_id')
-    def get_dataset(self, dataset_name, batch_size, train_image_size, test_image_size, num_workers, distribution, dirichlet_param, min_proportion, majority_proportion, majority_minority_overlap, num_features, num_classes, gdrive_id):
-        return get_dataset(dataset_name, batch_size, train_image_size, test_image_size, num_workers, distribution, dirichlet_param, min_proportion, majority_proportion, majority_minority_overlap, num_features, num_classes, gdrive_id)
-
-
-
-
-def main():
-    
-    
+    # Set the model to train and send it to device.
+    global_model.to(device)
+    global_model.train()
 
     # copy weights
     global_weights = global_model.state_dict()

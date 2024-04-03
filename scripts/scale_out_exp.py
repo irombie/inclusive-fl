@@ -66,15 +66,12 @@ def generate_command_args(combination):
         command_args["--sparsification_type"] = combination[14]
 
     if combination[7] == "synthetic":
-        if combination[5] == "majority_minority":
-            command_args["--majority_proportion"] = combination[-4]
-            command_args["--majority_minority_overlap"] = combination[-3]
         command_args["--gdrive_id"] = combination[-3]
         command_args["--num_features"] = combination[-2]
         command_args["--num_classes"] = combination[-1]
-    elif combination[5] == "majority_minority":
-        command_args["--majority_proportion"] = combination[-2]
-        command_args["--majority_minority_overlap"] = combination[-1]
+    if combination[5] == "majority_minority":
+            command_args["--majority_proportion"] = combination[-5]
+            command_args["--majority_minority_overlap"] = combination[-4]
     return command_args
 
 
@@ -198,7 +195,7 @@ def main():
         command = [f"{k}={v}" for k, v in command_args.items()]
         command.insert(0, f"{os.getcwd()}/src/federated_main.py")  # + command
         command.insert(
-            0, "python3"
+            0, "python"
         )  # might need to change to python depending on how it is aliased in your machine
 
         logger.info(

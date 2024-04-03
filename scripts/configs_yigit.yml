@@ -1,5 +1,5 @@
 dataset: ['synthetic']
-model: ["logistic", "MLP"]
+model: ["logistic"]
 epochs: [30]
 lr: [0.01] 
 distribution: ["non_iid", "iid", "majority_minority"]

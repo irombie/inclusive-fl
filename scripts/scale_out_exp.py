@@ -62,7 +62,7 @@ def generate_command_args(combination):
         command_args["--use_fair_sparsification"] = combination[15]
         if combination[15] == 1:
             command_args["--min_sparsification_ratio"] = combination[13]
-            command_args["fairness_temperature"] = combination[16]
+            command_args["--fairness_temperature"] = combination[16]
         command_args["--sparsification_type"] = combination[14]
 
     if combination[7] == "synthetic":

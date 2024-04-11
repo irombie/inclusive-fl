@@ -29,78 +29,6 @@ from torchvision import datasets, transforms
 from torchvision.datasets import ImageFolder
 from torchvision.datasets.utils import download_and_extract_archive, verify_str_arg
 
-
-class FLDataset:
-    def __init__(self, data_dir, train_transform, test_transform, dataset_name, num_clients, num_classes=None, num_features=None):
-        self.data_dir = data_dir
-        self.train_transform = train_transform
-        self.test_transform = test_transform
-        self.num_clients = num_clients
-        self.num_classes = num_classes
-        self.num_features = num_features
-
-        self.train_dataset, self.val_dataset, self.test_dataset = self.get_dataset(dataset_name, num_clients, num_classes, num_features)
-        
-
-    def generate_vision_splits(self, type_of_split, num_clients, split_params):
-
-        if type_of_split == 'iid':
-            train_user_groups = get_iid_partition(self.train_dataset, self.num_clients)
-            valid_user_groups = get_iid_partition(self.valid_dataset, self.num_clients)
-            test_user_groups = get_iid_partition(self.test_dataset, self.num_clients)
-
-        elif type_of_split == 'majority_minority':
-            (
-                distribution,
-                majority_classes,
-                minority_classes,
-                majority_users,
-                minority_users,
-            ) = split_majority_minority(
-                num_clients=self.num_clients,
-                num_classes=self.num_classes,
-                majority_proportion=split_params["majority_proportion"],
-                overlap=split_params["majority_minority_overlap"]
-            )
-
-            
-            train_user_groups = get_noniid_partition(train_labels, distribution)
-            valid_user_groups = get_noniid_partition(valid_labels, distribution)
-            test_user_groups = get_noniid_partition(test_labels, distribution)
-            wandb.log(
-                {
-                    "majority_classes": majority_classes,
-                    "minority_classes": minority_classes,
-                    "majority_users": majority_users,
-                    "minority_users": minority_users,
-                }
-            )
-        
-        '''elif type_of_split == 'non_iid':
-            distribution = parameterized_noniid_distribution(
-                num_clients=split_params["num_clients"], num_classes=split_params["num_classes"],
-                train_labels,
-                float(split_params["dirichlet_param"]),
-                split_params["min_proportion"],
-            )
-            train_user_groups = get_noniid_partition(train_labels, distribution)
-            valid_user_groups = get_noniid_partition(valid_labels, distribution)
-            test_user_groups = get_noniid_partition(test_labels, distribution)
-        '''
-        
-        
-
-    '''elif args["distribution"] == "non_iid":
-        # users receive unequal data within classes
-        if args["dataset"] == "synthetic":
-            train_user_groups = train_dataset.user_idx
-            valid_user_groups = valid_dataset.user_idx
-            test_user_groups = test_dataset.user_idx
-        else:
-    '''      
-
-        
-
 class UTKFaceDataset(Dataset):
     def __init__(
         self, directory, zfile, extract_dir, transform, label_type="ethnicity"
@@ -151,13 +79,13 @@ class UTKFaceDataset(Dataset):
                 image = self.transform(image)
 
                 self.images.append(image)
-                self.labels.append(
-                    {
+                self.labels.append(float(file_labels["ethnicity"]))
+                    #{
                         # "age": self.convert_age_to_range(int(file_labels["age"])),
-                        "gender": int(file_labels["gender"]),
-                        "ethnicity": int(file_labels["ethnicity"]),
-                    }
-                )
+                        #"gender": int(file_labels["gender"]),
+                        ,
+                    #}
+                #)
 
     def __len__(self):
         return len(self.labels)
@@ -167,50 +95,15 @@ class UTKFaceDataset(Dataset):
             idx = idx.tolist()
 
         image = self.images[idx]
-
-        try:  # accepts age/gender/ethnicity labels
-            labels = self.labels[idx][self.label_type]
-        except:
-            print("Wrong Label Type provided")
+        labels = self.labels[idx]
+        #try:  # accepts age/gender/ethnicity labels
+        #except:
+            #print("Wrong Label Type provided")
             return
 
         return image, labels
 
-
-def get_utkface(data_dir, zfile, extract_dir, apply_transform, label_type="ethnicity"):
-    """
-    Returns train/test/validation utkface datasets.
-
-    :params data_dir: directory where the images are located
-    :params zfile: relative path from home folder to the zip file stored under data
-    :params extract_dir: main directory where the UTKFace folder will be stored
-    :params apply_transform: image transformation for UTKFace
-
-    :returns: train/test/validation utkface datasets that can be used for training UTKFace
-    """
-    dataset = UTKFaceDataset(
-        directory=data_dir,
-        zfile=zfile,
-        extract_dir=extract_dir,
-        transform=apply_transform,
-        label_type=label_type,
-    )
-
-    train_len = int(len(dataset) * 0.8)
-    validate_len = int(len(dataset) * 0.1)
-    test_len = int(len(dataset) - train_len - validate_len)
-
-    train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(
-        dataset,
-        [
-            train_len,
-            validate_len,
-            test_len,
-        ],
-    )
-
-    return train_dataset, test_dataset, valid_dataset
-
+## class definitions
 class SyntheticDataset(Dataset):
     """Synthetic dataset generated using the function generate_synthetic_data"""
 
@@ -413,68 +306,77 @@ class TinyImageNet(ImageFolder):
         assert "val" in self.splits
         normalize_tin_val_folder_structure(os.path.join(self.dataset_folder, "val"))
 
-
-
-def get_dataset(dataset_name, num_clients = None, num_classes = None, num_features = None):
-    """Returns the train, test and validation datasets.
-
-    Mean and Std values reference: https://stackoverflow.com/questions/66678052/how-to-calculate-the-mean-and-the-std-of-cifar10-data
-    :return: train, test, valid dataset.
-    """
-
-    data_root_dir = f'./data/{dataset_name}'
-    if not os.path.exists(data_dir):
-        os.makedirs(data_dir)
-
-    if dataset_name == 'cifar10':
-        apply_transform = transforms.Compose(
-            [
-                
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    (0.49139968, 0.48215827, 0.44653124),
-                    (0.24703233, 0.24348505, 0.26158768),
-                ),
-            ]
-        )
-        train_valid_dataset = datasets.CIFAR10(
-            data_dir, train=True, download=True, transform=apply_transform
-        )
-
-        test_dataset = datasets.CIFAR10(
-            data_dir, train=False, download=True, transform=apply_transform
-        )
-
-        train_idxs, valid_idxs = train_test_split(
-            np.arange(len(train_valid_dataset)),
-            test_size=0.1,
-            random_state=42,
-            shuffle=True,
-            stratify=train_valid_dataset.targets,
-        )
-
-    elif dataset_name== "fashionmnist":
-        apply_transform = transforms.Compose(
+def prepare_fashionMNIST(data_dir, seed=42):
+    apply_transform = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
         )
-
-        train_valid_dataset = datasets.FashionMNIST(
-            data_dir, train=True, download=True, transform=apply_transform
-        )
-
-        test_dataset = datasets.FashionMNIST(
-            data_dir, train=False, download=True, transform=apply_transform
-        )
-        train_idxs, valid_idxs = train_test_split(
-            np.arange(len(train_valid_dataset)),
-            test_size=0.1,
-            random_state=42,
-            shuffle=True,
-            stratify=train_valid_dataset.targets,
-        )
     
-    elif args["dataset"] == "utkface":
-        apply_transform = transforms.Compose(
+    train_dataset = datasets.CIFAR10(data_dir, train=True, download=True, transform=apply_transform)
+    test_dataset = datasets.CIFAR10(data_dir, train=False, download=True, transform=apply_transform)
+
+    train_valid_dataset = datasets.FashionMNIST(
+        data_dir, train=True, download=True, transform=apply_transform
+    )
+
+    test_dataset = datasets.FashionMNIST(
+        data_dir, train=False, download=True, transform=apply_transform
+    )
+    train_idxs, valid_idxs = train_test_split(
+        np.arange(len(train_valid_dataset)),
+        test_size=0.1,
+        random_state=seed,
+        shuffle=True,
+        stratify=train_valid_dataset.targets
+    )
+
+    return train_dataset, test_dataset, valid_dataset
+
+def prepare_cifar10(data_dir, seed=42):
+
+    transforms_train = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
+
+    transforms_test = transforms.Compose([transforms.ToTensor(),
+                     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
+
+
+    train_valid_dataset = datasets.CIFAR10(
+            data_dir, train=True, download=True, transform=transforms_train
+        )
+
+    train_idxs, valid_idxs = train_test_split(
+        np.arange(len(train_valid_dataset)),
+        test_size=0.1,
+        random_state=seed,
+        shuffle=True,
+        stratify=train_valid_dataset.targets,
+    )
+    train_dataset = Subset(train_valid_dataset, train_idxs)
+    valid_dataset = Subset(train_valid_dataset, valid_idxs)
+
+    test_dataset = datasets.CIFAR10( data_dir, train=False, download=True, transform=transforms_test)
+
+
+    return train_dataset, test_dataset, valid_dataset
+
+def prepare_utkface(self, seed=42):
+     """
+    Returns train/test/validation utkface datasets.
+
+    :params data_dir: directory where the images are located
+    :params zfile: relative path from home folder to the zip file stored under data
+    :params extract_dir: main directory where the UTKFace folder will be stored
+    :params apply_transform: image transformation for UTKFace
+
+    :returns: train/test/validation utkface datasets that can be used for training UTKFace
+    """
+
+    generator = torch.Generator().manual_seed(seed)
+
+    apply_transform = transforms.Compose(
             [
                 transforms.Resize((64, 64)),
                 transforms.ToTensor(),
@@ -483,175 +385,205 @@ def get_dataset(dataset_name, num_clients = None, num_classes = None, num_featur
                 ),
             ]
         )
-        # train_dataset, test_dataset, valid_dataset = get_utkface(data_dir, apply_transform)
-        train_dataset, test_dataset, valid_dataset = get_utkface(
-            data_dir=data_dir,
-            zfile="../data/UTKFace.tar.gz",
-            extract_dir="../data",
-            apply_transform=apply_transform,
-            label_type="ethnicity",
-        )
+
+    dataset = UTKFaceDataset(
+        directory=data_dir,
+        zfile=zfile,
+        extract_dir=extract_dir,
+        transform=apply_transform,
+        label_type=label_type,
+    )
+
+    train_len = int(len(dataset) * 0.8)
+    validate_len = int(len(dataset) * 0.1)
+    test_len = int(len(dataset) - train_len - validate_len)
 
 
-    elif args["dataset"] == "tiny-imagenet":
-        apply_transform = transforms.Compose(
-            [
-                transforms.Resize((64, 64)),
-                transforms.ToTensor(),
-                transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-            ]
-        )
+    train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_len, validate_len, test_len,], generator=generator)
 
-        train_valid_dataset = TinyImageNet(
-            data_dir, split="train", download=True, transform=apply_transform
-        )
-        test_dataset = TinyImageNet(
-            data_dir, split="val", download=True, transform=apply_transform
-        )
-
-        train_idxs, valid_idxs = train_test_split(
-            np.arange(len(train_valid_dataset)),
-            test_size=0.1,
-            random_state=42,
-            shuffle=True,
-            stratify=train_valid_dataset.targets,
-        )
-
-        train_dataset = Subset(train_valid_dataset, train_idxs)
-        valid_dataset = Subset(train_valid_dataset, valid_idxs)
-
-    elif args["dataset"] == "synthetic":
-        train_dataset, test_dataset, valid_dataset = SyntheticDataset(num_clients, num_classes, num_features).split()
-
-    
     return train_dataset, test_dataset, valid_dataset
 
-## Sampling methods [IID, Non-IID using Dirichlet distribution and Majority-Minority]
-def get_iid_partition(dataset, num_clients):
-    """
-    Sample I.I.D. client data from dataset
-    :param dataset:
-    :param num_clients:
-    :return: dict of image index
-    """
-    num_items = int(len(dataset) / num_clients)
-    dict_users, all_idxs = {}, [i for i in range(len(dataset))]
-    for i in range(num_clients):
-        dict_users[i] = set(np.random.choice(all_idxs, num_items, replace=False))
-        all_idxs = list(set(all_idxs) - dict_users[i])
-    return dict_users
+def prepare_synthetic(self, num_clients, num_classes, num_features):
+    train_dataset, test_dataset, valid_dataset = SyntheticDataset(num_clients, num_classes, num_features).split()
+    return train_dataset, test_dataset, valid_dataset
 
 
-def parameterized_noniid_distribution(
-    num_clients: int,
-    num_classes: int,
-    dataset_labels: Union[torch.Tensor, List],
-    beta: float,
-    min_proportion: float = 0,
-):
-    """
-    Sample from dirichlet distribution to give non-iid distribution for users.
+class FLDataset(Dataset):
+    def __init__(self, dataset_name, data_dir='./data'):
+        self.dataset_name = dataset_name
 
-    :param num_clients: number of users
-    :param num_classes: number of classes
-    :param dataset_labels: list or tensor of shape (num_samples,)
-    :param beta: determines amount of non-iid
-    :param min_proportion: minimum proportion of the dataset per user
+    
+    def get_dataset(self, dataset_name):
+        if dataset_name == 'cifar10':
+            return prepare_cifar10(data_dir)
+        elif dataset_name == 'fashionMNIST':
+            return prepare_fashionMNIST(data_dir)
+        elif dataset_name == 'utkface':
+            return prepare_utkface(data_dir)
+        elif dataset_name == 'synthetic':
+            return prepare_synthetic(data_dir)
 
-    :return: array of shape (num_classes, num_clients), where each row is a distribution
-        over the users for a specific class
-    """
-    if isinstance(dataset_labels, list):
-        dataset_labels = torch.tensor(dataset_labels)
-    class_weights = np.zeros((num_classes,))
-    for class_number in range(num_classes):
-        class_weights[class_number] = (dataset_labels == class_number).sum() / len(
-            dataset_labels
+    def get_iid_partition(self, dataset, num_clients):
+        """
+        Sample I.I.D. client data from dataset
+        :param dataset:
+        :param num_clients:
+        :return: dict of image index
+        """
+        num_items = int(len(dataset) / num_clients)
+        dict_users, all_idxs = {}, [i for i in range(len(dataset))]
+        for i in range(num_clients):
+            dict_users[i] = set(np.random.choice(all_idxs, num_items, replace=False))
+            all_idxs = list(set(all_idxs) - dict_users[i])
+        return dict_users 
+
+    def generate_noniid_partitions(self, num_clients: int, num_classes: int, dataset_labels: Union[torch.Tensor, List], beta: float, min_proportion: float = 0):
+        """
+        Sample from dirichlet distribution to give non-iid distribution for users.
+
+        :param num_clients: number of clients
+        :param num_classes: number of total classes
+        :param dataset_labels: list or tensor of shape (num_samples,)
+        :param beta: determines amount of non-iid
+        :param min_proportion: minimum proportion of the dataset per user
+
+        :return: array of shape (num_classes, num_clients), where each row is a distribution
+            over the users for a specific class
+        """
+        if isinstance(dataset_labels, list):
+            dataset_labels = torch.tensor(dataset_labels)
+        class_weights = np.zeros((num_classes,))
+        for class_number in range(num_classes):
+            class_weights[class_number] = (dataset_labels == class_number).sum() / len(
+                dataset_labels
+            )
+
+        if min_proportion >= 1 / num_clients:
+            return ValueError(
+                f"min_proportion per user must be less than {1/num_clients} for a dataset with {num_clients} in it"
+            )
+        class_sample_distribution = np.zeros((num_classes, num_clients))
+        dataset_proportion_per_user = np.zeros(num_clients)
+        while dataset_proportion_per_user.min() <= min_proportion:
+            class_sample_distribution = np.random.dirichlet(
+                np.repeat(beta, num_clients), num_classes
+            )
+            dataset_proportion_per_user = (class_weights @ class_sample_distribution) / (
+                class_weights.sum()
+            )
+
+        return class_sample_distribution
+
+    
+    def split_majority_minority(self, num_clients: int, num_classes: int, majority_proportion: float, overlap: float):
+        """
+        Split the classes and users into a majority and minority group
+
+        :param num_clients: The number of users
+        :param num_classes: The number of classes
+        :param majority proportion: the proportion of users in the majority group
+            and the proportion of classes in the majority group
+        :param overlap: the extent of overlap between the majority and minority groups
+            when 0 there is no overlap, when 1 there is complete overlap and the majority group=minority group
+
+        :return: A Tuple consisting of:
+            - A numpy array of shape (num_classes, num_clients) giving a distribution of users over each class.
+            - A numpy array denoting the majority classes
+            - A numpy array denoting the minority classes
+            - A numpy array denoting the majority users
+            - A numpy array denoting the minority users
+        """
+
+        # To ensure each user should have roughly the same number of samples, 'majority_proportion' is used to
+        # split both the classes and users into majority and minority groups, with the majority users more likely
+        # to possess samples from the majority classes than the minority classes.
+        num_majority_classes = round(majority_proportion * num_classes)
+        num_majority_users = round(majority_proportion * num_clients)
+        num_minority_users = num_clients - num_majority_users
+
+        # We define a distribution over the users for each class. This will tell us how to probabilistically distribute
+        # the samples of that class to the users using 'get_noniid_partition'. The ith row of the 'distribution'
+        # object corresponds to the distribution for the ith class.
+        distribution = np.zeros((num_classes, num_clients))
+
+        # The probability of a sample from a majority or minority class being assigned to either a majority or minority
+        # user, is determined by 'overlap'. 'overlap' represents the probability that a sample is assigned uniformly
+        # at random across all users, rather than being assigned uniformly across it's group (ie majority or minority).
+
+        uniform_distribution = np.ones((num_classes, num_clients)) / num_clients
+
+        grouped_distribution = np.zeros((num_classes, num_clients))
+        grouped_distribution[:num_majority_classes, :num_majority_users] = (
+            1 / num_majority_users
+        )
+        grouped_distribution[num_majority_classes:, num_majority_users:] = (
+            1 / num_minority_users
+        )
+        # this sums to 1 across users for each class, because uniform_distribution and grouped_distribution both
+        # sum to 1 across users for each class
+        distribution = uniform_distribution * overlap + (1 - overlap) * grouped_distribution
+        assert (
+            distribution.sum(axis=1).round(3) == 1
+        ).all(), "distribution must sum to 1 across users for each class"
+
+        # The order of the users doesn't matter, however which classes are chosen for each groups is important and must be able to vary.
+        permutation = np.random.permutation(num_classes)
+
+        return (
+            distribution[np.argsort(permutation)],
+            permutation[:num_majority_classes],
+            permutation[num_majority_classes:],
+            np.arange(num_majority_users),
+            np.arange(num_majority_users, num_clients),
         )
 
-    if min_proportion >= 1 / num_clients:
-        return ValueError(
-            f"min_proportion per user must be less than {1/num_clients} for a dataset with {num_clients} in it"
+    def generate_iid_splits(self):
+        train_user_groups = self.get_iid_partition(self.train_dataset, self.num_clients)
+        valid_user_groups = self.get_iid_partition(self.valid_dataset, self.num_clients)
+        test_user_groups = self.get_iid_partition(self.test_dataset, self.num_clients)
+
+        return train_user_groups, valid_user_groups, test_user_groups
+    
+    def generate_noniid_splits(self, split_params):
+
+        distribution = parameterized_noniid_distribution(split_params["num_clients"], split_params["num_classes"],
+                train_labels,
+                float(split_params["dirichlet_param"]),
+                split_params["min_proportion"])
+            
+        train_user_groups = get_noniid_partition(train_labels, distribution)
+        valid_user_groups = get_noniid_partition(valid_labels, distribution)
+        test_user_groups = get_noniid_partition(test_labels, distribution)
+        
+        return train_user_groups, valid_user_groups, test_user_groups
+    
+
+    def generate_maj_min_partitions(self, split_params):
+        (distribution, majority_classes, minority_classes, majority_users, minority_users, ) = self.split_majority_minority(
+            num_clients=self.num_clients,
+            num_classes=self.num_classes,
+            majority_proportion=split_params["majority_proportion"],
+            overlap=split_params["majority_minority_overlap"]
         )
-    class_sample_distribution = np.zeros((num_classes, num_clients))
-    dataset_proportion_per_user = np.zeros(num_clients)
-    while dataset_proportion_per_user.min() <= min_proportion:
-        class_sample_distribution = np.random.dirichlet(
-            np.repeat(beta, num_clients), num_classes
+
+        train_user_groups = self.get_noniid_partition(train_labels, distribution)
+        valid_user_groups = self.get_noniid_partition(valid_labels, distribution)
+        test_user_groups = self.get_noniid_partition(test_labels, distribution)
+        wandb.log(
+            {
+                "majority_classes": majority_classes,
+                "minority_classes": minority_classes,
+                "majority_users": majority_users,
+                "minority_users": minority_users,
+            }
         )
-        dataset_proportion_per_user = (class_weights @ class_sample_distribution) / (
-            class_weights.sum()
-        )
 
-    return class_sample_distribution
+        return train_user_groups, valid_user_groups, test_user_groups
 
-
-def split_majority_minority(
-    num_clients: int, num_classes: int, majority_proportion: float, overlap: float
-):
-    """
-    Split the classes and users into a majority and minority group
-
-    :param num_clients: The number of users
-    :param num_classes: The number of classes
-    :param majority proportion: the proportion of users in the majority group
-        and the proportion of classes in the majority group
-    :param overlap: the extent of overlap between the majority and minority groups
-        when 0 there is no overlap, when 1 there is complete overlap and the majority group=minority group
-
-    :return: A Tuple consisting of:
-        - A numpy array of shape (num_classes, num_clients) giving a distribution of users over each class.
-        - A numpy array denoting the majority classes
-        - A numpy array denoting the minority classes
-        - A numpy array denoting the majority users
-        - A numpy array denoting the minority users
-    """
-
-    # To ensure each user should have roughly the same number of samples, 'majority_proportion' is used to
-    # split both the classes and users into majority and minority groups, with the majority users more likely
-    # to possess samples from the majority classes than the minority classes.
-    num_majority_classes = round(majority_proportion * num_classes)
-    num_majority_users = round(majority_proportion * num_clients)
-    num_minority_users = num_clients - num_majority_users
-
-    # We define a distribution over the users for each class. This will tell us how to probabilistically distribute
-    # the samples of that class to the users using 'get_noniid_partition'. The ith row of the 'distribution'
-    # object corresponds to the distribution for the ith class.
-    distribution = np.zeros((num_classes, num_clients))
-
-    # The probability of a sample from a majority or minority class being assigned to either a majority or minority
-    # user, is determined by 'overlap'. 'overlap' represents the probability that a sample is assigned uniformly
-    # at random across all users, rather than being assigned uniformly across it's group (ie majority or minority).
-
-    uniform_distribution = np.ones((num_classes, num_clients)) / num_clients
-
-    grouped_distribution = np.zeros((num_classes, num_clients))
-    grouped_distribution[:num_majority_classes, :num_majority_users] = (
-        1 / num_majority_users
-    )
-    grouped_distribution[num_majority_classes:, num_majority_users:] = (
-        1 / num_minority_users
-    )
-    # this sums to 1 across users for each class, because uniform_distribution and grouped_distribution both
-    # sum to 1 across users for each class
-    distribution = uniform_distribution * overlap + (1 - overlap) * grouped_distribution
-    assert (
-        distribution.sum(axis=1).round(3) == 1
-    ).all(), "distribution must sum to 1 across users for each class"
-
-    # The order of the users doesn't matter, however which classes are chosen for each groups is important and must be able to vary.
-    permutation = np.random.permutation(num_classes)
-
-    return (
-        distribution[np.argsort(permutation)],
-        permutation[:num_majority_classes],
-        permutation[num_majority_classes:],
-        np.arange(num_majority_users),
-        np.arange(num_majority_users, num_clients),
-    )
+            
 
 
-# UKTFacd
+        
 
 
 

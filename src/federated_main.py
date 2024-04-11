@@ -47,7 +47,7 @@ if sys.version_info[0:2] != (3, 11):
         )
 
 Section('model', 'model parameters').params(
-    model_name=Param(str, 'Global model architecture (common across devices)'validator=OneOf(['SmallCNN', 'ResNet9', 'ResNet18', 'MLP', 'LogisticRegression', 'VGG']), required=True),
+    model_name=Param(str, 'Global model architecture (common across devices)', validator=OneOf(['SmallCNN', 'ResNet9', 'ResNet18', 'MLP', 'LogisticRegression', 'VGG']), required=True),
     num_classes=Param(int, 'Number of classes', required=True))
 
 Section('global_paramters', 'global parameters').params(
@@ -93,7 +93,6 @@ Section('training_harness_params', 'parameters configuring the general training 
     ckpt_path=Param(str, 'path to save checkpoints', default='./checkpoints/'),)
 
 
-
 Section('optimizer', 'optimizer parameters').params(
     lr=Param(float, 'initial learning rate', default=0.1),
     warmup_length=Param(int, 'warmup length', default=10),
@@ -133,7 +132,6 @@ class FLTrainingHarness:
         
         return model
 
-
     @param('dataset.dataset_name')
     @param('dataset.batch_size')
     @param('dataset.train_image_size')
@@ -148,7 +146,7 @@ class FLTrainingHarness:
     @param('dataset.num_classes')
     @param('dataset.gdrive_id')
     def get_dataset(self, dataset_name, batch_size, train_image_size, test_image_size, num_workers, distribution, dirichlet_param, min_proportion, majority_proportion, majority_minority_overlap, num_features, num_classes, gdrive_id):
-        return get_dataset(dataset_name, batch_size, train_image_size, test_image_size, num_workers, distribution, dirichlet_param, min_proportion, majority_proportion, majority_minority_overlap, num_features, num_classes, gdrive_id)
+        return FLDataset()
 
 
 

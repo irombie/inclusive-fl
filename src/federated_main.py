@@ -13,7 +13,6 @@ import torch
 from tqdm import tqdm
 
 import wandb
-from global_updates import get_global_update
 from models import (
     VGG,
     CNNFashion_Mnist,
@@ -23,8 +22,7 @@ from models import (
     MLP,
     LogisticRegression,
 )
-from options import args_parser
-from update import get_local_update, test_inference
+
 from utils import (
     custom_exponential_sparsity,
     exp_details,
@@ -34,11 +32,24 @@ from utils import (
     updateFromNumpyFlatArray,
 )
 
+from dataset_utils import FLDataset
 
 from fastargs import get_current_config
 from fastargs.decorators import param, section
 from fastargs import Param, Section
 from fastargs.validation import And, OneOf
+from argparse import ArgumentParser
+
+from harness_params import get_current_params
+
+#from global_updates import get_global_update
+#from update import get_local_update, test_inference
+
+
+
+
+get_current_params()
+
 
 if sys.version_info[0:2] != (3, 11):
         print()
@@ -46,113 +57,48 @@ if sys.version_info[0:2] != (3, 11):
             f"Code requires python 3.11. You are using {sys.version_info[0:2]}. Please update your conda env and install requirements.txt on the new env."
         )
 
-Section('model', 'model parameters').params(
-    model_name=Param(str, 'Global model architecture (common across devices)', validator=OneOf(['SmallCNN', 'ResNet9', 'ResNet18', 'MLP', 'LogisticRegression', 'VGG']), required=True),
-    num_classes=Param(int, 'Number of classes', required=True))
-
-Section('global_paramters', 'global parameters').params(
-    global_rounds=Param(int, 'number of rounds of training', required=True),
-    num_clients=Param(int, 'number of clients', required=True),
-    client_frac=Param(float, 'Client fraction sampled at each round for training', required=True),
-    global_lr=Param(float, 'global learning rate', default=1),)
-
-Section('client_paramters', 'general client parameters').params(
-    local_epochs=Param(int, 'number of local epochs', default=5),
-    local_batch_size=Param(int, 'local batch size', default=64),
-    local_lr=Param(float, 'local learning rate', default=0.01))
-
-Section('fl_method', 'federated learning method').params(
-    fl_method=Param(str, 'federated learning method', validator=OneOf(['FedAvg', 'FedProx', 'qFedAvg', 'FedSyn']), required=True),
-    sparsification_ratio=Param(float, 'sparsification ratio', default=1),
-    sparsification_type=Param(str, 'sparsification type', default='randk'),
-    choose_from_top_r_percentile=Param(float, 'choose from top r percentile', default=1),
-    use_fair_sparsification=Param(int, 'use fair sparsification', default=True),
-    fairness_temperature=Param(float, 'fairness temperature', default=1),
-    min_sparsification_ratio=Param(float, 'minimum sparsification ratio', default=0),
-    mu=Param(float, 'mu value for FedProx', default=None),
-    q=Param(float, 'q value for qFedAvg', default=None),
-    eps=Param(float, 'eps value for qFedAvg', default=1e-6))
 
 
-Section('dataset', 'dataset related stuff').params(
-    dataset_name=Param(str, 'Name of dataset', required=True),
-    distribution=Param(str, 'distribution', validator=OneOf(['iid', 'non_iid', 'majority_minority']), required=True),
-    dirichlet_param=Param(float, 'dirichlet param', default=0),
-    min_proportion=Param(float, 'minimum proportion', default=0),
-    majority_proportion=Param(float, 'majority proportion', default=None),
-    majority_minority_overlap=Param(float, 'majority minority overlap', default=None),
-    num_features=Param(int, 'number of features', required=True),
-    num_classes=Param(int, 'number of classes', required=True),
-    gdrive_id=Param(str, 'google drive id', default=None))
-
-
-Section('training_harness_params', 'parameters configuring the general training harness').params(
-    verbose=Param(bool, 'verbose', default=True),
-    seed=Param(int, 'random seed', required=True),
-    save_every=Param(int, 'save model every x rounds', default=2),
-    ckpt_path=Param(str, 'path to save checkpoints', default='./checkpoints/'),)
-
-
-Section('optimizer', 'optimizer parameters').params(
-    lr=Param(float, 'initial learning rate', default=0.1),
-    warmup_length=Param(int, 'warmup length', default=10),
-    weight_decay=Param(float, 'weight decay', default=1e-4),
-    momentum=Param(float, 'momentum', default=0.9),
-    nesterov=Param(int, 'use nesterov momentum? (1/0)', default=0),
-    scheduler_type=Param(str, 'scheduler type', default='custom_step')
-)
-
-
-Section('training_params', 'harness related stuff').params(
-    ckpt_path=Param(str, 'path to save checkpoints', default='checkpoints'),
-    epochs=Param(int, 'number of epochs', default=150),
-    seed=Param(int, 'random seed', default=42),
-    wandb_project=Param(str, 'wandb project name', required=True))
 
 class FLTrainingHarness:
-    super(FLTrainingHarness, self).__init__()
-    self.config = get_current_config()
-    self.device =  torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_built() else "cpu"))
-    self.run_name = f"{self.config.fl_method}_{self.config.model_name}_{self.config.dataset_name}_{self.config.global_rounds}_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}"
-    self.global_model = self.get_model()
-    self.train_dataset, self.test_dataset, self.valid_dataset, self.train_user_groups, self.test_user_groups, self.valid_user_groups = self.get_dataset()
+    def __init__(self):
+        self.config = get_current_config()
+        self.device =  torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_built() else "cpu"))
+        self.global_model = self.get_model()
 
     @param('model.model_name')
-    @param('model.num_classes')
-    @param('model.num_features')
-    def get_model(self, model_name, num_classes, num_features):
+    @param('dataset.num_classes')
+    @param('dataset.num_features')
+    def get_model(self, model_name, num_classes, num_features=None):
         model_definition = globals()[model_name]
 
-        if num_features is not None:
+        if num_features != 0:
             model = model_definition(num_classes=num_classes, num_features=num_features)
         else:
             model = model_definition(num_classes=num_classes)
         model.to(self.device)
-
-        
+ 
         return model
+    
+    def get_data_splits(self):
+        main_ds = FLDataset(self.config)
+        main_ds.get_dataset()
+        train_user_groups, test_user_groups, valid_user_groups = main_ds.get_client_groups()
 
-    @param('dataset.dataset_name')
-    @param('dataset.batch_size')
-    @param('dataset.train_image_size')
-    @param('dataset.test_image_size')
-    @param('dataset.num_workers')
-    @param('dataset.distribution')
-    @param('dataset.dirichlet_param')
-    @param('dataset.min_proportion')
-    @param('dataset.majority_proportion')
-    @param('dataset.majority_minority_overlap')
-    @param('dataset.num_features')
-    @param('dataset.num_classes')
-    @param('dataset.gdrive_id')
-    def get_dataset(self, dataset_name, batch_size, train_image_size, test_image_size, num_workers, distribution, dirichlet_param, min_proportion, majority_proportion, majority_minority_overlap, num_features, num_classes, gdrive_id):
-        return FLDataset()
+        return train_user_groups, test_user_groups, valid_user_groups
+if __name__ == "__main__":
+    config = get_current_config()
+    parser = ArgumentParser()
+    config.augment_argparse(parser)
+    config.collect_argparse_args(parser)
+    config.validate(mode='stderr')
+    config.summary()
+    lol = FLTrainingHarness()
+    lol.get_data_splits()
 
-
-
+'''
 
 def main():
-    
     
 
     # copy weights
@@ -437,3 +383,4 @@ if __name__ == "__main__":
         print(f"Experiment failed due to {e}")
         print(traceback.format_exc())
         wandb.finish(exit_code=-1)
+'''

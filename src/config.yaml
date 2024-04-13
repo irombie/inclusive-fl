@@ -1,0 +1,16 @@
+dataset:
+  dataset_name: FashionMNIST 
+  data_dir: ./data
+  num_clients: 100
+  split: non-iid
+  num_classes: 10
+model:
+  model_name: SmallCNN 
+training_params:
+  seed: 0
+fl_parameters:
+  num_clients: 10
+  fl_method: FedAvg
+global_parameters:
+  global_rounds: 10
+  client_frac: 0.1

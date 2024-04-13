@@ -11,7 +11,6 @@ import tarfile
 import zipfile
 import gdown
 from argparse import Namespace
-from collections import OrderedDict, defaultdict
 from pathlib import Path
 from typing import Dict, List, Tuple, Union, Callable
 
@@ -28,6 +27,10 @@ from torch.utils.data import Dataset, Subset
 from torchvision import datasets, transforms
 from torchvision.datasets import ImageFolder
 from torchvision.datasets.utils import download_and_extract_archive, verify_str_arg
+
+from fastargs import get_current_config
+from fastargs.decorators import param, section
+
 
 class UTKFaceDataset(Dataset):
     def __init__(
@@ -80,13 +83,13 @@ class UTKFaceDataset(Dataset):
 
                 self.images.append(image)
                 self.labels.append(float(file_labels["ethnicity"]))
-                    #{
+                '''      #{
                         # "age": self.convert_age_to_range(int(file_labels["age"])),
                         #"gender": int(file_labels["gender"]),
                         ,
                     #}
                 #)
-
+                '''
     def __len__(self):
         return len(self.labels)
 
@@ -96,10 +99,6 @@ class UTKFaceDataset(Dataset):
 
         image = self.images[idx]
         labels = self.labels[idx]
-        #try:  # accepts age/gender/ethnicity labels
-        #except:
-            #print("Wrong Label Type provided")
-            return
 
         return image, labels
 
@@ -318,9 +317,6 @@ def prepare_fashionMNIST(data_dir, seed=42):
         data_dir, train=True, download=True, transform=apply_transform
     )
 
-    test_dataset = datasets.FashionMNIST(
-        data_dir, train=False, download=True, transform=apply_transform
-    )
     train_idxs, valid_idxs = train_test_split(
         np.arange(len(train_valid_dataset)),
         test_size=0.1,
@@ -328,6 +324,12 @@ def prepare_fashionMNIST(data_dir, seed=42):
         shuffle=True,
         stratify=train_valid_dataset.targets
     )
+    
+    train_dataset = Subset(train_valid_dataset, train_idxs)
+    valid_dataset = Subset(train_valid_dataset, valid_idxs)
+
+    test_dataset = datasets.FashionMNIST(data_dir, train=False, download=True, transform=apply_transform)
+    
 
     return train_dataset, test_dataset, valid_dataset
 
@@ -363,7 +365,7 @@ def prepare_cifar10(data_dir, seed=42):
     return train_dataset, test_dataset, valid_dataset
 
 def prepare_utkface(self, seed=42):
-     """
+    """
     Returns train/test/validation utkface datasets.
 
     :params data_dir: directory where the images are located
@@ -373,7 +375,6 @@ def prepare_utkface(self, seed=42):
 
     :returns: train/test/validation utkface datasets that can be used for training UTKFace
     """
-
     generator = torch.Generator().manual_seed(seed)
 
     apply_transform = transforms.Compose(
@@ -403,27 +404,69 @@ def prepare_utkface(self, seed=42):
 
     return train_dataset, test_dataset, valid_dataset
 
-def prepare_synthetic(self, num_clients, num_classes, num_features):
+def prepare_synthetic(self, num_clients, num_classes, num_features, seed=42):
     train_dataset, test_dataset, valid_dataset = SyntheticDataset(num_clients, num_classes, num_features).split()
     return train_dataset, test_dataset, valid_dataset
 
-
 class FLDataset(Dataset):
-    def __init__(self, dataset_name, data_dir='./data'):
-        self.dataset_name = dataset_name
+    def __init__(self, config):
+        self.config = get_current_config()
+        self.train_dataset, self.test_dataset, self.valid_dataset = self.get_dataset()
 
-    
-    def get_dataset(self, dataset_name):
-        if dataset_name == 'cifar10':
-            return prepare_cifar10(data_dir)
-        elif dataset_name == 'fashionMNIST':
-            return prepare_fashionMNIST(data_dir)
-        elif dataset_name == 'utkface':
-            return prepare_utkface(data_dir)
-        elif dataset_name == 'synthetic':
-            return prepare_synthetic(data_dir)
+    @param('dataset.dataset_name')
+    @param('training_params.seed')
+    @param('dataset.data_dir')
+    @param('fl_parameters.num_clients')
+    @param('dataset.num_classes')
+    @param('dataset.num_features')
+    def get_dataset(self, dataset_name, seed, data_dir, num_clients, num_classes, num_features):
+        if dataset_name.lower() == 'cifar10':
+            return prepare_cifar10(data_dir, seed)
+        elif dataset_name.lower() == 'fashionmnist':
+            return prepare_fashionMNIST(data_dir, seed)
+        elif dataset_name.lower() == 'utkface':
+            return prepare_utkface(data_dir, seed)
+        elif dataset_name.lower() == 'synthetic':
+            return prepare_synthetic(data_dir, seed, num_clients, num_classes, num_features)
+        else:
+            raise ValueError(f"Dataset {self.dataset_name} not supported")
 
-    def get_iid_partition(self, dataset, num_clients):
+    @param('split_params.split_type')
+    def get_client_groups(self, split_type):
+        if split_type == "iid":
+            train_user_groups = self.get_iid_partition(dataset=self.train_dataset)
+            valid_user_groups = self.get_iid_partition(dataset=self.valid_dataset)
+            test_user_groups = self.get_iid_partition(dataset=self.test_dataset)
+
+        elif split_type == "noniid":
+            distribution = self.generate_noniid_distribution(self.train_dataset)
+            train_user_groups = self.get_noniid_partition(self.train_dataset, distribution)
+            valid_user_groups = self.get_noniid_partition(self.valid_dataset, distribution)
+            test_user_groups = self.get_noniid_partition(self.test_dataset, distribution)
+
+
+        elif split_type == "maj_min":
+            train_user_groups = self.get_noniid_partition(self.train_dataset.targets, distribution)
+            valid_user_groups = self.get_noniid_partition(self.valid_dataset.targets, distribution)
+            test_user_groups = self.get_noniid_partition(self.test_dataset.targets, distribution)
+        
+            wandb.log(
+                {
+                    "majority_classes": majority_classes,
+                    "minority_classes": minority_classes,
+                    "majority_users": majority_users,
+                    "minority_users": minority_users,
+                }
+            )
+
+        else:
+            raise ValueError(f"Split type {self.split_type} not supported")
+        
+        return train_user_groups, valid_user_groups, test_user_groups
+
+
+    @param('fl_parameters.num_clients')
+    def get_iid_partition(self, num_clients, dataset):
         """
         Sample I.I.D. client data from dataset
         :param dataset:
@@ -437,7 +480,11 @@ class FLDataset(Dataset):
             all_idxs = list(set(all_idxs) - dict_users[i])
         return dict_users 
 
-    def generate_noniid_partitions(self, num_clients: int, num_classes: int, dataset_labels: Union[torch.Tensor, List], beta: float, min_proportion: float = 0):
+    @param('fl_parameters.num_clients')
+    @param('dataset.num_classes')
+    @param('split_params.dirichlet_param')
+    @param('split_params.min_proportion')
+    def generate_noniid_distribution(self, num_clients: int, num_classes: int, beta: float, min_proportion: float, dataset: Dataset):
         """
         Sample from dirichlet distribution to give non-iid distribution for users.
 
@@ -450,6 +497,8 @@ class FLDataset(Dataset):
         :return: array of shape (num_classes, num_clients), where each row is a distribution
             over the users for a specific class
         """
+
+        dataset_labels = dataset.targets
         if isinstance(dataset_labels, list):
             dataset_labels = torch.tensor(dataset_labels)
         class_weights = np.zeros((num_classes,))
@@ -474,7 +523,10 @@ class FLDataset(Dataset):
 
         return class_sample_distribution
 
-    
+    @param('fl_parameters.num_clients')
+    @param('dataset.num_classes')
+    @param('split_params.majority_proportion')
+    @param('split_params.majority_minority_overlap')
     def split_majority_minority(self, num_clients: int, num_classes: int, majority_proportion: float, overlap: float):
         """
         Split the classes and users into a majority and minority group
@@ -536,50 +588,6 @@ class FLDataset(Dataset):
             np.arange(num_majority_users),
             np.arange(num_majority_users, num_clients),
         )
-
-    def generate_iid_splits(self):
-        train_user_groups = self.get_iid_partition(self.train_dataset, self.num_clients)
-        valid_user_groups = self.get_iid_partition(self.valid_dataset, self.num_clients)
-        test_user_groups = self.get_iid_partition(self.test_dataset, self.num_clients)
-
-        return train_user_groups, valid_user_groups, test_user_groups
-    
-    def generate_noniid_splits(self, split_params):
-
-        distribution = parameterized_noniid_distribution(split_params["num_clients"], split_params["num_classes"],
-                train_labels,
-                float(split_params["dirichlet_param"]),
-                split_params["min_proportion"])
-            
-        train_user_groups = get_noniid_partition(train_labels, distribution)
-        valid_user_groups = get_noniid_partition(valid_labels, distribution)
-        test_user_groups = get_noniid_partition(test_labels, distribution)
-        
-        return train_user_groups, valid_user_groups, test_user_groups
-    
-
-    def generate_maj_min_partitions(self, split_params):
-        (distribution, majority_classes, minority_classes, majority_users, minority_users, ) = self.split_majority_minority(
-            num_clients=self.num_clients,
-            num_classes=self.num_classes,
-            majority_proportion=split_params["majority_proportion"],
-            overlap=split_params["majority_minority_overlap"]
-        )
-
-        train_user_groups = self.get_noniid_partition(train_labels, distribution)
-        valid_user_groups = self.get_noniid_partition(valid_labels, distribution)
-        test_user_groups = self.get_noniid_partition(test_labels, distribution)
-        wandb.log(
-            {
-                "majority_classes": majority_classes,
-                "minority_classes": minority_classes,
-                "majority_users": majority_users,
-                "minority_users": minority_users,
-            }
-        )
-
-        return train_user_groups, valid_user_groups, test_user_groups
-
             
 
 

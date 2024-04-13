@@ -9,29 +9,11 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
-import utils
+import general_utils
+import dataset_utils
 
-
-class DatasetSplit(Dataset):
-    """An abstract Dataset class wrapped around Pytorch Dataset class."""
-
-    def __init__(self, dataset, idxs):
-        self.dataset = dataset
-        self.idxs = [int(i) for i in idxs]
-
-    def __len__(self):
-        return len(self.idxs)
-
-    def __getitem__(self, item):
-        try:
-            image, label = self.dataset[self.idxs[item]]
-        except:
-            # print("IN EXCEPT -- OR UTKFACE")
-            image = self.dataset.dataset.images[self.idxs[item]]
-            label = [d["ethnicity"] for d in self.dataset.dataset.labels][
-                self.idxs[item]
-            ]
-        return image, label
+from fastargs import get_current_config
+from fastargs.decorators import param, section
 
 
 class LocalUpdate:
@@ -45,37 +27,13 @@ class LocalUpdate:
     override the methods in this class.
     """
 
-    def __init__(
-        self,
-        args,
-        train_dataset,
-        test_dataset,
-        valid_dataset,
-        train_idxs,
-        test_idxs,
-        valid_idxs,
-        logger,
-        global_model,
-    ):
-        self.args = args
+    def __init__(self, train_dataset, test_dataset, valid_dataset, train_idxs, test_idxs, valid_idxs, logger, global_model,):
+
+        self.config = get_current_config()
         self.logger = logger
         self.train_idxs = train_idxs
         self.test_idxs = test_idxs
-        self.trainloader = DataLoader(
-            DatasetSplit(train_dataset, train_idxs),
-            batch_size=self.args.local_bs,
-            shuffle=True,
-        )
-        self.testloader = DataLoader(
-            DatasetSplit(test_dataset, test_idxs),
-            batch_size=self.args.local_bs,
-            shuffle=False,
-        )
-        self.validloader = DataLoader(
-            DatasetSplit(valid_dataset, valid_idxs),
-            batch_size=self.args.local_bs,
-            shuffle=False,
-        )
+        
         self.device = torch.device(
             "cuda"
             if torch.cuda.is_available()
@@ -85,12 +43,34 @@ class LocalUpdate:
         self.criterion = nn.NLLLoss().to(self.device)
 
         self.global_model = global_model
+        self.trainloader, self.testloader, self.validloader = self.get_local_loaders()
 
-    def configure_optimizer(self, model):
+    @param('fl_parameters.local_batch_size')
+    def get_local_loaders(self, local_bs):
+        trainloader = DataLoader(
+            dataset_utils.DatasetSplit(train_dataset, train_idxs),
+            batch_size=local_bs,
+            shuffle=True,
+        )
+        testloader = DataLoader(
+            dataset_utils.DatasetSplit(test_dataset, test_idxs),
+            batch_size=local_bs,
+            shuffle=False,
+        )
+        validloader = DataLoader(
+            dataset_utils.DatasetSplit(valid_dataset, valid_idxs),
+            batch_size=local_bs,
+            shuffle=False,
+        )
+
+        return trainloader, testloader, validloader
+
+    @param('client_parameters.local_lr')
+    def configure_optimizer(self, local_lr, model):
         """
         Configures the optimizer for the local updates.
         """
-        optimizer = torch.optim.SGD(model.parameters(), lr=self.args.lr, momentum=0.5)
+        optimizer = torch.optim.SGD(model.parameters(), lr=local_lr, momentum=0.5) # 0.5 momentum? why?
         return optimizer
 
     def calculate_loss(self, model, images, labels):
@@ -107,7 +87,8 @@ class LocalUpdate:
         loss = self.criterion(log_probs, labels)
         return loss
 
-    def update_weights(self, model, global_round, client_id=None):
+    @param('client_parameters.local_epochs')
+    def update_weights(self, local_epochs, model, global_round, client_id=None):
         """
         Performs the local updates and returns the updated model.
             :param model: local model
@@ -120,7 +101,7 @@ class LocalUpdate:
         # Set optimizer for the local updates
         optimizer = self.configure_optimizer(model)
 
-        for iter in range(self.args.local_ep):
+        for iter in range(local_epochs):
             batch_loss = []
             for batch_idx, (images, labels) in enumerate(self.trainloader):
                 images, labels = images.to(self.device), labels.to(self.device)
@@ -130,7 +111,7 @@ class LocalUpdate:
                 loss.backward()
                 optimizer.step()
 
-                if self.args.verbose and (batch_idx % 10 == 0):
+                if (batch_idx % 10 == 0):
                     print(
                         "| Global Round : {} | Local Epoch : {} | [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
                             global_round,
@@ -181,9 +162,10 @@ class LocalUpdate:
 
 
 class LocalUpdateSparsified(LocalUpdate):
+    @param('fl_parameters.sparsifiction_ratio')
     def __init__(
         self,
-        args,
+        sparsification_ratio,
         train_dataset,
         valid_dataset,
         test_dataset,
@@ -194,7 +176,7 @@ class LocalUpdateSparsified(LocalUpdate):
         global_model,
     ):
         super().__init__(
-            args,
+            sparsification_ratio,
             train_dataset,
             valid_dataset,
             test_dataset,
@@ -204,9 +186,10 @@ class LocalUpdateSparsified(LocalUpdate):
             logger,
             global_model,
         )
-        self.sparsification_ratio = args.sparsification_ratio
+        self.sparsifiction_ratio = sparsification_ratio
 
-    def update_weights(self, model, global_round, client_id=None, **kwargs):
+    @param('client_parameters.local_epochs')
+    def update_weights(self, local_epochs, model, global_round, client_id=None):
         """
         Performs the local updates and returns the updated model.
             :param model: local model
@@ -220,7 +203,7 @@ class LocalUpdateSparsified(LocalUpdate):
         optimizer = self.configure_optimizer(model)
         glob_flat = utils.flatten(model)
 
-        for iter in range(self.args.local_ep):
+        for iter in range(local_epochs):
             batch_loss = []
             for batch_idx, (images, labels) in enumerate(self.trainloader):
                 images, labels = images.to(self.device), labels.to(self.device)
@@ -230,7 +213,7 @@ class LocalUpdateSparsified(LocalUpdate):
                 loss.backward()
                 optimizer.step()
 
-                if self.args.verbose and (batch_idx % 10 == 0):
+                if (batch_idx % 10 == 0):
                     print(
                         "| Global Round : {} | Local Epoch : {} | [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
                             global_round,
@@ -247,15 +230,14 @@ class LocalUpdateSparsified(LocalUpdate):
             # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
 
         sparse_ratio = self.sparsification_ratio
-        if kwargs["sparsification_percentage"] is not None:
-            sparse_ratio = kwargs["sparsification_percentage"]
+        
         flat = utils.flatten(model)
         diff_flat = flat - glob_flat
         bitmask = utils.get_bitmask_per_method(
             flat_model=diff_flat,
             sparse_ratio=sparse_ratio,
-            sparsification_type=self.args.sparsification_type,
-            choose_from_top_r_percentile=self.args.choose_from_top_r_percentile,
+            sparsification_type=self.sparsification_type,
+            choose_from_top_r_percentile=self.choose_from_top_r_percentile,
         )
         diff_flat *= bitmask
         return model, diff_flat, bitmask, sum(epoch_loss) / len(epoch_loss)
@@ -267,13 +249,14 @@ class FedProxLocalUpdate(LocalUpdate):
     calculate_loss method to include the proximal term.
     """
 
-    def calculate_loss(self, model, images, labels):
+    @param('fl_parameters.mu')
+    def calculate_loss(self, mu, model, images, labels):
         """
         The proximal term is added to the loss function. The proximal term is
         calculated as:
             proximal_term = Σ(||w - w_t||^2)
         """
-        if self.args.mu is None:
+        if mu is None:
             raise ValueError(
                 "mu argument must be passed as arugument for fl_method=FedProx"
             )
@@ -283,7 +266,7 @@ class FedProxLocalUpdate(LocalUpdate):
         for w, w_t in zip(model.parameters(), self.global_model.parameters()):
             proximal_term += (w - w_t).norm(2)
 
-        fedprox_term = (self.args.mu / 2) * proximal_term
+        fedprox_term = (mu / 2) * proximal_term
         return super().calculate_loss(model, images, labels) + fedprox_term
 
 
@@ -294,7 +277,9 @@ class qFedAvgLocalUpdate(LocalUpdate):
     Reference: https://arxiv.org/pdf/1905.10497.pdf
     """
 
-    def update_weights(self, model, global_round, client_id=None):
+    @param('fl_parameters.q')
+    @param('client_parameters.local_lr')
+    def update_weights(self, q, local_lr, model, global_round, client_id=None):
         """
         Performs the qFedAvg local updates and returns the updated model.
             :param model: local model
@@ -310,7 +295,7 @@ class qFedAvgLocalUpdate(LocalUpdate):
         base_model = copy.deepcopy(model.state_dict())
 
         training_losses = []
-        for iter in range(self.args.local_ep):
+        for iter in range(local_epochs):
             batch_loss = []
             train_loss = 0.0
             for batch_idx, (images, labels) in enumerate(self.trainloader):
@@ -323,7 +308,7 @@ class qFedAvgLocalUpdate(LocalUpdate):
 
                 train_loss += loss.item() * images.size(0)
 
-                if self.args.verbose and (batch_idx % 10 == 0):
+                if (batch_idx % 10 == 0):
                     print(
                         "| Global Round : {} | Local Epoch : {} | [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
                             global_round,
@@ -345,13 +330,13 @@ class qFedAvgLocalUpdate(LocalUpdate):
         with torch.no_grad():
             # qFedAvg update to the model
             F = sum(training_losses) / len(training_losses)
-            if self.args.q is None:
+            if q is None:
                 raise ValueError(
                     "q argument must be passed as argument for fl_method=qFedAvg"
                 )
-            F += self.args.eps
-            Fq = torch.pow(torch.tensor(F, dtype=torch.float32), self.args.q)
-            L = 1.0 / self.args.lr
+            F += eps
+            Fq = torch.pow(torch.tensor(F, dtype=torch.float32), q)
+            L = 1.0 / local_lr
 
             delta_weights, delta, h, h_expanded = (
                 OrderedDict(),
@@ -371,7 +356,7 @@ class qFedAvgLocalUpdate(LocalUpdate):
                 size = 1
                 h[key] = Fq * (
                     (
-                        self.args.q
+                        q
                         * torch.norm(torch.flatten(delta_weights[key]), 2) ** 2
                     )
                     / F
@@ -400,7 +385,7 @@ NAME_TO_LOCAL_UPDATE: Dict[str, Type[LocalUpdate]] = {
 }
 
 
-def test_inference(args, model, test_dataset):
+def test_inference(model, test_dataset):
     """Returns the test accuracy and loss."""
 
     model.eval()
@@ -433,9 +418,8 @@ def test_inference(args, model, test_dataset):
     accuracy = correct / total
     return accuracy, loss / len(testloader)
 
-
+@section('fl_parameters.fl_method')
 def get_local_update(
-    args,
     train_dataset,
     test_dataset,
     valid_dataset,
@@ -449,8 +433,6 @@ def get_local_update(
     Get local update from federated learning method name and return the
     local update object.
 
-    :param args: Arguments object containing configurations passed
-                    as arguments to the program call
 
     :param train_dataset: Dataset object containing the training data
     :param test_dataset: Dataset object containing the test data
@@ -461,9 +443,8 @@ def get_local_update(
     :param logger: Logger object to log the local update
     :return: Local update object
     """
-    if args.fl_method in NAME_TO_LOCAL_UPDATE:
-        return NAME_TO_LOCAL_UPDATE[args.fl_method](
-            args=args,
+    if fl_method in NAME_TO_LOCAL_UPDATE:
+        return NAME_TO_LOCAL_UPDATE[fl_method](
             train_dataset=train_dataset,
             test_dataset=test_dataset,
             valid_dataset=valid_dataset,
@@ -475,5 +456,5 @@ def get_local_update(
         )
     else:
         raise ValueError(
-            f"Unsupported federated learning method name {args.fl_method} for local update."
+            f"Unsupported federated learning method name {fl_method} for local update."
         )

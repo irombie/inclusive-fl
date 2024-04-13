@@ -23,11 +23,9 @@ from models import (
     LogisticRegression,
 )
 
-from utils import (
+from general_utils import (
     custom_exponential_sparsity,
-    exp_details,
     flatten,
-    get_dataset,
     set_seed,
     updateFromNumpyFlatArray,
 )
@@ -58,7 +56,8 @@ class FLTrainingHarness:
     def __init__(self):
         self.config = get_current_config()
         self.device =  torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_built() else "cpu"))
-        self.global_model = self.get_model()
+        self.global_model = self.init_global_model()
+        self.splits = self.get_data_splits()
 
     @param('model.model_name')
     @param('dataset.num_classes')
@@ -73,9 +72,9 @@ class FLTrainingHarness:
         model.to(self.device)
  
         return model
-
-    def global_update(self):
-        global_update = get_global_update(self.config, self.global_model)
+    @param('fl_parameters.fl_method')
+    def global_update(self, fl_method):
+        global_update = get_global_update(fl_method=fl_method, model=self.global_model)
         return global_update
     
     def get_local_update(self):
@@ -94,11 +93,39 @@ class FLTrainingHarness:
         return local_update
     
     def get_data_splits(self):
-        main_ds = FLDataset(self.config)
+        main_ds = FLDataset()
         main_ds.get_dataset()
         train_user_groups, test_user_groups, valid_user_groups = main_ds.get_client_groups()
 
         return train_user_groups, test_user_groups, valid_user_groups
+
+    @param('fl_parameters.num_clients')
+    @param('fl_parameters.frac')
+    def train_global_round(self, num_clients, frac):
+        m = max(int(frac * num_clients), 1)
+        idxs_users = np.random.choice(range(num_clients), m, replace=False)
+        global_flat = general_utils.flatten(self.global_model)
+        local_weights_sum, local_bitmasks_sum, local_delta_sum, local_h_sum = (
+            np.zeros_like(global_flat),
+            np.zeros_like(global_flat),
+            np.zeros_like(global_flat),
+            np.zeros_like(global_flat),
+        )
+    
+    def run_client_validation_step(self, client_idx):
+        local_update = self.get_local_update(train_dataset=self.train_dataset,
+                                             test_dataset=self.test_dataset,
+                                             valid_dataset=self.valid_dataset,
+                                             train_idxs=self.train_user_groups[client_idx],
+                                             test_idxs=self.test_user_groups[client_idx],
+                                             valid_idxs=self.valid_user_groups[client_idx],
+                                             logger=self.logger,
+                                             global_model=self.global_model)
+            
+        acc, loss = local_update.inference(model=self.global_model, dataset_type="valid")
+        return acc, loss
+    
+    def run_client_test_step(self, )
 
     #def train_one_round(self):
     #def evaluate -- need to think about how this would work in the context of the different algorithms in the codebase
@@ -111,7 +138,9 @@ if __name__ == "__main__":
     config.collect_argparse_args(parser)
     config.validate(mode='stderr')
     config.summary()
-
+    harness = FLTrainingHarness()
+    harness.get_data_splits()
+    #globalupdate = harness.global_update()
     ### Testing code
     #harness = FLTrainingHarness()
     #harness.get_data_splits()
@@ -119,47 +148,11 @@ if __name__ == "__main__":
 '''
 
 def main():
-    
-
-    # copy weights
-    global_weights = global_model.state_dict()
-
-    global_update = get_global_update(args, global_model, num_users=args.num_users)
-
-    # Training
-    train_loss, train_accuracy, test_accuracy, valid_accuracy = [], [], [], []
-    print_every = 2
-
-    ### ckpt params
-    ckpt_dict = dict()
-    ckpt_dict.update(vars(args))
-    ckpt_dict["train_ds_splits"] = train_user_groups
-    ckpt_dict["test_ds_splits"] = test_user_groups
-    ckpt_dict["global_lr"] = args.global_lr
-    ckpt_dict["wandb_run_name"] = run_name
 
     list_acc = []
 
     for epoch in tqdm(range(args.epochs)):
-        local_losses = []
-        print(f"\n | Global Training Round : {epoch+1} |\n")
-
-        m = max(int(args.frac * args.num_users), 1)
-        idxs_users = np.random.choice(range(args.num_users), m, replace=False)
-
-        valid_losses = []
-        global_model.eval()
-
-        valid_accs, valid_loss = [], []
-
-        global_flat = flatten(global_model)
-        local_weights_sum, local_bitmasks_sum, local_delta_sum, local_h_sum = (
-            np.zeros_like(global_flat),
-            np.zeros_like(global_flat),
-            np.zeros_like(global_flat),
-            np.zeros_like(global_flat),
-        )
-
+        
         for c in idxs_users:
             # Getting the validation loss for all users' data of the global model
             local_update = get_local_update(

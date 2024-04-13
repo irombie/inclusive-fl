@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple, Type
 import numpy as np
 import torch
 
-import utils
+import general_utils
 
 from fastargs import get_current_config
 from fastargs.decorators import param, section
@@ -104,7 +104,7 @@ class MeanWeights(AbstractGlobalUpdate):
         return np.divide(local_weights_sum, num_clients)
 
     def update_global_model(self, global_model, global_weights, **kwargs) -> None:
-        utils.updateFromNumpyFlatArray(global_weights, global_model)
+        general_utils.updateFromNumpyFlatArray(global_weights, global_model)
 
 
 class MeanWeightsSparsified(AbstractGlobalUpdate):
@@ -112,6 +112,7 @@ class MeanWeightsSparsified(AbstractGlobalUpdate):
 
     def __init__(self, model: torch.nn.Module, **kwargs):
         super().__init__(model)
+        
     @param('fl_parameters.global_learning_rate')
     def aggregate_weights(
         self,
@@ -138,7 +139,7 @@ class MeanWeightsSparsified(AbstractGlobalUpdate):
             out=np.zeros_like(local_weights_sum),
             where=local_bitmasks_sum != 0,
         )
-        flat_glob = utils.flatten(global_model)
+        flat_glob = general_utils.iflatten(global_model)
         return flat_glob + self.global_learning_rate * weigted_local_model_sum
 
 
@@ -293,7 +294,7 @@ class qFedAvgGlobalUpdate(AbstractGlobalUpdate):
             out=np.zeros_like(delta_sum),
             where=h_sum != 0,
         )
-        flat_glob = utils.flatten(global_model)
+        flat_glob = general_utils.flatten(global_model)
         return flat_glob - weigted_local_model_sum
 
 
@@ -307,7 +308,7 @@ NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {
 }
 
 @param('fl_parameters.fl_method')
-def get_global_update( model: torch.nn.Module, **kwargs) -> AbstractGlobalUpdate:
+def get_global_update(fl_method, model: torch.nn.Module, **kwargs) -> AbstractGlobalUpdate:
     """
     Get global update from federated learning method name
 

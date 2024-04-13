@@ -409,10 +409,10 @@ def prepare_synthetic(self, num_clients, num_classes, num_features, seed=42):
     return train_dataset, test_dataset, valid_dataset
 
 class FLDataset(Dataset):
-    def __init__(self, config):
+    def __init__(self):
         self.config = get_current_config()
         self.train_dataset, self.test_dataset, self.valid_dataset = self.get_dataset()
-
+        
     @param('dataset.dataset_name')
     @param('training_params.seed')
     @param('dataset.data_dir')
@@ -589,13 +589,19 @@ class FLDataset(Dataset):
             np.arange(num_majority_users, num_clients),
         )
             
+class DatasetSplit(Dataset):
+    """An abstract Dataset class wrapped around Pytorch Dataset class."""
 
+    def __init__(self, dataset, idxs):
+        self.dataset = dataset
+        self.idxs = [int(i) for i in idxs]
 
-        
+    def __len__(self):
+        return len(self.idxs)
 
-
-
-
+    def __getitem__(self, item):
+        image, label = self.dataset[self.idxs[item]]
+        return image, label
 
 
 

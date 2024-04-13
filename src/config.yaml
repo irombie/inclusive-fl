@@ -10,7 +10,12 @@ training_params:
   seed: 0
 fl_parameters:
   num_clients: 10
-  fl_method: FedAvg
+  fl_method: FedSyn 
 global_parameters:
   global_rounds: 10
   client_frac: 0.1
+  global_learning_rate: 10000
+client_parameters:
+  local_batch_size: 10
+  local_lr: 1e-3
+  local_epochs: 5

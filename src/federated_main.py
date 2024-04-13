@@ -72,46 +72,106 @@ class FLTrainingHarness:
         model.to(self.device)
  
         return model
-    @param('fl_parameters.fl_method')
-    def global_update(self, fl_method):
-        global_update = get_global_update(fl_method=fl_method, model=self.global_model)
-        return global_update
-    
-    def get_local_update(self):
-        local_update = get_local_update(
-            args=self.config,
-            train_dataset=train_dataset,
-            test_dataset=test_dataset,
-            valid_dataset=valid_dataset,
-            train_idxs=train_user_groups[c],
-            test_idxs=test_user_groups[c],
-            valid_idxs=valid_user_groups[c],
-            logger=run,
-            global_model=global_model,
-        )
 
-        return local_update
-    
     def get_data_splits(self):
         main_ds = FLDataset()
         main_ds.get_dataset()
         train_user_groups, test_user_groups, valid_user_groups = main_ds.get_client_groups()
 
         return train_user_groups, test_user_groups, valid_user_groups
+    
+    @param('fl_parameters.fl_method')
+    def global_update(self, fl_method):
+        global_update = get_global_update(fl_method=fl_method, model=self.global_model)
+        return global_update
+    
+    def get_local_update(self, client_idx):
+        local_update = get_local_update(
+            args=self.config,
+            train_dataset=train_dataset,
+            test_dataset=test_dataset,
+            valid_dataset=valid_dataset,
+            train_idxs=train_user_groups[client_idx],
+            test_idxs=test_user_groups[client_idx],
+            valid_idxs=valid_user_groups[client_idx],
+            logger=False,
+            global_model=global_model,
+        )
+
+        return local_update
+
+    @param('fl_parameters.use_fair_sparsification')
+    @param('fl_parameters.sparsification_ratio')
+    def run_fedsyn_client(self, use_fair_sparsification, sparsification_ratio, client_idx, local_update, epoch):
+        local_model = copy.deepcopy(self.global_model)
+        if use_fair_sparsification:
+            sparsification_ratio = self.client_prob_dist[client_idx]
+
+        w, flat_update, bitmask, _ = local_update.update_weights(local_model=local_model, sparsification_ratio=sparsification_ratio, global_round=epoch)
+        
+        acc, loss = local_update.inference(model=w, dataset_type="train")
+
+        return w, flat_update, bitmask, loss, acc
+
+    def run_qfedavg_client(self, local_update, epoch):
+        local_model = copy.deepcopy(self.global_model)
+        delta, h, w, _ = local_update.update_weights(local_model=local_model, global_round=epoch)
+        acc, loss = local_update.inference(model=w, dataset_type="train")
+        return delta, h, w, loss, acc
+
+    def run_generic_client(self, local_update, epoch):
+        local_model = copy.deepcopy(self.global_model)
+        w, _ = local_update.update_weights(local_model=local_model, global_round=epoch)
+        acc, loss = local_update.inference(model=w, dataset_type="train")
+        return w, loss, acc
 
     @param('fl_parameters.num_clients')
-    @param('fl_parameters.frac')
-    def train_global_round(self, num_clients, frac):
+    @param('fl.paramsters.frac')
+    @param('fl_parameters.fl_method')
+    def train_global_round(self, num_clients, frac, fl_method, epoch):
         m = max(int(frac * num_clients), 1)
         idxs_users = np.random.choice(range(num_clients), m, replace=False)
-        global_flat = general_utils.flatten(self.global_model)
         local_weights_sum, local_bitmasks_sum, local_delta_sum, local_h_sum = (
             np.zeros_like(global_flat),
             np.zeros_like(global_flat),
             np.zeros_like(global_flat),
             np.zeros_like(global_flat),
         )
-    
+        client_train_loss, client_train_acc = [], []
+        client_test_loss, client_test_acc = [], []
+        client_valid_loss, client_valid_acc = [], []
+        for client_idx in num_clients:
+            local_update = self.get_local_update(client_idx)
+            if fl_method == "FedSyn":
+                w, flat_update, bitmask, loss, acc = self.run_fedsyn_client(client_idx, local_update, epoch)
+                local_weights_sum += flat_update
+                local_bitmasks_sum += bitmask
+            elif fl_method == "qFedAvg":
+                delta, h, w, loss, acc = self.run_qfedavg_client(local_update, epoch)
+                local_delta_sum += delta
+                local_h_sum += h
+                local_bitmasks_sum += np.ones_like(local_bitmasks_sum)
+            else:
+                w, loss, acc = self.run_generic_client(local_update, epoch)
+                local_weights_sum += flatten(local_model)
+                local_bitmasks_sum += np.ones_like(local_bitmasks_sum)
+        
+        ## global step
+        if fl_method == "FedSyn":
+            global_w = self.global_update.aggregate_weights(local_weights_sum, self.global_model, local_bitmasks_sum)
+            updateFromNumpyFlatArray(global_w, self.global_model)
+        elif fl_method == "qFedAvg":
+            global_weights = self.global_update.aggregate_weights(self.global_model, local_delta_sum, local_h_sum)
+            updateFromNumpyFlatArray(global_weights, self.global_model)
+        else:
+            global_weights = self.global_update.aggregate_weights(local_weights_sum, valid_losses, len(idxs_users))
+            self.global_update.update_global_model(self.global_model, global_weights)
+
+
+    def consolidate_metrics(self):
+
+
+    @param('fl_parameters.use_fair_sparsification')
     def run_client_validation_step(self, client_idx):
         local_update = self.get_local_update(train_dataset=self.train_dataset,
                                              test_dataset=self.test_dataset,
@@ -124,11 +184,10 @@ class FLTrainingHarness:
             
         acc, loss = local_update.inference(model=self.global_model, dataset_type="valid")
         return acc, loss
-    
-    def run_client_test_step(self, )
 
-    #def train_one_round(self):
-    #def evaluate -- need to think about how this would work in the context of the different algorithms in the codebase
+        
+
+
 
     
 if __name__ == "__main__":
@@ -138,8 +197,8 @@ if __name__ == "__main__":
     config.collect_argparse_args(parser)
     config.validate(mode='stderr')
     config.summary()
-    harness = FLTrainingHarness()
-    harness.get_data_splits()
+    #harness = FLTrainingHarness()
+    #harness.get_data_splits()
     #globalupdate = harness.global_update()
     ### Testing code
     #harness = FLTrainingHarness()
@@ -152,41 +211,6 @@ def main():
     list_acc = []
 
     for epoch in tqdm(range(args.epochs)):
-        
-        for c in idxs_users:
-            # Getting the validation loss for all users' data of the global model
-            local_update = get_local_update(
-                args=args,
-                train_dataset=train_dataset,
-                test_dataset=test_dataset,
-                valid_dataset=valid_dataset,
-                train_idxs=train_user_groups[c],
-                test_idxs=test_user_groups[c],
-                valid_idxs=valid_user_groups[c],
-                logger=run,
-                global_model=global_model,
-            )
-
-            acc, loss = local_update.inference(model=global_model, dataset_type="valid")
-
-            valid_accs.append(acc)
-            valid_losses.append(loss)
-            # Uncomment to log to wandb if needed
-            # run.log({f"local model test loss for user {c}": loss})
-            # run.log({f"local model test accuracy for user {c}": acc})
-
-        valid_loss_avg = sum(valid_losses) / len(valid_accs)
-        valid_loss.append(valid_loss_avg)
-        valid_acc_avg = sum(valid_accs) / len(valid_accs)
-        valid_accuracy.append(valid_acc_avg)
-
-        run.log(
-            {
-                f"Local Model Stddev of Valid Losses": np.std(
-                    np.array(valid_losses).flatten()
-                )
-            }
-        )
 
         client_prob_dist = None
         if args.use_fair_sparsification:

@@ -42,11 +42,8 @@ from argparse import ArgumentParser
 
 from harness_params import get_current_params
 
-#from global_updates import get_global_update
+from global_updates import get_global_update ## currently in work
 #from update import get_local_update, test_inference
-
-
-
 
 get_current_params()
 
@@ -57,9 +54,6 @@ if sys.version_info[0:2] != (3, 11):
             f"Code requires python 3.11. You are using {sys.version_info[0:2]}. Please update your conda env and install requirements.txt on the new env."
         )
 
-
-
-
 class FLTrainingHarness:
     def __init__(self):
         self.config = get_current_config()
@@ -69,7 +63,7 @@ class FLTrainingHarness:
     @param('model.model_name')
     @param('dataset.num_classes')
     @param('dataset.num_features')
-    def get_model(self, model_name, num_classes, num_features=None):
+    def init_global_model(self, model_name, num_classes, num_features=None):
         model_definition = globals()[model_name]
 
         if num_features != 0:
@@ -79,6 +73,25 @@ class FLTrainingHarness:
         model.to(self.device)
  
         return model
+
+    def global_update(self):
+        global_update = get_global_update(self.config, self.global_model)
+        return global_update
+    
+    def get_local_update(self):
+        local_update = get_local_update(
+            args=self.config,
+            train_dataset=train_dataset,
+            test_dataset=test_dataset,
+            valid_dataset=valid_dataset,
+            train_idxs=train_user_groups[c],
+            test_idxs=test_user_groups[c],
+            valid_idxs=valid_user_groups[c],
+            logger=run,
+            global_model=global_model,
+        )
+
+        return local_update
     
     def get_data_splits(self):
         main_ds = FLDataset(self.config)
@@ -86,6 +99,11 @@ class FLTrainingHarness:
         train_user_groups, test_user_groups, valid_user_groups = main_ds.get_client_groups()
 
         return train_user_groups, test_user_groups, valid_user_groups
+
+    #def train_one_round(self):
+    #def evaluate -- need to think about how this would work in the context of the different algorithms in the codebase
+
+    
 if __name__ == "__main__":
     config = get_current_config()
     parser = ArgumentParser()
@@ -93,8 +111,10 @@ if __name__ == "__main__":
     config.collect_argparse_args(parser)
     config.validate(mode='stderr')
     config.summary()
-    lol = FLTrainingHarness()
-    lol.get_data_splits()
+
+    ### Testing code
+    #harness = FLTrainingHarness()
+    #harness.get_data_splits()
 
 '''
 

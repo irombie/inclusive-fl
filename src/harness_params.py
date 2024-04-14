@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 
 def get_current_params():
     Section('model', 'model parameters').params(
-        model_name=Param(str, 'Global model architecture (common across devices)', And(str, OneOf(['SmallCNN', 'ResNet9', 'ResNet18', 'MLP', 'LogisticRegression', 'VGG'])), required=True),
+        model_name=Param(And(str, OneOf(['SmallCNN', 'ResNet9', 'ResNet18', 'MLP', 'LogisticRegression', 'VGG', 'CNN_FashionMNIST'])), 'Global model architecture (common across devices)', required=True),
         num_features=Param(int, 'Number of features', default=None))
 
     Section('global_parameters', 'global parameters').params(
@@ -17,7 +17,7 @@ def get_current_params():
 
     Section('client_parameters', 'general client parameters').params(
         local_epochs=Param(int, 'number of local epochs', default=5),
-        local_batch_size=Param(int, 'local batch size', default=64),
+        local_bs=Param(int, 'local batch size', default=64),
         local_lr=Param(float, 'local learning rate', default=0.01))
         
     Section('dataset', 'dataset parameters').params(
@@ -34,13 +34,13 @@ def get_current_params():
         ckpt_path=Param(str, 'path to save checkpoints', default='./checkpoints/'),
         seed=Param(int, 'random seed', default=42),
         fl_method=Param(And(str, OneOf(['FedAvg', 'FedProx', 'qFedAvg', 'FedSyn'])), 'federated learning method', required=True),
-        sparsification_ratio=Param(float, 'sparsification ratio', default=1),
+        sparsification_ratio=Param(float, 'sparsification ratio', default=0.2),
         sparsification_type=Param(str, 'sparsification type', default='randk'),
         choose_from_top_r_percentile=Param(float, 'choose from top r percentile', default=1),
         use_fair_sparsification=Param(int, 'use fair sparsification', default=True),
         fairness_temperature=Param(float, 'fairness temperature', default=1),
         min_sparsification_ratio=Param(float, 'minimum sparsification ratio', default=0),
-        mu=Param(float, 'mu value for FedProx', default=None),
+        mu=Param(float, 'mu value for FedProx', default=0.01),
         q=Param(float, 'q value for qFedAvg', default=None),
         eps=Param(float, 'eps value for qFedAvg', default=1e-6),
         beta=Param(float, 'beta value for qFedAvg', default=0.5))

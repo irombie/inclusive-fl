@@ -15,6 +15,7 @@ import dataset_utils
 from fastargs import get_current_config
 from fastargs.decorators import param, section
 
+from torch.utils.data import Subset
 
 class LocalUpdate:
     """
@@ -31,8 +32,6 @@ class LocalUpdate:
 
         self.config = get_current_config()
         self.logger = logger
-        self.train_idxs = train_idxs
-        self.test_idxs = test_idxs
         
         self.device = torch.device(
             "cuda"
@@ -43,22 +42,30 @@ class LocalUpdate:
         self.criterion = nn.NLLLoss().to(self.device)
 
         self.global_model = global_model
+        self.train_dataset, self.test_dataset, self.valid_dataset = train_dataset, test_dataset, valid_dataset
+        self.train_idxs, self.test_idxs, self.valid_idxs = train_idxs, test_idxs, valid_idxs
         self.trainloader, self.testloader, self.validloader = self.get_local_loaders()
+        
 
-    @param('fl_parameters.local_batch_size')
+    @param('client_parameters.local_bs')
     def get_local_loaders(self, local_bs):
+        
+        self.client_train_dataset = Subset(self.train_dataset, list(self.train_idxs))
+        self.client_test_dataset = Subset(self.test_dataset, list(self.test_idxs))
+        self.client_valid_dataset = Subset(self.valid_dataset, list(self.valid_idxs))
+
         trainloader = DataLoader(
-            dataset_utils.DatasetSplit(train_dataset, train_idxs),
+            self.client_train_dataset,
             batch_size=local_bs,
             shuffle=True,
         )
         testloader = DataLoader(
-            dataset_utils.DatasetSplit(test_dataset, test_idxs),
+            self.client_test_dataset,
             batch_size=local_bs,
             shuffle=False,
         )
         validloader = DataLoader(
-            dataset_utils.DatasetSplit(valid_dataset, valid_idxs),
+            self.client_valid_dataset,          
             batch_size=local_bs,
             shuffle=False,
         )
@@ -88,7 +95,7 @@ class LocalUpdate:
         return loss
 
     @param('client_parameters.local_epochs')
-    def update_weights(self, local_epochs, model, global_round, client_id=None):
+    def update_weights(self, local_epochs, model, global_round):
         """
         Performs the local updates and returns the updated model.
             :param model: local model
@@ -99,7 +106,7 @@ class LocalUpdate:
         epoch_loss = []
 
         # Set optimizer for the local updates
-        optimizer = self.configure_optimizer(model)
+        optimizer = self.configure_optimizer(model=model)
 
         for iter in range(local_epochs):
             batch_loss = []
@@ -107,7 +114,7 @@ class LocalUpdate:
                 images, labels = images.to(self.device), labels.to(self.device)
 
                 model.zero_grad()
-                loss = self.calculate_loss(model, images, labels)
+                loss = self.calculate_loss(model=model, images=images, labels=labels)
                 loss.backward()
                 optimizer.step()
 
@@ -162,13 +169,11 @@ class LocalUpdate:
 
 
 class LocalUpdateSparsified(LocalUpdate):
-    @param('fl_parameters.sparsifiction_ratio')
     def __init__(
         self,
-        sparsification_ratio,
         train_dataset,
-        valid_dataset,
         test_dataset,
+        valid_dataset,
         train_idxs,
         valid_idxs,
         test_idxs,
@@ -176,20 +181,20 @@ class LocalUpdateSparsified(LocalUpdate):
         global_model,
     ):
         super().__init__(
-            sparsification_ratio,
             train_dataset,
-            valid_dataset,
             test_dataset,
+            valid_dataset,
             train_idxs,
-            valid_idxs,
             test_idxs,
+            valid_idxs,
             logger,
             global_model,
         )
-        self.sparsifiction_ratio = sparsification_ratio
 
     @param('client_parameters.local_epochs')
-    def update_weights(self, local_epochs, model, global_round, client_id=None):
+    @param('fl_parameters.sparsification_type')
+    @param('fl_parameters.choose_from_top_r_percentile')
+    def update_weights(self, local_epochs, model, global_round, sparsification_ratio, sparsification_type, choose_from_top_r_percentile):
         """
         Performs the local updates and returns the updated model.
             :param model: local model
@@ -200,8 +205,8 @@ class LocalUpdateSparsified(LocalUpdate):
         epoch_loss = []
 
         # Set optimizer for the local updates
-        optimizer = self.configure_optimizer(model)
-        glob_flat = utils.flatten(model)
+        optimizer = self.configure_optimizer(model=model)
+        glob_flat = general_utils.flatten(model)
 
         for iter in range(local_epochs):
             batch_loss = []
@@ -229,15 +234,15 @@ class LocalUpdateSparsified(LocalUpdate):
             epoch_loss.append(avg_loss_per_local_training)
             # self.logger.log({f'local model train loss for user {self.user_id} ': avg_loss_per_local_training})
 
-        sparse_ratio = self.sparsification_ratio
+        sparse_ratio = sparsification_ratio
         
-        flat = utils.flatten(model)
+        flat = general_utils.flatten(model)
         diff_flat = flat - glob_flat
-        bitmask = utils.get_bitmask_per_method(
+        bitmask = general_utils.get_bitmask_per_method(
             flat_model=diff_flat,
             sparse_ratio=sparse_ratio,
-            sparsification_type=self.sparsification_type,
-            choose_from_top_r_percentile=self.choose_from_top_r_percentile,
+            sparsification_type=sparsification_type,
+            choose_from_top_r_percentile=choose_from_top_r_percentile,
         )
         diff_flat *= bitmask
         return model, diff_flat, bitmask, sum(epoch_loss) / len(epoch_loss)
@@ -248,14 +253,13 @@ class FedProxLocalUpdate(LocalUpdate):
     FedProx Local Update. This is a subclass of LocalUpdate. It overrides the
     calculate_loss method to include the proximal term.
     """
-
-    @param('fl_parameters.mu')
-    def calculate_loss(self, mu, model, images, labels):
+    def calculate_loss(self, model, images, labels):
         """
         The proximal term is added to the loss function. The proximal term is
         calculated as:
             proximal_term = Σ(||w - w_t||^2)
         """
+        mu = self.config['fl_parameters.mu']
         if mu is None:
             raise ValueError(
                 "mu argument must be passed as arugument for fl_method=FedProx"
@@ -265,7 +269,6 @@ class FedProxLocalUpdate(LocalUpdate):
 
         for w, w_t in zip(model.parameters(), self.global_model.parameters()):
             proximal_term += (w - w_t).norm(2)
-
         fedprox_term = (mu / 2) * proximal_term
         return super().calculate_loss(model, images, labels) + fedprox_term
 
@@ -279,7 +282,9 @@ class qFedAvgLocalUpdate(LocalUpdate):
 
     @param('fl_parameters.q')
     @param('client_parameters.local_lr')
-    def update_weights(self, q, local_lr, model, global_round, client_id=None):
+    @param('fl_parameters.eps')
+    @param('client_parameters.local_epochs')
+    def update_weights(self, q, local_lr, eps, local_epochs, model, global_round):
         """
         Performs the qFedAvg local updates and returns the updated model.
             :param model: local model
@@ -290,7 +295,7 @@ class qFedAvgLocalUpdate(LocalUpdate):
         epoch_loss = []
 
         # Set optimizer for the local updates
-        optimizer = self.configure_optimizer(model)
+        optimizer = self.configure_optimizer(model=model)
 
         base_model = copy.deepcopy(model.state_dict())
 
@@ -368,8 +373,8 @@ class qFedAvgLocalUpdate(LocalUpdate):
                 h_expanded[key] = torch.full((size,), h[key])
 
             return (
-                utils.flatten(delta, is_dict=True),
-                utils.flatten(h_expanded, is_dict=True),
+                general_utils.flatten(delta, is_dict=True),
+                general_utils.flatten(h_expanded, is_dict=True),
                 model,
                 sum(epoch_loss) / len(epoch_loss),
             )
@@ -418,8 +423,8 @@ def test_inference(model, test_dataset):
     accuracy = correct / total
     return accuracy, loss / len(testloader)
 
-@section('fl_parameters.fl_method')
 def get_local_update(
+    fl_method,
     train_dataset,
     test_dataset,
     valid_dataset,

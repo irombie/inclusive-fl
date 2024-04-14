@@ -82,7 +82,6 @@ class AbstractGlobalUpdate(ABC):
 class MeanWeights(AbstractGlobalUpdate):
     """Aggregate weights by taking the mean, used by FedAvg."""
 
-    @param('fl_parameters.num_clients')
     def aggregate_weights(
         self,
         num_clients,
@@ -113,10 +112,10 @@ class MeanWeightsSparsified(AbstractGlobalUpdate):
     def __init__(self, model: torch.nn.Module, **kwargs):
         super().__init__(model)
         
-    @param('fl_parameters.global_learning_rate')
+    @param('global_parameters.global_lr')
     def aggregate_weights(
         self,
-        global_learning_rate,
+        global_lr,
         local_weights_sum,
         global_model,
         local_bitmasks_sum,
@@ -139,8 +138,8 @@ class MeanWeightsSparsified(AbstractGlobalUpdate):
             out=np.zeros_like(local_weights_sum),
             where=local_bitmasks_sum != 0,
         )
-        flat_glob = general_utils.iflatten(global_model)
-        return flat_glob + self.global_learning_rate * weigted_local_model_sum
+        flat_glob = general_utils.flatten(global_model)
+        return flat_glob + global_lr * weigted_local_model_sum
 
 
 class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):

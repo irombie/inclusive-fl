@@ -412,7 +412,6 @@ class FLDataset(Dataset):
     def __init__(self):
         self.config = get_current_config()
         self.train_dataset, self.test_dataset, self.valid_dataset = self.get_dataset()
-        
     @param('dataset.dataset_name')
     @param('training_params.seed')
     @param('dataset.data_dir')
@@ -462,7 +461,7 @@ class FLDataset(Dataset):
         else:
             raise ValueError(f"Split type {self.split_type} not supported")
         
-        return train_user_groups, valid_user_groups, test_user_groups
+        return train_user_groups, test_user_groups, valid_user_groups
 
 
     @param('fl_parameters.num_clients')
@@ -588,27 +587,5 @@ class FLDataset(Dataset):
             np.arange(num_majority_users),
             np.arange(num_majority_users, num_clients),
         )
-            
-class DatasetSplit(Dataset):
-    """An abstract Dataset class wrapped around Pytorch Dataset class."""
-
-    def __init__(self, dataset, idxs):
-        self.dataset = dataset
-        self.idxs = [int(i) for i in idxs]
-
-    def __len__(self):
-        return len(self.idxs)
-
-    def __getitem__(self, item):
-        image, label = self.dataset[self.idxs[item]]
-        return image, label
-
-
-
-
-
-
-
-
 
 

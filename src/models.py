@@ -41,9 +41,9 @@ class MLP(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-class CNNFashion_Mnist(nn.Module):
-    def __init__(self):
-        super(CNNFashion_Mnist, self).__init__()
+class CNN_FashionMNIST(nn.Module):
+    def __init__(self, num_classes: int):
+        super(CNN_FashionMNIST, self).__init__()
         self.layer1 = nn.Sequential(
             nn.Conv2d(1, 16, kernel_size=5, padding=2),
             nn.BatchNorm2d(16),
@@ -56,7 +56,7 @@ class CNNFashion_Mnist(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(2),
         )
-        self.fc = nn.Linear(7 * 7 * 32, 10)
+        self.fc = nn.Linear(7 * 7 * 32, num_classes)
 
     def forward(self, x):
         out = self.layer1(x)

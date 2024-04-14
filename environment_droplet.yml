@@ -26,7 +26,6 @@ dependencies:
     - numpy==1.24.2
     - packaging==23.0
     - pathtools==0.1.2
-    - pillow==9.4.0
     - protobuf==3.20.3
     - psutil==5.9.4
     - pyparsing==3.0.9

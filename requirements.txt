@@ -10,3 +10,5 @@ parse==1.19.1
 prettytable==3.9.0
 pandas==2.1.1
 gdown==5.1.0
+fastargs
+terminaltables

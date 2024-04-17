@@ -1,35 +1,29 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.6
-import copy
+from pathlib import Path
+from typing import Tuple
+
 import json
 import os
-import random
 import shutil
 import sys
 import tarfile
 import zipfile
 import gdown
-from argparse import Namespace
-from pathlib import Path
-from typing import Dict, List, Tuple, Union, Callable
 
-import numpy as np
-import pandas as pd
-import torch
-import wandb
-import wget
+from fastargs import get_current_config
+from fastargs.decorators import param
 from parse import parse
 from PIL import Image
-from prettytable import PrettyTable
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset, Subset
 from torchvision import datasets, transforms
 from torchvision.datasets import ImageFolder
 from torchvision.datasets.utils import download_and_extract_archive, verify_str_arg
-
-from fastargs import get_current_config
-from fastargs.decorators import param, section
+import numpy as np
+import torch
+import wandb
 
 
 class UTKFaceDataset(Dataset):
@@ -83,13 +77,7 @@ class UTKFaceDataset(Dataset):
 
                 self.images.append(image)
                 self.labels.append(float(file_labels["ethnicity"]))
-                '''      #{
-                        # "age": self.convert_age_to_range(int(file_labels["age"])),
-                        #"gender": int(file_labels["gender"]),
-                        ,
-                    #}
-                #)
-                '''
+
     def __len__(self):
         return len(self.labels)
 
@@ -101,6 +89,7 @@ class UTKFaceDataset(Dataset):
         labels = self.labels[idx]
 
         return image, labels
+
 
 ## class definitions
 class SyntheticDataset(Dataset):
@@ -130,7 +119,9 @@ class SyntheticDataset(Dataset):
     def __len__(self) -> int:
         return self.n_samples
 
-    def fetch_synthetic_data(self, num_clients, num_classes, num_features, url: str, path: str | Path):
+    def fetch_synthetic_data(
+        self, num_clients, num_classes, num_features, url: str, path: str | Path
+    ):
         """
         Fetch the synthetic data from the given URL and save it to the given path.
 
@@ -151,7 +142,6 @@ class SyntheticDataset(Dataset):
                 y = [np.array(y) for y in data["y"]]
 
         return X, y
-        
 
     def __getitem__(self, idx: int) -> Tuple[np.ndarray, int]:
         """
@@ -222,7 +212,7 @@ class SyntheticDataset(Dataset):
         X = [np.asarray(x) for x in data["X"]]
         y = [np.asarray(y) for y in data["y"]]
         return cls(X, y)
-    
+
 
 class TinyImageNet(ImageFolder):
     """Dataset for TinyImageNet-200"""
@@ -246,9 +236,11 @@ class TinyImageNet(ImageFolder):
             )
         super().__init__(self.split_folder, **kwargs)
 
-    def normalize_tin_val_folder_structure(self, path, images_folder="images", annotations_file="val_annotations.txt"):
-    # Check if files/annotations are still there to see
-    # if we already run reorganize the folder structure.
+    def normalize_tin_val_folder_structure(
+        self, path, images_folder="images", annotations_file="val_annotations.txt"
+    ):
+        # Check if files/annotations are still there to see
+        # if we already run reorganize the folder structure.
         images_folder = os.path.join(path, images_folder)
         annotations_file = os.path.join(path, annotations_file)
 
@@ -303,15 +295,22 @@ class TinyImageNet(ImageFolder):
             md5=self.zip_md5,
         )
         assert "val" in self.splits
-        normalize_tin_val_folder_structure(os.path.join(self.dataset_folder, "val"))
+        self.normalize_tin_val_folder_structure(
+            os.path.join(self.dataset_folder, "val")
+        )
+
 
 def prepare_fashionMNIST(data_dir, seed=42):
     apply_transform = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-        )
-    
-    train_dataset = datasets.CIFAR10(data_dir, train=True, download=True, transform=apply_transform)
-    test_dataset = datasets.CIFAR10(data_dir, train=False, download=True, transform=apply_transform)
+        [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
+    )
+
+    train_dataset = datasets.CIFAR10(
+        data_dir, train=True, download=True, transform=apply_transform
+    )
+    test_dataset = datasets.CIFAR10(
+        data_dir, train=False, download=True, transform=apply_transform
+    )
 
     train_valid_dataset = datasets.FashionMNIST(
         data_dir, train=True, download=True, transform=apply_transform
@@ -322,32 +321,39 @@ def prepare_fashionMNIST(data_dir, seed=42):
         test_size=0.1,
         random_state=seed,
         shuffle=True,
-        stratify=train_valid_dataset.targets
+        stratify=train_valid_dataset.targets,
     )
-    
+
     train_dataset = Subset(train_valid_dataset, train_idxs)
     valid_dataset = Subset(train_valid_dataset, valid_idxs)
 
-    test_dataset = datasets.FashionMNIST(data_dir, train=False, download=True, transform=apply_transform)
-    
+    test_dataset = datasets.FashionMNIST(
+        data_dir, train=False, download=True, transform=apply_transform
+    )
 
     return train_dataset, test_dataset, valid_dataset
 
+
 def prepare_cifar10(data_dir, seed=42):
+    transforms_train = transforms.Compose(
+        [
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ]
+    )
 
-    transforms_train = transforms.Compose([
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
-
-    transforms_test = transforms.Compose([transforms.ToTensor(),
-                     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
-
+    transforms_test = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ]
+    )
 
     train_valid_dataset = datasets.CIFAR10(
-            data_dir, train=True, download=True, transform=transforms_train
-        )
+        data_dir, train=True, download=True, transform=transforms_train
+    )
 
     train_idxs, valid_idxs = train_test_split(
         np.arange(len(train_valid_dataset)),
@@ -359,10 +365,12 @@ def prepare_cifar10(data_dir, seed=42):
     train_dataset = Subset(train_valid_dataset, train_idxs)
     valid_dataset = Subset(train_valid_dataset, valid_idxs)
 
-    test_dataset = datasets.CIFAR10( data_dir, train=False, download=True, transform=transforms_test)
-
+    test_dataset = datasets.CIFAR10(
+        data_dir, train=False, download=True, transform=transforms_test
+    )
 
     return train_dataset, test_dataset, valid_dataset
+
 
 def prepare_utkface(self, seed=42):
     """
@@ -378,14 +386,12 @@ def prepare_utkface(self, seed=42):
     generator = torch.Generator().manual_seed(seed)
 
     apply_transform = transforms.Compose(
-            [
-                transforms.Resize((64, 64)),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    (0.5959, 0.4562, 0.3906), (0.2591, 0.2312, 0.2268)
-                ),
-            ]
-        )
+        [
+            transforms.Resize((64, 64)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5959, 0.4562, 0.3906), (0.2591, 0.2312, 0.2268)),
+        ]
+    )
 
     dataset = UTKFaceDataset(
         directory=data_dir,
@@ -399,38 +405,54 @@ def prepare_utkface(self, seed=42):
     validate_len = int(len(dataset) * 0.1)
     test_len = int(len(dataset) - train_len - validate_len)
 
-
-    train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_len, validate_len, test_len,], generator=generator)
+    train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(
+        dataset,
+        [
+            train_len,
+            validate_len,
+            test_len,
+        ],
+        generator=generator,
+    )
 
     return train_dataset, test_dataset, valid_dataset
+
 
 def prepare_synthetic(self, num_clients, num_classes, num_features, seed=42):
-    train_dataset, test_dataset, valid_dataset = SyntheticDataset(num_clients, num_classes, num_features).split()
+    train_dataset, test_dataset, valid_dataset = SyntheticDataset(
+        num_clients, num_classes, num_features
+    ).split()
     return train_dataset, test_dataset, valid_dataset
+
 
 class FLDataset(Dataset):
     def __init__(self):
         self.config = get_current_config()
         self.train_dataset, self.test_dataset, self.valid_dataset = self.get_dataset()
-    @param('dataset.dataset_name')
-    @param('training_params.seed')
-    @param('dataset.data_dir')
-    @param('fl_parameters.num_clients')
-    @param('dataset.num_classes')
-    @param('dataset.num_features')
-    def get_dataset(self, dataset_name, seed, data_dir, num_clients, num_classes, num_features):
-        if dataset_name.lower() == 'cifar10':
+
+    @param("dataset.dataset_name")
+    @param("training_params.seed")
+    @param("dataset.data_dir")
+    @param("fl_parameters.num_clients")
+    @param("dataset.num_classes")
+    @param("dataset.num_features")
+    def get_dataset(
+        self, dataset_name, seed, data_dir, num_clients, num_classes, num_features
+    ):
+        if dataset_name.lower() == "cifar10":
             return prepare_cifar10(data_dir, seed)
-        elif dataset_name.lower() == 'fashionmnist':
+        elif dataset_name.lower() == "fashionmnist":
             return prepare_fashionMNIST(data_dir, seed)
-        elif dataset_name.lower() == 'utkface':
+        elif dataset_name.lower() == "utkface":
             return prepare_utkface(data_dir, seed)
-        elif dataset_name.lower() == 'synthetic':
-            return prepare_synthetic(data_dir, seed, num_clients, num_classes, num_features)
+        elif dataset_name.lower() == "synthetic":
+            return prepare_synthetic(
+                data_dir, seed, num_clients, num_classes, num_features
+            )
         else:
             raise ValueError(f"Dataset {self.dataset_name} not supported")
 
-    @param('split_params.split_type')
+    @param("split_params.split_type")
     def get_client_groups(self, split_type):
         if split_type == "iid":
             train_user_groups = self.get_iid_partition(dataset=self.train_dataset)
@@ -439,16 +461,27 @@ class FLDataset(Dataset):
 
         elif split_type == "noniid":
             distribution = self.generate_noniid_distribution(self.train_dataset)
-            train_user_groups = self.get_noniid_partition(self.train_dataset, distribution)
-            valid_user_groups = self.get_noniid_partition(self.valid_dataset, distribution)
-            test_user_groups = self.get_noniid_partition(self.test_dataset, distribution)
-
+            train_user_groups = self.get_noniid_partition(
+                self.train_dataset, distribution
+            )
+            valid_user_groups = self.get_noniid_partition(
+                self.valid_dataset, distribution
+            )
+            test_user_groups = self.get_noniid_partition(
+                self.test_dataset, distribution
+            )
 
         elif split_type == "maj_min":
-            train_user_groups = self.get_noniid_partition(self.train_dataset.targets, distribution)
-            valid_user_groups = self.get_noniid_partition(self.valid_dataset.targets, distribution)
-            test_user_groups = self.get_noniid_partition(self.test_dataset.targets, distribution)
-        
+            train_user_groups = self.get_noniid_partition(
+                self.train_dataset.targets, distribution
+            )
+            valid_user_groups = self.get_noniid_partition(
+                self.valid_dataset.targets, distribution
+            )
+            test_user_groups = self.get_noniid_partition(
+                self.test_dataset.targets, distribution
+            )
+
             wandb.log(
                 {
                     "majority_classes": majority_classes,
@@ -460,11 +493,10 @@ class FLDataset(Dataset):
 
         else:
             raise ValueError(f"Split type {self.split_type} not supported")
-        
+
         return train_user_groups, test_user_groups, valid_user_groups
 
-
-    @param('fl_parameters.num_clients')
+    @param("fl_parameters.num_clients")
     def get_iid_partition(self, num_clients, dataset):
         """
         Sample I.I.D. client data from dataset
@@ -477,13 +509,20 @@ class FLDataset(Dataset):
         for i in range(num_clients):
             dict_users[i] = set(np.random.choice(all_idxs, num_items, replace=False))
             all_idxs = list(set(all_idxs) - dict_users[i])
-        return dict_users 
+        return dict_users
 
-    @param('fl_parameters.num_clients')
-    @param('dataset.num_classes')
-    @param('split_params.dirichlet_param')
-    @param('split_params.min_proportion')
-    def generate_noniid_distribution(self, num_clients: int, num_classes: int, beta: float, min_proportion: float, dataset: Dataset):
+    @param("fl_parameters.num_clients")
+    @param("dataset.num_classes")
+    @param("split_params.dirichlet_param")
+    @param("split_params.min_proportion")
+    def generate_noniid_distribution(
+        self,
+        num_clients: int,
+        num_classes: int,
+        beta: float,
+        min_proportion: float,
+        dataset: Dataset,
+    ):
         """
         Sample from dirichlet distribution to give non-iid distribution for users.
 
@@ -516,17 +555,23 @@ class FLDataset(Dataset):
             class_sample_distribution = np.random.dirichlet(
                 np.repeat(beta, num_clients), num_classes
             )
-            dataset_proportion_per_user = (class_weights @ class_sample_distribution) / (
-                class_weights.sum()
-            )
+            dataset_proportion_per_user = (
+                class_weights @ class_sample_distribution
+            ) / (class_weights.sum())
 
         return class_sample_distribution
 
-    @param('fl_parameters.num_clients')
-    @param('dataset.num_classes')
-    @param('split_params.majority_proportion')
-    @param('split_params.majority_minority_overlap')
-    def split_majority_minority(self, num_clients: int, num_classes: int, majority_proportion: float, overlap: float):
+    @param("fl_parameters.num_clients")
+    @param("dataset.num_classes")
+    @param("split_params.majority_proportion")
+    @param("split_params.majority_minority_overlap")
+    def split_majority_minority(
+        self,
+        num_clients: int,
+        num_classes: int,
+        majority_proportion: float,
+        overlap: float,
+    ):
         """
         Split the classes and users into a majority and minority group
 
@@ -572,7 +617,9 @@ class FLDataset(Dataset):
         )
         # this sums to 1 across users for each class, because uniform_distribution and grouped_distribution both
         # sum to 1 across users for each class
-        distribution = uniform_distribution * overlap + (1 - overlap) * grouped_distribution
+        distribution = (
+            uniform_distribution * overlap + (1 - overlap) * grouped_distribution
+        )
         assert (
             distribution.sum(axis=1).round(3) == 1
         ).all(), "distribution must sum to 1 across users for each class"
@@ -587,5 +634,3 @@ class FLDataset(Dataset):
             np.arange(num_majority_users),
             np.arange(num_majority_users, num_clients),
         )
-
-

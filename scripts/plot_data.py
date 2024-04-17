@@ -67,7 +67,7 @@ def main():
 
         # Plot the number of samples per user
         plt.figure(figsize=(8, 6))
-        stats.plot.hist(y="Samples", legend=False)
+        stats.plot.hist(y="Samples", bins=100, legend=False)
         plt.xlabel("Number of samples")
         plt.ylabel("Number of users")
         plt.title("Number of samples per user")
@@ -76,7 +76,7 @@ def main():
 
         # Plot the number of classes per user
         plt.figure(figsize=(8, 6))
-        stats.plot.hist(y="Classes", legend=False)
+        stats.plot.hist(y="Classes", bins=100, legend=False)
         plt.xlabel("Number of classes")
         plt.ylabel("Number of users")
         plt.title("Number of classes per user")

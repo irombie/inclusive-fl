@@ -1,14 +1,14 @@
-import copy
 from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple, Type
+import copy
 
+from fastargs import get_current_config
+from fastargs.decorators import param
 import numpy as np
 import torch
 
 import general_utils
 
-from fastargs import get_current_config
-from fastargs.decorators import param, section
 
 class AbstractGlobalUpdate(ABC):
     """
@@ -26,7 +26,6 @@ class AbstractGlobalUpdate(ABC):
         self.server_params = None
         self.clients_param = None
         self.config = get_current_config()
-        pass
 
     @abstractmethod
     def aggregate_weights(
@@ -47,7 +46,6 @@ class AbstractGlobalUpdate(ABC):
 
         :return: global model state dictionary
         """
-        pass
 
     def update_global_model(
         self,
@@ -111,8 +109,8 @@ class MeanWeightsSparsified(AbstractGlobalUpdate):
 
     def __init__(self, model: torch.nn.Module, **kwargs):
         super().__init__(model)
-        
-    @param('global_parameters.global_lr')
+
+    @param("global_parameters.global_lr")
     def aggregate_weights(
         self,
         global_lr,
@@ -170,7 +168,8 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
             ):
                 batch_norm_layers.append(module_name)
         return tuple(batch_norm_layers)
-    @param('fl_parameters.reweight_loss_avg')
+
+    @param("fl_parameters.reweight_loss_avg")
     def aggregate_weights(
         self,
         reweight_loss_avg,
@@ -258,11 +257,11 @@ class AverageWeightsWithTestLoss(AbstractGlobalUpdate):
         # Loop through layers in model
         for key in model_layers:
             # Loop through each users losses
-            for i in range(len(local_model_weights)):
+            for i, weights in enumerate(local_model_weights):
                 if key in w_avg:
-                    w_avg[key] += local_model_weights[i][key] * weights_scalar[i]
+                    w_avg[key] += weights[key] * weights_scalar[i]
                 else:
-                    w_avg[key] = local_model_weights[i][key] * weights_scalar[i]
+                    w_avg[key] = weights[key] * weights_scalar[i]
         return w_avg
 
 
@@ -306,8 +305,11 @@ NAME_TO_GLOBAL_UPDATE: Dict[str, Type[AbstractGlobalUpdate]] = {
     "qFedAvg": qFedAvgGlobalUpdate,
 }
 
-@param('fl_parameters.fl_method')
-def get_global_update(fl_method, model: torch.nn.Module, **kwargs) -> AbstractGlobalUpdate:
+
+@param("fl_parameters.fl_method")
+def get_global_update(
+    fl_method, model: torch.nn.Module, **kwargs
+) -> AbstractGlobalUpdate:
     """
     Get global update from federated learning method name
 

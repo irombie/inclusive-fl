@@ -5,7 +5,7 @@ dataset:
   split: non-iid
   num_classes: 10
 model:
-  model_name: CNN_FashionMNIST 
+  model_name: CNNFashionMNIST 
 training_params:
   seed: 0
 fl_parameters:

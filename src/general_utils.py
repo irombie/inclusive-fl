@@ -1,33 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Python version: 3.6
+# Python version: 3.11
+
+from collections import OrderedDict
+from typing import Dict, List
 import copy
-import json
 import os
 import random
-import shutil
-import sys
-import tarfile
-import zipfile
-import gdown
-from argparse import Namespace
-from collections import OrderedDict, defaultdict
-from pathlib import Path
-from typing import Dict, List, Tuple, Union, Callable
 
 import numpy as np
-import pandas as pd
 import torch
-import wandb
-import wget
-from parse import parse
-from PIL import Image
-from prettytable import PrettyTable
-from sklearn.model_selection import train_test_split
-from torch.utils.data import Dataset, Subset
-from torchvision import datasets, transforms
-from torchvision.datasets import ImageFolder
-from torchvision.datasets.utils import download_and_extract_archive, verify_str_arg
 
 
 def set_seed(seed: int = 42, is_deterministic=False) -> None:
@@ -57,7 +39,7 @@ def dict_sum(
 
     :return: sum_of_dicts: sum of dictionaries from the list
     """
-    assert list_of_dicts != None, "List of Dictionaries cannot be None."
+    assert list_of_dicts is not None, "List of Dictionaries cannot be None."
     assert len(list_of_dicts) > 0, "Ensure the List of Dictionaries is not empty."
 
     sum_of_dicts = copy.deepcopy(list_of_dicts[0])
@@ -107,7 +89,8 @@ def get_bitmask_per_method(
         bitmask = np.zeros_like(flat_model)
         np.put(bitmask, indices, 1)
         return bitmask
-    elif sparsification_type == "topk":
+
+    if sparsification_type == "topk":
         num_params = int(sparse_ratio * len(flat_model))
         max_indices = np.argpartition(np.absolute(flat_model), -num_params)[
             -num_params:
@@ -115,12 +98,10 @@ def get_bitmask_per_method(
         bitmask = np.zeros_like(flat_model)
         np.put(bitmask, max_indices, 1)
         return bitmask
-    elif sparsification_type == "rtopk":
-        if choose_from_top_r_percentile < sparse_ratio:
-            choose_from_top_r_percentile = sparse_ratio
-        # assert (
-        #     choose_from_top_r_percentile >= sparse_ratio
-        # ), "choose_from_top_r_percentile for rtopk should be larger than sparse_ratio"
+
+    if sparsification_type == "rtopk":
+        choose_from_top_r_percentile = max(choose_from_top_r_percentile, sparse_ratio)
+
         num_params = int(choose_from_top_r_percentile * len(flat_model))
         max_indices = np.argpartition(np.absolute(flat_model), -num_params)[
             -num_params:
@@ -131,8 +112,8 @@ def get_bitmask_per_method(
         bitmask = np.zeros_like(flat_model)
         np.put(bitmask, sparse_max_indices, 1)
         return bitmask
-    else:
-        raise ValueError("Unrecognized sparsification method!")
+
+    raise ValueError("Unrecognized sparsification method!")
 
 
 def temperatured_softmax(client_losses, softmax_temperature):

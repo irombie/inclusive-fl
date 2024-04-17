@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
-import torch
-import torch.nn.functional as F
 from torch import nn
 from torchvision.models import resnet18, vgg11_bn
+import torch
+import torch.nn.functional as F
 
 
 class LogisticRegression(nn.Module):
@@ -41,9 +41,9 @@ class MLP(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-class CNN_FashionMNIST(nn.Module):
+class CNNFashionMNIST(nn.Module):
     def __init__(self, num_classes: int):
-        super(CNN_FashionMNIST, self).__init__()
+        super(CNNFashionMNIST, self).__init__()
         self.layer1 = nn.Sequential(
             nn.Conv2d(1, 16, kernel_size=5, padding=2),
             nn.BatchNorm2d(16),
@@ -139,6 +139,7 @@ class ResNet18(nn.Module):
         x = self.classifier(x)
 
         return F.log_softmax(x, dim=1)
+
 
 class Mul(nn.Module):
     def __init__(self, weight):

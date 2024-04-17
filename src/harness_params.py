@@ -21,7 +21,7 @@ def get_current_params():
         local_lr=Param(float, 'local learning rate', default=0.01))
         
     Section('dataset', 'dataset parameters').params(
-        dataset_name=Param(And(str, OneOf(['CIFAR10', 'CIFAR100', 'FashionMNIST', 'MNIST'])), 'dataset name', required=True),
+        dataset_name=Param(And(str, OneOf(['CIFAR10', 'CIFAR100', 'FashionMNIST', 'MNIST', 'Synthetic'])), 'dataset name', required=True),
         data_dir=Param(str, 'path to data directory', default='./data/'),
         num_classes=Param(int, 'Number of classes', required=True),
         num_features=Param(int, 'Number of features', default=0),)

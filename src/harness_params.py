@@ -23,6 +23,7 @@ def get_current_params():
             required=True,
         ),
         num_features=Param(int, "Number of features", default=None),
+        device=Param(str, "device to run the model on", default=None),
     )
 
     Section("global_parameters", "global parameters").params(
@@ -56,7 +57,6 @@ def get_current_params():
     Section("fl_parameters", "FL Training parameters").params(
         num_clients=Param(int, "number of clients", required=True),
         frac=Param(float, "fraction of clients used per round", default=0.1),
-        epochs=Param(int, "number of rounds", default=100),
         save_every=Param(int, "save model every x rounds", default=2),
         ckpt_path=Param(str, "path to save checkpoints", default="./checkpoints/"),
         seed=Param(int, "random seed", default=42),
@@ -97,7 +97,6 @@ def get_current_params():
 
     Section("training_params", "harness related stuff").params(
         ckpt_path=Param(str, "path to save checkpoints", default="checkpoints"),
-        epochs=Param(int, "number of epochs", default=150),
         seed=Param(int, "random seed", default=42),
         wandb_project=Param(str, "wandb project name"),
     )

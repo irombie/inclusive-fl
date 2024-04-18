@@ -10,7 +10,7 @@ training_params:
   seed: 0
 fl_parameters:
   num_clients: 10
-  fl_method: FedProx 
+  fl_method: FedSyn 
   frac: 0.2
   q: 0.01
 global_parameters:

@@ -52,11 +52,11 @@ Then, activate the environment by running `conda activate <envname>`.
 
 ```bash
 
-python src/federated_main.py --config configs/fedavg_fmnist.yaml
+python src/harness.py --config configs/fedavg_fmnist.yaml
 
 ## in case you want to over-ride a parameter
 
-python src/federated_main.py --config configs/fedavg_fmnist.yaml --local_parameters.local_ep 3
+python src/harness.py --config configs/fedavg_fmnist.yaml --local_parameters.local_ep 3
 ```
 Make sure your wandb settings are configured properly so that the experiment results are being logged onto our [team space called `inclusive-fl`](https://wandb.ai/inclusive-fl). 
 

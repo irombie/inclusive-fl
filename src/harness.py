@@ -15,7 +15,7 @@ from general_utils import (
     updateFromNumpyFlatArray,
 )
 
-from dataset_utils import FLDataset
+from fl_dataset import FLDataset
 from global_updates import get_global_update
 from harness_params import get_current_params
 from update import get_local_update

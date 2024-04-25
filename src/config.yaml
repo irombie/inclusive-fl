@@ -2,7 +2,6 @@ dataset:
   dataset_name: FashionMNIST 
   data_dir: ./data
   num_clients: 10
-  split: non-iid
   num_classes: 10
 model:
   model_name: CNNFashionMNIST 
@@ -21,3 +20,6 @@ client_parameters:
   local_bs: 10
   local_lr: 1e-3
   local_epochs: 3
+split_params:
+  type: non-iid
+  dirichlet_param: 10

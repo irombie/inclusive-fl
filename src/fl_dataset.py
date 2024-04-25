@@ -49,7 +49,7 @@ class FLDataset(Dataset):
             valid_user_groups = self.get_iid_partition(dataset=self.valid_dataset)
             test_user_groups = self.get_iid_partition(dataset=self.test_dataset)
 
-        elif split_type == "noniid":
+        elif split_type == "non-iid":
             distribution = self.generate_noniid_distribution(self.train_dataset)
             train_user_groups = self.get_noniid_partition(
                 self.train_dataset, distribution
@@ -61,7 +61,7 @@ class FLDataset(Dataset):
                 self.test_dataset, distribution
             )
 
-        elif split_type == "maj_min":
+        elif split_type == "majority_minority":
             train_user_groups = self.get_noniid_partition(
                 self.train_dataset.targets, distribution
             )

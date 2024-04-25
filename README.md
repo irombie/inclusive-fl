@@ -1,7 +1,25 @@
 # Inclusive Federated Learning (PyTorch)
 
-Experiments are produced on Fashion MNIST and CIFAR10 (both IID and non-IID). In case of non-IID, the data amongst the users can be split equally or unequally.
+Codebase for experimentation on Federated learning algorithms including but not limited to standard averaging schemes, fairness based techniques and th like. The primary aim of building this code-base is to provide an easily extensible and consistent way to experiment with, extend and evaluate federated learning algorithms.
 
+The focus of our research was device-fairness.
+
+You will find support for the following algorithms in the repository:
+1. FedAvg
+2. FedProx
+3. qFedAvg
+4. FedSyn (our method)
+
+The following datasets are supported:
+1. FashionMNIST
+2. CIFAR10
+3. UTKFace (Ethnicity)
+4. Tiny-Imagenet
+
+We also provide relevant dataset utils for 
+- IID Data Distribution
+- Non-IID Data distribution (Dirichlet parameterization)
+- Majority - Minority IID distribution
 
 ## Setup
 
@@ -29,48 +47,17 @@ Then, activate the environment by running `conda activate <envname>`.
 
 ### Generic Experiments with the code
 
-1. To check which parameters are there to configure, head to `options.py` 👀
-2. If you add a new parameter there, make sure to add it to the README below so others can be informed!
-3. Whenever you are creating a new experiment set, **create a new project with a unique name** by running the code with the flag `--wandb_name <name>`. If you are running experiments in that set, **create runs within that project** by using the same name with that flag. 
-4. Make sure your wandb settings are configured properly so that the experiment results are being logged onto our [team space called `inclusive-fl`](https://wandb.ai/inclusive-fl). 
-5. Federated experiment involves training a global model using many local models.
-
-* To run the federated experiment with CIFAR on CNN (IID):
-```bash
-python src/federated_main.py --model=small_cnn --dataset=cifar --distribution=iid  --epochs=10
-```
-You can change the default values of other parameters to simulate different conditions. 
-
-### Scale out (Large Scale Experiments)
-1. Define a .yaml file and upload it to scripts/ so we can be clear about what experiment each of y'all are running (to ensure no gaps/overlap).
-2. You can find a template for the yaml in the scripts/ folder, make a copy and edit as required.
-3. Ensure that your wandb project is linked to the group project and not your personal ID to avoid challenges in aggregating.
-*To run the grid based on your experiments*
+1. The parameters can be supplied via a `config.yaml` an example of which is available in src/configs/
+2. You can also manually override parameters provided in the config via the command line as
 
 ```bash
-python src/scale_out_exp.py --config-file <YOUR CONFIG FILE>
+
+python src/harness.py --config configs/fedavg_fmnist.yaml
+
+## in case you want to over-ride a parameter
+
+python src/harness.py --config configs/fedavg_fmnist.yaml --local_parameters.local_ep 3
 ```
+Make sure your wandb settings are configured properly so that the experiment results are being logged onto our [team space called `inclusive-fl`](https://wandb.ai/inclusive-fl). 
 
-## Options
-The default values for various paramters parsed to the experiment are given in ```options.py```. Details are given some of those parameters:
-
-* ```--dataset:```  Default: 'fashionmnist'. Options: 'fashionmnist', 'cifar', 'tiny-imagenet', 'utkface' (only ethnicity)
-* ```--model:```    Default: 'small_cnn'. Options: 'small_cnn', 'resnet9', 'resnet18', 'vgg11_bn'
-* ```--epochs:```   Number of rounds of training.
-* ```--lr:```       Learning rate set to 0.01 by default.
-* ```--verbose:```  Detailed log outputs. Activated by default, set to 0 to deactivate.
-* ```--seed:```     Random Seed. Default set to 1.
-
-## Federated Parameters 
-* ```--distribution:```  Distribution of data amongst users. Default set to IID. Options are 'iid', 'non_iid' and 'majority_minority'
-* ```--num_users:```Number of users. Default is 100.
-* ```--frac:```     Fraction of users to be used for federated updates. Default is 0.1.
-* ```--local_ep:``` Number of local training epochs in each user. Default is 10.
-* ```--local_bs:``` Batch size of local updates in each user. Default is 10.
-* ```--dirichlet_param:```  Used in non-iid setting. Option to give each user the proportion of each class samples according to Dirichlet distribution. Default set to 0 to omit this option.
-
-## Algorithm specific parameters
-* ```--fl_method:``` Name of method to use. Currently supports "FedAvg", "FedProx", "FedBN" and "TestLossWeighted"
-* ```--mu:``` mu value for FedProx
-* ```--sparsification_ratio``` The ratio of parameters that will be sent from the clients to the server at each round. 
-* and some others :D
+Federated experiment involves training a global model using many local models.

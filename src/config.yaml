@@ -21,5 +21,5 @@ client_parameters:
   local_lr: 1e-3
   local_epochs: 3
 split_params:
-  type: non-iid
+  split: non-iid
   dirichlet_param: 10

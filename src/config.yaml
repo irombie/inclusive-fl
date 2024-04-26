@@ -1,10 +1,10 @@
 dataset:
-  dataset_name: FashionMNIST 
+  dataset_name: SVHN
   data_dir: ./data
   num_clients: 10
   num_classes: 10
 model:
-  model_name: CNNFashionMNIST 
+  model_name: SmallCNN 
 training_params:
   seed: 0
 fl_parameters:

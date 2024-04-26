@@ -1,12 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.6
-from pathlib import Path
-from typing import Tuple
-
-import os
-import sys
-
 from fastargs import get_current_config
 from fastargs.decorators import param
 import numpy as np
@@ -14,13 +8,14 @@ import torch
 import wandb
 from dataset_defs import *
 from collections import defaultdict
+from general_utils import normalize
 
 
 class FLDataset(Dataset):
     def __init__(self):
         self.config = get_current_config()
         self.train_dataset, self.test_dataset, self.valid_dataset = self.get_dataset()
-        
+
     @param("dataset.dataset_name")
     @param("training_params.seed")
     @param("dataset.data_dir")
@@ -40,8 +35,10 @@ class FLDataset(Dataset):
             return prepare_synthetic(
                 data_dir, seed, num_clients, num_classes, num_features
             )
+        elif dataset_name.lower() == "svhn":
+            return prepare_SVHN(data_dir, seed)
         else:
-            raise ValueError(f"Dataset {self.dataset_name} not supported")
+            raise ValueError(f"Dataset {dataset_name} not supported")
 
     @param("split_params.split_type")
     def get_client_groups(self, split_type):
@@ -52,7 +49,9 @@ class FLDataset(Dataset):
 
         elif split_type == "non-iid":
             distribution = self.generate_noniid_distribution(dataset=self.train_dataset)
-            train_user_groups = self.get_noniid_partition(dataset=self.train_dataset, distribution=distribution)
+            train_user_groups = self.get_noniid_partition(
+                dataset=self.train_dataset, distribution=distribution
+            )
             valid_user_groups = self.get_noniid_partition(
                 dataset=self.valid_dataset, distribution=distribution
             )
@@ -61,7 +60,13 @@ class FLDataset(Dataset):
             )
 
         elif split_type == "majority_minority":
-            (distribution, majority_classes, minority_classes, majority_users, minority_users) = self.split_majority_minority()
+            (
+                distribution,
+                majority_classes,
+                minority_classes,
+                majority_users,
+                minority_users,
+            ) = self.split_majority_minority()
 
             train_user_groups = self.get_noniid_partition(
                 dataset=self.train_dataset, distribution=distribution
@@ -73,7 +78,7 @@ class FLDataset(Dataset):
                 dataset=self.test_dataset, distribution=distribution
             )
 
-            '''wandb.log(
+            """wandb.log(
                 {
                     "majority_classes": majority_classes,
                     "minority_classes": minority_classes,
@@ -82,7 +87,7 @@ class FLDataset(Dataset):
                 }
             
             )
-            '''
+            """
 
         else:
             raise ValueError(f"Split type {split_type} not supported")
@@ -119,7 +124,7 @@ class FLDataset(Dataset):
         :return: dictionary where each key is a user index, and each item is a list of sample idxs
             for that user
         """
-        
+
         dataset_labels = dataset.targets
         sample_idxs = [torch.where(dataset_labels == i)[0] for i in range(num_classes)]
         users_data = defaultdict(list)
@@ -171,7 +176,6 @@ class FLDataset(Dataset):
             raise ValueError(
                 f"min_proportion per user must be less than {1/num_clients} for a dataset with {num_clients} in it"
             )
-            
         class_sample_distribution = np.zeros((num_classes, num_clients))
         dataset_proportion_per_user = np.zeros(num_clients)
         while dataset_proportion_per_user.min() <= min_proportion:
@@ -258,6 +262,7 @@ class FLDataset(Dataset):
             np.arange(num_majority_users, num_clients),
         )
 
+
 def prepare_fashionMNIST(data_dir, seed=42):
     apply_transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
@@ -274,7 +279,6 @@ def prepare_fashionMNIST(data_dir, seed=42):
         shuffle=True,
         stratify=train_valid_dataset.targets,
     )
-
 
     train_dataset = Subset(train_valid_dataset, train_idxs)
     valid_dataset = Subset(train_valid_dataset, valid_idxs)
@@ -366,7 +370,6 @@ def prepare_utkface(self, seed=42):
     train_dataset, validate_dataset, test_dataset = torch.utils.data.random_split(
         dataset, [train_len, validate_len, test_len], generator=generator
     )
-    
 
     return train_dataset, test_dataset, valid_dataset
 
@@ -375,4 +378,33 @@ def prepare_synthetic(self, num_clients, num_classes, num_features, seed=42):
     train_dataset, test_dataset, valid_dataset = SyntheticDataset(
         num_clients, num_classes, num_features
     ).split()
+    return train_dataset, test_dataset, valid_dataset
+
+
+def prepare_SVHN(data_dir, seed=42):
+    apply_transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Lambda(lambda x: normalize(x))]
+    )
+
+    full_train_dataset = datasets.SVHN(
+        data_dir, split="train", download=True, transform=apply_transform
+    )
+    test_dataset = datasets.SVHN(
+        data_dir, split="test", download=True, transform=apply_transform
+    )
+
+    train_idxs, valid_idxs = train_test_split(
+        np.arange(len(full_train_dataset)),
+        test_size=0.1,
+        random_state=seed,
+        shuffle=True,
+        stratify=full_train_dataset.labels,
+    )
+
+    train_dataset = Subset(full_train_dataset, train_idxs)
+    valid_dataset = Subset(full_train_dataset, valid_idxs)
+
+    train_dataset.targets = torch.Tensor(full_train_dataset.labels[train_idxs])
+    valid_dataset.targets = torch.Tensor(full_train_dataset.labels[valid_idxs])
+    test_dataset.targets = torch.Tensor(test_dataset.labels)
     return train_dataset, test_dataset, valid_dataset

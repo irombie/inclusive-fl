@@ -44,7 +44,16 @@ def get_current_params():
         dataset_name=Param(
             And(
                 str,
-                OneOf(["CIFAR10", "CIFAR100", "FashionMNIST", "MNIST", "Synthetic"]),
+                OneOf(
+                    [
+                        "CIFAR10",
+                        "CIFAR100",
+                        "FashionMNIST",
+                        "MNIST",
+                        "Synthetic",
+                        "SVHN",
+                    ]
+                ),
             ),
             "dataset name",
             required=True,
@@ -84,7 +93,8 @@ def get_current_params():
     Section("split_params", "parameters for splitting the dataset").params(
         split_type=Param(
             And(str, OneOf(["iid", "non-iid", "majority_minority"])),
-            "split type", required=True
+            "split type",
+            required=True,
         ),
         overlap=Param(
             float, "overlap between majority and minority classes", default=0.1

@@ -9,6 +9,7 @@ import wandb
 from dataset_defs import *
 from collections import defaultdict
 from general_utils import normalize
+from torch.utils.data import ConcatDataset
 
 
 class FLDataset(Dataset):
@@ -36,7 +37,11 @@ class FLDataset(Dataset):
                 data_dir, seed, num_clients, num_classes, num_features
             )
         elif dataset_name.lower() == "svhn":
-            return prepare_SVHN(data_dir, seed)
+            return prepare_SVHN(
+                data_dir,
+                seed=seed,
+                extra=self.config.get().SVHN_data.extra,
+            )
         else:
             raise ValueError(f"Dataset {dataset_name} not supported")
 
@@ -381,7 +386,7 @@ def prepare_synthetic(self, num_clients, num_classes, num_features, seed=42):
     return train_dataset, test_dataset, valid_dataset
 
 
-def prepare_SVHN(data_dir, seed=42):
+def prepare_SVHN(data_dir, extra=False, seed=42):
     apply_transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Lambda(lambda x: normalize(x))]
     )
@@ -389,22 +394,25 @@ def prepare_SVHN(data_dir, seed=42):
     full_train_dataset = datasets.SVHN(
         data_dir, split="train", download=True, transform=apply_transform
     )
+    full_train_labels = full_train_dataset.labels
     test_dataset = datasets.SVHN(
         data_dir, split="test", download=True, transform=apply_transform
     )
 
-    train_idxs, valid_idxs = train_test_split(
-        np.arange(len(full_train_dataset)),
-        test_size=0.1,
-        random_state=seed,
-        shuffle=True,
-        stratify=full_train_dataset.labels,
+    if extra:
+        extra_train_dataset = datasets.SVHN(
+            data_dir, split="extra", download=True, transform=apply_transform
+        )
+        # NB: ConcatDataset preserves the order and just adjusts the index accordingly.
+        full_train_dataset = ConcatDataset([full_train_dataset, extra_train_dataset])
+        full_train_labels = np.concatenate(
+            (full_train_labels, extra_train_dataset.labels)
+        )
+
+    train_dataset, valid_dataset = torch.utils.data.random_split(
+        full_train_dataset, [0.9, 0.1], generator=torch.Generator().manual_seed(seed)
     )
-
-    train_dataset = Subset(full_train_dataset, train_idxs)
-    valid_dataset = Subset(full_train_dataset, valid_idxs)
-
-    train_dataset.targets = torch.Tensor(full_train_dataset.labels[train_idxs])
-    valid_dataset.targets = torch.Tensor(full_train_dataset.labels[valid_idxs])
+    train_dataset.targets = torch.Tensor(full_train_labels[train_dataset.indices])
+    valid_dataset.targets = torch.Tensor(full_train_labels[valid_dataset.indices])
     test_dataset.targets = torch.Tensor(test_dataset.labels)
     return train_dataset, test_dataset, valid_dataset

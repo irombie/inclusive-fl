@@ -4,7 +4,7 @@ import copy
 import sys
 import traceback
 
-from fastargs import get_current_config
+from fastargs import get_current_config, set_current_config
 from fastargs.decorators import param
 import numpy as np
 import torch
@@ -46,7 +46,6 @@ class FLTrainingHarness:
 
         self.logger: logging_utils.WandbLogger
         self._ckpt_dir = None
-
 
     @property
     def ckpt_dir(self):
@@ -333,5 +332,6 @@ if __name__ == "__main__":
     config.collect_argparse_args(parser)
     config.validate(mode="stderr")
     config.summary()
+    set_current_config(config)
     harness = FLTrainingHarness()
     harness.run()

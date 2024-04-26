@@ -62,6 +62,11 @@ def get_current_params():
         num_classes=Param(int, "Number of classes", required=True),
         num_features=Param(int, "Number of features", default=0),
     )
+    Section("SVHN_data").enable_if(
+        lambda cfg: cfg["dataset.dataset_name"] == "SVHN"
+    ).params(
+        extra=Param(bool, "Whether to add the extra SVHN training data", default=False)
+    )
 
     Section("fl_parameters", "FL Training parameters").params(
         num_clients=Param(int, "number of clients", required=True),

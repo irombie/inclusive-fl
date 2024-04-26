@@ -3,6 +3,8 @@ dataset:
   data_dir: ./data
   num_clients: 10
   num_classes: 10
+SVHN_data:
+  extra: True
 model:
   model_name: SmallCNN 
 training_params:

@@ -47,6 +47,7 @@ class FLTrainingHarness:
         self.logger: logging_utils.WandbLogger
         self._ckpt_dir = None
 
+
     @property
     def ckpt_dir(self):
         if self._ckpt_dir is None:
@@ -94,7 +95,6 @@ class FLTrainingHarness:
 
     def get_data_splits(self):
         main_ds = FLDataset()
-        main_ds.get_dataset()
         self.train_dataset, self.test_dataset, self.valid_dataset = (
             main_ds.train_dataset,
             main_ds.test_dataset,

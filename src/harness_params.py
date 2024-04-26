@@ -70,7 +70,7 @@ def get_current_params():
         choose_from_top_r_percentile=Param(
             float, "choose from top r percentile", default=1
         ),
-        use_fair_sparsification=Param(int, "use fair sparsification", default=True),
+        use_fair_sparsification=Param(bool, "use fair sparsification", default=False),
         fairness_temperature=Param(float, "fairness temperature", default=1),
         min_sparsification_ratio=Param(
             float, "minimum sparsification ratio", default=0
@@ -83,16 +83,15 @@ def get_current_params():
 
     Section("split_params", "parameters for splitting the dataset").params(
         split_type=Param(
-            And(str, OneOf(["iid", "non-iid", "majority-minority"])),
-            "split type",
-            default="iid",
+            And(str, OneOf(["iid", "non-iid", "majority_minority"])),
+            "split type", required=True
         ),
-        majority_minority_overlap=Param(
-            float, "overlap between majority and minority classes", default=0.5
+        overlap=Param(
+            float, "overlap between majority and minority classes", default=0.1
         ),
-        majority_proportion=Param(float, "proportion of majority class", default=0.5),
-        min_proportion=Param(float, "proportion of minority class", default=0.5),
-        dirichlet_param=Param(float, "dirichlet parameter", default=0.5),
+        majority_proportion=Param(float, "proportion of majority class", default=0.8),
+        min_proportion=Param(float, "proportion of minority class", required=True),
+        dirichlet_param=Param(float, "dirichlet parameter", default=10),
     )
 
     Section("training_params", "harness related stuff").params(

@@ -1,18 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.6
-from pathlib import Path
-from typing import Tuple
-
-import os
-import sys
-
 from fastargs import get_current_config
 from fastargs.decorators import param
 import numpy as np
 import torch
 import wandb
 from dataset_defs import *
+from collections import defaultdict
+from general_utils import normalize
+from torch.utils.data import ConcatDataset
 
 
 class FLDataset(Dataset):
@@ -39,8 +36,14 @@ class FLDataset(Dataset):
             return prepare_synthetic(
                 data_dir, seed, num_clients, num_classes, num_features
             )
+        elif dataset_name.lower() == "svhn":
+            return prepare_SVHN(
+                data_dir,
+                seed=seed,
+                extra=self.config.get().SVHN_data.extra,
+            )
         else:
-            raise ValueError(f"Dataset {self.dataset_name} not supported")
+            raise ValueError(f"Dataset {dataset_name} not supported")
 
     @param("split_params.split_type")
     def get_client_groups(self, split_type):
@@ -50,39 +53,49 @@ class FLDataset(Dataset):
             test_user_groups = self.get_iid_partition(dataset=self.test_dataset)
 
         elif split_type == "non-iid":
-            distribution = self.generate_noniid_distribution(self.train_dataset)
+            distribution = self.generate_noniid_distribution(dataset=self.train_dataset)
             train_user_groups = self.get_noniid_partition(
-                self.train_dataset, distribution
+                dataset=self.train_dataset, distribution=distribution
             )
             valid_user_groups = self.get_noniid_partition(
-                self.valid_dataset, distribution
+                dataset=self.valid_dataset, distribution=distribution
             )
             test_user_groups = self.get_noniid_partition(
-                self.test_dataset, distribution
+                dataset=self.test_dataset, distribution=distribution
             )
 
         elif split_type == "majority_minority":
+            (
+                distribution,
+                majority_classes,
+                minority_classes,
+                majority_users,
+                minority_users,
+            ) = self.split_majority_minority()
+
             train_user_groups = self.get_noniid_partition(
-                self.train_dataset.targets, distribution
+                dataset=self.train_dataset, distribution=distribution
             )
             valid_user_groups = self.get_noniid_partition(
-                self.valid_dataset.targets, distribution
+                dataset=self.valid_dataset, distribution=distribution
             )
             test_user_groups = self.get_noniid_partition(
-                self.test_dataset.targets, distribution
+                dataset=self.test_dataset, distribution=distribution
             )
 
-            wandb.log(
+            """wandb.log(
                 {
                     "majority_classes": majority_classes,
                     "minority_classes": minority_classes,
                     "majority_users": majority_users,
                     "minority_users": minority_users,
                 }
+            
             )
+            """
 
         else:
-            raise ValueError(f"Split type {self.split_type} not supported")
+            raise ValueError(f"Split type {split_type} not supported")
 
         return train_user_groups, test_user_groups, valid_user_groups
 
@@ -103,13 +116,42 @@ class FLDataset(Dataset):
 
     @param("fl_parameters.num_clients")
     @param("dataset.num_classes")
+    def get_noniid_partition(self, num_clients, num_classes, dataset, distribution):
+        """
+        Get samples assigned to each user
+
+        :param num_clients: number of clients
+        :param num_classes: number of classes
+        :param dataset: dataset object
+        :param distribution: array of shape (num_classes, num_clients), where each row is a distribution
+            over the users for a specific class
+
+        :return: dictionary where each key is a user index, and each item is a list of sample idxs
+            for that user
+        """
+
+        dataset_labels = dataset.targets
+        sample_idxs = [torch.where(dataset_labels == i)[0] for i in range(num_classes)]
+        users_data = defaultdict(list)
+        for i in range(num_classes):
+            num_class_samples = len(sample_idxs[i])
+            sample_user_idx = np.random.choice(
+                num_clients, num_class_samples, p=distribution[i]
+            )
+            for user_idx, sample_idx in zip(sample_user_idx, sample_idxs[i]):
+                users_data[user_idx].append(sample_idx.item())
+
+        return users_data
+
+    @param("fl_parameters.num_clients")
+    @param("dataset.num_classes")
     @param("split_params.dirichlet_param")
     @param("split_params.min_proportion")
     def generate_noniid_distribution(
         self,
         num_clients: int,
         num_classes: int,
-        beta: float,
+        dirichlet_param: float,
         min_proportion: float,
         dataset: Dataset,
     ):
@@ -136,14 +178,14 @@ class FLDataset(Dataset):
             )
 
         if min_proportion >= 1 / num_clients:
-            return ValueError(
+            raise ValueError(
                 f"min_proportion per user must be less than {1/num_clients} for a dataset with {num_clients} in it"
             )
         class_sample_distribution = np.zeros((num_classes, num_clients))
         dataset_proportion_per_user = np.zeros(num_clients)
         while dataset_proportion_per_user.min() <= min_proportion:
             class_sample_distribution = np.random.dirichlet(
-                np.repeat(beta, num_clients), num_classes
+                np.repeat(dirichlet_param, num_clients), num_classes
             )
             dataset_proportion_per_user = (
                 class_weights @ class_sample_distribution
@@ -154,7 +196,7 @@ class FLDataset(Dataset):
     @param("fl_parameters.num_clients")
     @param("dataset.num_classes")
     @param("split_params.majority_proportion")
-    @param("split_params.majority_minority_overlap")
+    @param("split_params.overlap")
     def split_majority_minority(
         self,
         num_clients: int,
@@ -189,7 +231,7 @@ class FLDataset(Dataset):
 
         # We define a distribution over the users for each class. This will tell us how to probabilistically distribute
         # the samples of that class to the users using 'get_noniid_partition'. The ith row of the 'distribution'
-        # object corresponds to the distribution for the ith class.
+        # object correspondataset to the distribution for the ith class.
         distribution = np.zeros((num_classes, num_clients))
 
         # The probability of a sample from a majority or minority class being assigned to either a majority or minority
@@ -224,3 +266,153 @@ class FLDataset(Dataset):
             np.arange(num_majority_users),
             np.arange(num_majority_users, num_clients),
         )
+
+
+def prepare_fashionMNIST(data_dir, seed=42):
+    apply_transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
+    )
+
+    train_valid_dataset = datasets.FashionMNIST(
+        data_dir, train=True, download=True, transform=apply_transform
+    )
+
+    train_idxs, valid_idxs = train_test_split(
+        np.arange(len(train_valid_dataset)),
+        test_size=0.1,
+        random_state=seed,
+        shuffle=True,
+        stratify=train_valid_dataset.targets,
+    )
+
+    train_dataset = Subset(train_valid_dataset, train_idxs)
+    valid_dataset = Subset(train_valid_dataset, valid_idxs)
+
+    train_dataset.targets = train_valid_dataset.targets[train_idxs]
+    valid_dataset.targets = train_valid_dataset.targets[valid_idxs]
+    test_dataset = datasets.FashionMNIST(
+        data_dir, train=False, download=True, transform=apply_transform
+    )
+
+    return train_dataset, test_dataset, valid_dataset
+
+
+def prepare_cifar10(data_dir, seed=42):
+    transforms_train = transforms.Compose(
+        [
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ]
+    )
+
+    transforms_test = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ]
+    )
+
+    train_valid_dataset = datasets.CIFAR10(
+        data_dir, train=True, download=True, transform=transforms_train
+    )
+
+    train_idxs, valid_idxs = train_test_split(
+        np.arange(len(train_valid_dataset)),
+        test_size=0.1,
+        random_state=seed,
+        shuffle=True,
+        stratify=train_valid_dataset.targets,
+    )
+
+    train_dataset = Subset(train_valid_dataset, train_idxs)
+    valid_dataset = Subset(train_valid_dataset, valid_idxs)
+
+    train_dataset.targets = train_valid_dataset.targets[train_idxs]
+    valid_dataset.targets = train_valid_dataset.targets[valid_idxs]
+
+    test_dataset = datasets.CIFAR10(
+        data_dir, train=False, download=True, transform=transforms_test
+    )
+
+    return train_dataset, test_dataset, valid_dataset
+
+
+def prepare_utkface(self, seed=42):
+    """
+    Returns train/test/validation utkface datasets.
+
+    :params data_dir: directory where the images are located
+    :params zfile: relative path from home folder to the zip file stored under data
+    :params extract_dir: main directory where the UTKFace folder will be stored
+    :params apply_transform: image transformation for UTKFace
+
+    :returns: train/test/validation utkface datasets that can be used for training UTKFace
+    """
+    generator = torch.Generator().manual_seed(seed)
+
+    apply_transform = transforms.Compose(
+        [
+            transforms.Resize((64, 64)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5959, 0.4562, 0.3906), (0.2591, 0.2312, 0.2268)),
+        ]
+    )
+
+    dataset = UTKFaceDataset(
+        directory=data_dir,
+        zfile=zfile,
+        extract_dir=extract_dir,
+        transform=apply_transform,
+        label_type=label_type,
+    )
+
+    train_len = int(len(dataset) * 0.8)
+    validate_len = int(len(dataset) * 0.1)
+    test_len = int(len(dataset) - train_len - validate_len)
+
+    train_dataset, validate_dataset, test_dataset = torch.utils.data.random_split(
+        dataset, [train_len, validate_len, test_len], generator=generator
+    )
+
+    return train_dataset, test_dataset, valid_dataset
+
+
+def prepare_synthetic(self, num_clients, num_classes, num_features, seed=42):
+    train_dataset, test_dataset, valid_dataset = SyntheticDataset(
+        num_clients, num_classes, num_features
+    ).split()
+    return train_dataset, test_dataset, valid_dataset
+
+
+def prepare_SVHN(data_dir, extra=False, seed=42):
+    apply_transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Lambda(lambda x: normalize(x))]
+    )
+
+    full_train_dataset = datasets.SVHN(
+        data_dir, split="train", download=True, transform=apply_transform
+    )
+    full_train_labels = full_train_dataset.labels
+    test_dataset = datasets.SVHN(
+        data_dir, split="test", download=True, transform=apply_transform
+    )
+
+    if extra:
+        extra_train_dataset = datasets.SVHN(
+            data_dir, split="extra", download=True, transform=apply_transform
+        )
+        # NB: ConcatDataset preserves the order and just adjusts the index accordingly.
+        full_train_dataset = ConcatDataset([full_train_dataset, extra_train_dataset])
+        full_train_labels = np.concatenate(
+            (full_train_labels, extra_train_dataset.labels)
+        )
+
+    train_dataset, valid_dataset = torch.utils.data.random_split(
+        full_train_dataset, [0.9, 0.1], generator=torch.Generator().manual_seed(seed)
+    )
+    train_dataset.targets = torch.Tensor(full_train_labels[train_dataset.indices])
+    valid_dataset.targets = torch.Tensor(full_train_labels[valid_dataset.indices])
+    test_dataset.targets = torch.Tensor(test_dataset.labels)
+    return train_dataset, test_dataset, valid_dataset

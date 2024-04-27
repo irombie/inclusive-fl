@@ -4,7 +4,7 @@ import copy
 import sys
 import traceback
 
-from fastargs import get_current_config
+from fastargs import get_current_config, set_current_config
 from fastargs.decorators import param
 import numpy as np
 import torch
@@ -94,7 +94,6 @@ class FLTrainingHarness:
 
     def get_data_splits(self):
         main_ds = FLDataset()
-        main_ds.get_dataset()
         self.train_dataset, self.test_dataset, self.valid_dataset = (
             main_ds.train_dataset,
             main_ds.test_dataset,
@@ -333,5 +332,6 @@ if __name__ == "__main__":
     config.collect_argparse_args(parser)
     config.validate(mode="stderr")
     config.summary()
+    set_current_config(config)
     harness = FLTrainingHarness()
     harness.run()

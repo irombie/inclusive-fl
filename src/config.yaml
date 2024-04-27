@@ -1,17 +1,19 @@
 dataset:
-  dataset_name: FashionMNIST 
+  dataset_name: SVHN
   data_dir: ./data
   num_clients: 10
   num_classes: 10
+SVHN_data:
+  extra: True
 model:
-  model_name: CNNFashionMNIST 
+  model_name: SmallCNN 
 training_params:
   seed: 0
 fl_parameters:
   num_clients: 10
   fl_method: FedSyn 
   frac: 0.2
-  q: 0.01
+  use_fair_sparisification: True
 global_parameters:
   global_rounds: 10
   client_frac: 0.3
@@ -21,5 +23,6 @@ client_parameters:
   local_lr: 1e-3
   local_epochs: 3
 split_params:
-  split: non-iid
+  split_type: majority_minority
   dirichlet_param: 10
+  min_proportion: 0.09

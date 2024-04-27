@@ -145,3 +145,8 @@ def custom_exponential_sparsity(client_losses, max_sparsity, min_sparsity, tempe
     return (max_sparsity - min_sparsity) * np.exp(
         client_losses - max_client_loss
     ) + min_sparsity
+
+
+def normalize(data_tensor):
+    """re-scale image values to [-1, 1]"""
+    return (data_tensor / 255.0) * 2.0 - 1.0

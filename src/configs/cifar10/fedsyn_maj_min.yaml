@@ -12,11 +12,11 @@ fl_parameters:
   fl_method: FedSyn 
   frac: 0.2
   use_fair_sparisification: True
+  sparsification_type: rtopk
 global_parameters:
   global_rounds: 50
   client_frac: 0.3
   global_learning_rate: 1
-  sparsification_type: r-topk
 client_parameters:
   local_bs: 64
   local_lr: 1e-3

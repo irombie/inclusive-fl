@@ -1,5 +1,5 @@
 dataset:
-  dataset_name: SVHN
+  dataset_name: CIFAR10 
   data_dir: ./data
   num_clients: 10
   num_classes: 10

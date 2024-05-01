@@ -329,6 +329,8 @@ def prepare_cifar10(data_dir, seed=42):
     train_dataset = Subset(train_valid_dataset, train_idxs)
     valid_dataset = Subset(train_valid_dataset, valid_idxs)
 
+    print(train_idxs)
+
     train_dataset.targets = train_valid_dataset.targets[train_idxs]
     valid_dataset.targets = train_valid_dataset.targets[valid_idxs]
 

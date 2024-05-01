@@ -1,0 +1,27 @@
+dataset:
+  dataset_name: CIFAR10
+  data_dir: ./data
+  num_clients: 10
+  num_classes: 10
+model:
+  model_name: SmallCNN 
+training_params:
+  seed: 0
+fl_parameters:
+  num_clients: 100
+  fl_method: FedSyn 
+  frac: 0.2
+  use_fair_sparisification: True
+global_parameters:
+  global_rounds: 50
+  client_frac: 0.3
+  global_learning_rate: 1
+  sparsification_type: r-topk
+client_parameters:
+  local_bs: 64
+  local_lr: 1e-3
+  local_epochs: 5
+split_params:
+  split_type: majority_minority
+  dirichlet_param: 10
+  min_proportion: 0.09

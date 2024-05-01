@@ -28,9 +28,6 @@ def get_current_params():
 
     Section("global_parameters", "global parameters").params(
         global_rounds=Param(int, "number of rounds of training", required=True),
-        client_frac=Param(
-            float, "Client fraction sampled at each round for training", required=True
-        ),
         global_lr=Param(float, "global learning rate", default=1),
     )
 

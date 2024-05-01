@@ -131,6 +131,8 @@ class FLDataset(Dataset):
         """
 
         dataset_labels = dataset.targets
+        if isinstance(dataset_labels, list):
+            dataset_labels = torch.tensor(dataset_labels) 
         sample_idxs = [torch.where(dataset_labels == i)[0] for i in range(num_classes)]
         users_data = defaultdict(list)
         for i in range(num_classes):
@@ -287,7 +289,6 @@ def prepare_fashionMNIST(data_dir, seed=42):
 
     train_dataset = Subset(train_valid_dataset, train_idxs)
     valid_dataset = Subset(train_valid_dataset, valid_idxs)
-
     train_dataset.targets = train_valid_dataset.targets[train_idxs]
     valid_dataset.targets = train_valid_dataset.targets[valid_idxs]
     test_dataset = datasets.FashionMNIST(
@@ -329,8 +330,8 @@ def prepare_cifar10(data_dir, seed=42):
     train_dataset = Subset(train_valid_dataset, train_idxs)
     valid_dataset = Subset(train_valid_dataset, valid_idxs)
 
-    train_dataset.targets = train_valid_dataset.targets[train_idxs]
-    valid_dataset.targets = train_valid_dataset.targets[valid_idxs]
+    train_dataset.targets = torch.tensor(train_valid_dataset.targets)[train_idxs]
+    valid_dataset.targets = torch.tensor(train_valid_dataset.targets)[valid_idxs]
 
     test_dataset = datasets.CIFAR10(
         data_dir, train=False, download=True, transform=transforms_test
@@ -368,13 +369,32 @@ def prepare_utkface(self, seed=42):
         label_type=label_type,
     )
 
-    train_len = int(len(dataset) * 0.8)
-    validate_len = int(len(dataset) * 0.1)
-    test_len = int(len(dataset) - train_len - validate_len)
-
-    train_dataset, validate_dataset, test_dataset = torch.utils.data.random_split(
-        dataset, [train_len, validate_len, test_len], generator=generator
+    train_idxs, valid_idxs = train_test_split(
+        np.arange(len(dataset)),
+        test_size=0.1,
+        random_state=seed,
+        shuffle=True,
+        stratify=dataset.targets,
     )
+
+    train_dataset = Subset(dataset, train_idxs)
+    valid_dataset = Subset(dataset, valid_idxs)
+
+    new_train_idxs, test_idxs = train_test_split(
+        np.arange(len(train_dataset)),
+        test_size=0.1,
+        random_state=seed,
+        shuffle=True,
+        stratify=train_dataset.targets,
+    )
+
+    train_dataset = Subset(train_dataset, train_idxs)
+    test_dataset = Subset(train_dataset, test_idxs)
+
+    train_dataset.targets = torch.tensor(train_valid_dataset.labels)[new_train_idxs]
+    valid_dataset.targets = torch.tensor(train_valid_dataset.labels)[valid_idxs]
+    test_dataset.targets = torch.tensor(train_valid_dataset.labels)[test_idxs]
+
 
     return train_dataset, test_dataset, valid_dataset
 
@@ -391,28 +411,42 @@ def prepare_SVHN(data_dir, extra=False, seed=42):
         [transforms.ToTensor(), transforms.Lambda(lambda x: normalize(x))]
     )
 
-    full_train_dataset = datasets.SVHN(
+    train_valid_dataset = datasets.SVHN(
         data_dir, split="train", download=True, transform=apply_transform
     )
-    full_train_labels = full_train_dataset.labels
+    full_train_labels = train_valid_dataset.labels
     test_dataset = datasets.SVHN(
         data_dir, split="test", download=True, transform=apply_transform
     )
 
-    if extra:
+    '''if extra:
         extra_train_dataset = datasets.SVHN(
             data_dir, split="extra", download=True, transform=apply_transform
         )
         # NB: ConcatDataset preserves the order and just adjusts the index accordingly.
-        full_train_dataset = ConcatDataset([full_train_dataset, extra_train_dataset])
+        train_valid_dataset = ConcatDataset([train_valid_dataset, extra_train_dataset])
         full_train_labels = np.concatenate(
             (full_train_labels, extra_train_dataset.labels)
         )
-
-    train_dataset, valid_dataset = torch.utils.data.random_split(
-        full_train_dataset, [0.9, 0.1], generator=torch.Generator().manual_seed(seed)
+    '''
+    train_idxs, valid_idxs = train_test_split(
+        np.arange(len(train_valid_dataset)),
+        test_size=0.1,
+        random_state=seed,
+        shuffle=True,
+        stratify=train_valid_dataset.labels,
     )
-    train_dataset.targets = torch.Tensor(full_train_labels[train_dataset.indices])
-    valid_dataset.targets = torch.Tensor(full_train_labels[valid_dataset.indices])
-    test_dataset.targets = torch.Tensor(test_dataset.labels)
+
+    train_dataset = Subset(train_valid_dataset, train_idxs)
+    valid_dataset = Subset(train_valid_dataset, valid_idxs)
+
+    train_dataset.targets = torch.tensor(train_valid_dataset.labels)[train_idxs]
+    valid_dataset.targets = torch.tensor(train_valid_dataset.labels)[valid_idxs]
+
+    test_dataset = datasets.SVHN(
+        data_dir, split="test", download=True, transform=apply_transform
+    )
+
+    test_dataset.targets = torch.tensor(test_dataset.labels)
+
     return train_dataset, test_dataset, valid_dataset

@@ -1,0 +1,23 @@
+dataset:
+  dataset_name: FashionMNIST 
+  data_dir: ./data
+  num_classes: 10
+model:
+  model_name: CNNFashionMNIST 
+training_params:
+  seed: 0
+fl_parameters:
+  num_clients: 100
+  fl_method: FedAvg 
+  frac: 0.3
+global_parameters:
+  global_rounds: 100
+  global_learning_rate: 1
+client_parameters:
+  local_bs: 10
+  local_lr: 1e-3
+  local_epochs: 4
+split_params:
+  split_type: non-iid
+  dirichlet_param: 10
+  min_proportion: 0.09

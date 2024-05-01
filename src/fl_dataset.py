@@ -289,7 +289,6 @@ def prepare_fashionMNIST(data_dir, seed=42):
 
     train_dataset = Subset(train_valid_dataset, train_idxs)
     valid_dataset = Subset(train_valid_dataset, valid_idxs)
-    print(type(train_idxs))
     train_dataset.targets = train_valid_dataset.targets[train_idxs]
     valid_dataset.targets = train_valid_dataset.targets[valid_idxs]
     test_dataset = datasets.FashionMNIST(

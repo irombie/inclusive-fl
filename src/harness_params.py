@@ -82,6 +82,14 @@ def get_current_params():
             float, "choose from top r percentile", default=1
         ),
         use_fair_sparsification=Param(bool, "use fair sparsification", default=False),
+        fairness_function=Param(
+            And(
+                str,
+                OneOf(["custom-exp", "linear-interpolate"]),
+            ),
+            "The function that is used to calculate the amount of fairness sparsification",
+            default="custom-exp",
+        ),
         fairness_temperature=Param(float, "fairness temperature", default=1),
         min_sparsification_ratio=Param(
             float, "minimum sparsification ratio", default=0

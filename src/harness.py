@@ -11,6 +11,7 @@ import torch
 
 from general_utils import (
     custom_exponential_sparsity,
+    linearly_interpolated_softmax,
     flatten,
     updateFromNumpyFlatArray,
 )
@@ -266,11 +267,16 @@ class FLTrainingHarness:
 
         return client_metrics
 
+    @param("fl_parameters.fairness_function")
     @param("fl_parameters.fairness_temperature")
     @param("fl_parameters.min_sparsification_ratio")
     @param("fl_parameters.sparsification_ratio")
     def compute_client_prob_dist(
-        self, fairness_temperature, min_sparsification_ratio, sparsification_ratio
+        self,
+        fairness_function,
+        fairness_temperature,
+        min_sparsification_ratio,
+        sparsification_ratio,
     ):
         self.global_model.eval()
         valid_losses = []
@@ -283,13 +289,20 @@ class FLTrainingHarness:
             valid_losses.append(loss)
             valid_accs.append(acc)
         valid_losses = np.array(valid_losses)
-        client_prob_dist = custom_exponential_sparsity(
-            valid_losses,
-            sparsification_ratio,
-            min_sparsification_ratio,
-            fairness_temperature,
-        )
-
+        if fairness_function == "custom-exp":
+            client_prob_dist = custom_exponential_sparsity(
+                valid_losses,
+                sparsification_ratio,
+                min_sparsification_ratio,
+                fairness_temperature,
+            )
+        elif fairness_function == "linear-interpolate":
+            client_prob_dist = linearly_interpolated_softmax(
+                valid_losses,
+                sparsification_ratio,
+                min_sparsification_ratio,
+                fairness_temperature,
+            )
         self.client_prob_dist = {
             client_idx: client_prob_dist[i]
             for i, client_idx in enumerate(self.client_indices)

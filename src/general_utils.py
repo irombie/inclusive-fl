@@ -121,9 +121,33 @@ def temperatured_softmax(client_losses, softmax_temperature):
     temperature
     """
     client_losses = client_losses / softmax_temperature
-    return np.exp(client_losses - np.max(client_losses)) / np.sum(
-        np.exp(client_losses - np.max(client_losses))
+    max_client_loss = np.max(client_losses)
+    return np.exp(client_losses - max_client_loss) / np.sum(
+        np.exp(client_losses - max_client_loss)
     )
+
+
+def linearly_interpolated_softmax(
+    client_losses, max_sparsity, min_sparsity, temperature
+):
+    """
+    This method is an extension to the temperatured softmax, which addresses the failiure case when
+    not enough parameters are sent by each cases (as is done with custom_exponential_sparsity).
+
+    Namely, we linearly interpolate between a minimum and maximum sparsity per client based on how poorly they are
+    performing on the validation set.
+    Namely:
+        client_sparsity = p_c*max_sparsity + (1-p_c)*min_sparsity, where p_c is derived from the temperatured softmax
+        as above.
+    As such, each client's sparsity will be bounded between the specified minimum and maximum sparsity, with
+    the worst performing client being allocated the largest parameter budget because of the softmax function.
+    """
+    assert max_sparsity > min_sparsity
+    client_prob_masses = temperatured_softmax(client_losses, temperature)
+    return [
+        max_sparsity * client_prob + (1 - client_prob) * min_sparsity
+        for client_prob in client_prob_masses
+    ]
 
 
 def custom_exponential_sparsity(client_losses, max_sparsity, min_sparsity, temperature):

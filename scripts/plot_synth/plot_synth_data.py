@@ -53,8 +53,8 @@ def get_statistics(X: list[np.ndarray], y: list[np.ndarray]) -> pd.DataFrame:
 
 def main():
     """Plot statistics of synthetic data."""
-    data_dir = Path(__file__).parent.parent / "data"
-    plots_dir = Path(__file__).parent.parent / "plots"
+    data_dir = Path(__file__).parent.parent.parent / "data"
+    plots_dir = Path(__file__).parent.parent.parent / "plots"
     plots_dir.mkdir(exist_ok=True, parents=True)
     for path in data_dir.glob("synthetic*.json"):
         X, y = load_synthetic_data(path)

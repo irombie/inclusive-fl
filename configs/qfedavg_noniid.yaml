@@ -1,14 +1,15 @@
 dataset:
-  dataset_name: FashionMNIST 
+  dataset_name: CIFAR10 
   data_dir: ./data
   num_classes: 10
 model:
-  model_name: CNNFashionMNIST 
+  model_name: ResNet9 
 training_params:
   seed: 0
 fl_parameters:
   num_clients: 100
-  fl_method: FedAvg 
+  fl_method: qFedAvg 
+  q: 0.001
   frac: 0.3
 global_parameters:
   global_rounds: 100
@@ -19,5 +20,5 @@ client_parameters:
   local_epochs: 4
 split_params:
   split_type: non-iid
-  dirichlet_param: 10
-  min_proportion: 0.09
+  dirichlet_param: 0.5
+  min_proportion: 0.002

@@ -61,3 +61,13 @@ python src/harness.py --config configs/fedavg_fmnist.yaml --local_parameters.loc
 Make sure your wandb settings are configured properly so that the experiment results are being logged onto our [team space called `inclusive-fl`](https://wandb.ai/inclusive-fl). 
 
 Federated experiment involves training a global model using many local models.
+
+## Creating sweeps
+
+You can create a hyperparameter sweep or an experimentation sweep on wandb easily. First of all, create a (set of) single experiment config(s) in the appropriate directory under `configs/`. Currently, we organize experiments first by the dataset name and then by the model name.
+
+If you are planning to do an experiment, create an experimentation sweep config under `sweeps/experiment_sweeps`. You can give it an appropriate project name to identify the experiment easily later on. This type of config will run a set of configs. 
+
+Alternatively, you can run a hyperparameter sweep on a single experiment config. Create the sweep config under `sweeps/hparam_sweeps/`. Add the path of the config you want to run in the `command` section of the config and specify the grids for each hyperparameter in the config. You can refer to the existing configs if needed.
+
+Once you have the sweep config prepared, running the sweep is as easy as running the command `wandb sweep <CONFIG_PATH>`. Then, wandb will prompt you with a command to kick off the sweep. Copy and paste it in your terminal and you are done! 

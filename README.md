@@ -15,6 +15,9 @@ The following datasets are supported:
 2. CIFAR10
 3. UTKFace (Ethnicity)
 4. Tiny-Imagenet
+5. SVHN
+6. Synthetic Data (from qFedAvg)
+7. Synthetic Data (majority-minority)
 
 We also provide relevant dataset utils for 
 - IID Data Distribution

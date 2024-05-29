@@ -1,4 +1,4 @@
-project: cifar10-resnet9-qfedavg
+project: cifar10-resnet9-fedavg
 program: harness.py
 method: grid
 parameters:

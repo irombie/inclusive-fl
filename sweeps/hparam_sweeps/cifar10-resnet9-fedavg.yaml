@@ -11,13 +11,8 @@ parameters:
     values:
       - 3
       - 5
-  fl_parameters.q:
-    values:
-      - 0.1
-      - 1
-      - 0.01
 command:
   - python
   - src/harness.py
-  - --config=configs/cifar10/resnet9/qfedavg.yaml
+  - --config=configs/cifar10/resnet9/fedavg.yaml
   - ${args}

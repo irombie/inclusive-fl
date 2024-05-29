@@ -1,0 +1,37 @@
+project: cifar10-resnet9-fedsyn
+program: harness.py
+method: grid
+parameters:
+  client_parameters.local_lr:
+    values:
+      - 0.1
+      - 0.05
+      - 0.01
+  fl_parameters.fairness_function:
+    values:
+      ["linear-interpolate", "custom-exp"]
+  fl_parameters.fairness_temperature:
+    values:
+      - 0.5
+      - 0.6 
+      - 0.8
+  client_parameters.local_epochs:
+    values:
+      - 3
+      - 5
+  fl_parameters.sparsification_ratio:
+    values:
+      - 0.1
+      - 0.2
+      - 0.3
+  fl_parameters.choose_from_top_r_percentile:
+    values:
+      - 0.4
+      - 0.6
+      - 0.8
+      - 1
+command:
+  - python
+  - src/harness.py
+  - --config=configs/cifar10/resnet9/fedsyn_fair_sparsification.yaml
+  - ${args}

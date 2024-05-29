@@ -1,4 +1,4 @@
-project: cifar10-resnet9-qfedavg
+project: cifar10-resnet9-fedsyn
 program: harness.py
 method: grid
 parameters:
@@ -11,13 +11,19 @@ parameters:
     values:
       - 3
       - 5
-  fl_parameters.q:
+  fl_parameters.sparsification_ratio:
     values:
       - 0.1
+      - 0.2
+      - 0.3
+  fl_parameters.choose_from_top_r_percentile:
+    values:
+      - 0.4
+      - 0.6
+      - 0.8
       - 1
-      - 0.01
 command:
   - python
   - src/harness.py
-  - --config=configs/cifar10/resnet9/qfedavg.yaml
+  - --config=configs/cifar10/resnet9/fedsyn_unfair_sparsification.yaml
   - ${args}

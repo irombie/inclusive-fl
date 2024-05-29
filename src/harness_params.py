@@ -77,9 +77,9 @@ def get_current_params():
             required=True,
         ),
         sparsification_ratio=Param(float, "sparsification ratio", default=0.2),
-        sparsification_type=Param(str, "sparsification type", default="randk"),
+        sparsification_type=Param(str, "sparsification type", default="rtopk"),
         choose_from_top_r_percentile=Param(
-            float, "choose from top r percentile", default=1
+            float, "choose from top r percentile", default=0.5
         ),
         use_fair_sparsification=Param(bool, "use fair sparsification", default=False),
         fairness_function=Param(

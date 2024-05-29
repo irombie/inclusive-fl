@@ -11,15 +11,13 @@ fl_parameters:
   fl_method: FedSyn
   sparsification_type: rtopk
   use_fair_sparsification: True
-  frac: 0.3
-  fairness_function: linear-interpolate
+  frac: 0.1
+  min_sparsification_ratio: 0.05
 global_parameters:
   global_rounds: 250
   global_learning_rate: 1
 client_parameters:
   local_bs: 256
-  local_lr: 1e-2
-  local_epochs: 5
 split_params:
   split_type: non-iid
   dirichlet_param: 0.5

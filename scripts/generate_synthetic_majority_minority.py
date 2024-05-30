@@ -134,7 +134,6 @@ def generate_synthetic(
 
     for sample_indices, cls_dist in zip(sample_indices_by_class, dist):
         user_indices = rng.choice(n_users, len(sample_indices), p=cls_dist)
-        print(user_indices.shape)
         for user_idx, sample_idx in zip(user_indices, sample_indices):
             X_per_user[user_idx].append(x[sample_idx].tolist())
             y_per_user[user_idx].append(y[sample_idx].tolist())

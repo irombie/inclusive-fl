@@ -59,6 +59,12 @@ def get_current_params():
         num_classes=Param(int, "Number of classes", required=True),
         num_features=Param(int, "Number of features", default=0),
     )
+    Section("synthetic_data").enable_if(
+        lambda cfg: cfg["dataset.dataset_name"] == "Synthetic"
+    ).params(
+        gdrive_id=Param(str, "Google Drive ID for the synthetic data"),
+        name=Param(str, "Name of the synthetic data"),
+    )
     Section("SVHN_data").enable_if(
         lambda cfg: cfg["dataset.dataset_name"] == "SVHN"
     ).params(

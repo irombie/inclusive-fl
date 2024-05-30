@@ -171,7 +171,7 @@ class FLDataset(Dataset):
         """
 
         dataset_labels = dataset.targets
-        if isinstance(dataset_labels, list):
+        if not isinstance(dataset_labels, torch.TensorType):
             dataset_labels = torch.tensor(dataset_labels)
         class_weights = np.zeros((num_classes,))
         for class_number in range(num_classes):
@@ -400,9 +400,7 @@ def prepare_utkface(self, seed=42):
 
 
 def prepare_synthetic(self, num_clients, num_classes, num_features, seed=42):
-    train_dataset, test_dataset, valid_dataset = SyntheticDataset(
-        num_clients, num_classes, num_features
-    ).split()
+    train_dataset, test_dataset, valid_dataset = SyntheticDataset().split()
     return train_dataset, test_dataset, valid_dataset
 
 

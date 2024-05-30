@@ -97,13 +97,14 @@ class UTKFaceDataset(Dataset):
 class SyntheticDataset(Dataset):
     """Synthetic dataset generated using the function generate_synthetic_data"""
 
-    def __init__(self, num_clients, num_classes, num_features):
+    def __init__(self, X=None, y=None):
         """
         Returns synthetic dataset at the given path.
 
         :params path: path to the synthetic data file
         """
-        X, y = self.fetch_synthetic_data()
+        if X is None or y is None:
+            X, y = self.fetch_synthetic_data()
         self.n_users = len(X)
         self.n_samples_per_user = [len(x) for x in X]
         self.n_samples = sum(self.n_samples_per_user)
@@ -117,12 +118,19 @@ class SyntheticDataset(Dataset):
         self.X = np.concatenate(X).astype(np.float32)
         self.y = np.concatenate(y).astype(np.int64)
         self.validate_data(self.X, self.y)
+        self.targets = torch.tensor(self.y)
 
     def __len__(self) -> int:
         return self.n_samples
 
+    @param("fl_parameters.num_clients")
+    @param("dataset.num_classes")
+    @param("dataset.num_features")
+    @param("synthetic_data.gdrive_id")
+    @param("dataset.data_dir")
+    @param("synthetic_data.name")
     def fetch_synthetic_data(
-        self, num_clients, num_classes, num_features, url: str, path: str | Path
+        self, num_clients, num_classes, num_features, gdrive_id: str, data_dir: str | Path, name: str | Path
     ):
         """
         Fetch the synthetic data from the given URL and save it to the given path.
@@ -130,18 +138,23 @@ class SyntheticDataset(Dataset):
         :param url: URL to fetch the synthetic data from
         :param path: path to save the synthetic data to
         """
-        synthetic_data_url = f"https://drive.google.com/uc?id={args['gdrive_id']}"
+        synthetic_data_url = f"https://drive.google.com/uc?id={gdrive_id}"
 
-        path = Path(path).resolve() / "synthetic_data.zip"
+        path = Path(data_dir).resolve() / f"{name}.zip"
         if not path.exists():
             gdown.download(synthetic_data_url, path.as_posix())
 
-        with zipfile.ZipFile(data_zip, "r") as zip_ref:
-            fname = f"data/synthetic_data_nusers_{args['num_clients']}_nclasses_{args['num_classes']}_ndims_{args['num_features']}.json"
-            with zip_ref.open(fname) as f:
-                data = json.load(f)
-                X = [np.array(x) for x in data["X"]]
-                y = [np.array(y) for y in data["y"]]
+        with zipfile.ZipFile(path, "r") as zip_ref:
+            fname = f"synthetic_data_nusers_{num_clients}_nclasses_{num_classes}_ndims_{num_features}.json"
+            try:
+                with zip_ref.open(fname) as f:
+                    data = json.load(f)
+                    X = [np.array(x) for x in data["X"]]
+                    y = [np.array(y) for y in data["y"]]
+            except KeyError as exc:
+                # Print the list of files in the zip file
+                print("Available files:", zip_ref.namelist())
+                raise FileNotFoundError(f"File {fname} not found in the zip file.") from exc
 
         return X, y
 

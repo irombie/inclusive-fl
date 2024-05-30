@@ -1,0 +1,29 @@
+dataset:
+  dataset_name: Synthetic
+  data_dir: ./data
+  num_classes: 10
+  num_features: 20
+synthetic_data:
+  gdrive_id: 1dB7ga97V3THQOXLCzw8A7WLMtl5iM9Du
+  name: synth-maj-min-prop-80-overlap-10
+model:
+  model_name: LogisticRegression
+training_params:
+  seed: 0
+fl_parameters:
+  num_clients: 100
+  fl_method: FedAvg
+  sparsification_type: rtopk
+  use_fair_sparsification: True
+  frac: 0.1
+global_parameters:
+  global_rounds: 250
+  global_learning_rate: 1
+client_parameters:
+  local_bs: 64
+  local_lr: 1e-2
+  local_epochs: 5
+split_params:
+  split_type: non-iid
+  dirichlet_param: 0.5
+  min_proportion: 0.002

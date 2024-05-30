@@ -180,8 +180,16 @@ class LocalUpdate:
             pred_labels = pred_labels.view(-1)
             correct += torch.sum(torch.eq(pred_labels, labels)).item()
             total += len(labels)
+            # TODO: Why do we sometimes have total=0?
+            print("Total: ", total)
+            print("Correct: ", correct)
+            print("--------------------")
 
+        print("--------------------00")
+        print("Total: ", total)
+        print("Correct: ", correct)
         accuracy = correct / total
+        print("Accuracy: ", accuracy)
         return accuracy, loss / len(loader)
 
 

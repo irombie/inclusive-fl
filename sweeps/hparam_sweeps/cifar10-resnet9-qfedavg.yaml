@@ -6,7 +6,6 @@ parameters:
     values:
       - 0.1
       - 0.05
-      - 0.01
   client_parameters.local_epochs:
     values:
       - 3

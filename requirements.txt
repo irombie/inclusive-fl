@@ -4,6 +4,7 @@ pandas==2.1.1
 gdown==5.1.0
 fastargs
 terminaltables
+parse==1.19.1
 Pillow
 prettytable==3.9.0
 scikit-learn==1.3.0

@@ -25,6 +25,10 @@ import numpy as np
 import torch
 import wandb
 
+from harness_params import get_current_params
+
+get_current_params()
+
 class UTKFaceDataset(Dataset):
     def __init__(
         self, directory, zfile, extract_dir, transform, label_type="ethnicity"
@@ -154,38 +158,56 @@ class SyntheticDataset(Dataset):
         """
         return self.X[idx], self.y[idx]
 
+    @param("split_params.combine_train_val")
     def split(
-        self, valid_ratio: float = 0.1, test_ratio: float = 0.1
+        self, combine_train_val: bool = False, valid_ratio: float = 0.1, test_ratio: float = 0.1
     ) -> tuple["SyntheticDataset", "SyntheticDataset", "SyntheticDataset"]:
         """
         Split the data into training and validation sets.
 
+        :param combine_train_val: whether to combine the training and validation sets
         :param valid_ratio: proportion of the data to include in the validation set
         :param test_ratio: proportion of the data to include in the test set
         :return: training and validation datasets
         """
         X_train, y_train = [], []
-        X_valid, y_valid = [], []
         X_test, y_test = [], []
-        for idx in self.user_idx.values():
-            valid_size = int(len(idx) * valid_ratio)
-            test_size = int(len(idx) * test_ratio)
 
-            train_idx = idx[: -valid_size - test_size]
-            valid_idx = idx[-valid_size - test_size : -test_size]
-            test_idx = idx[-test_size:]
+        if combine_train_val:
+            for idx in self.user_idx.values():
+                test_size = int(len(idx) * test_ratio)
+                train_idx = idx[: -test_size]
+                test_idx = idx[-test_size:]
 
-            X_train.append(self.X[train_idx])
-            y_train.append(self.y[train_idx])
-            X_valid.append(self.X[valid_idx])
-            y_valid.append(self.y[valid_idx])
-            X_test.append(self.X[test_idx])
-            y_test.append(self.y[test_idx])
+                X_train.append(self.X[train_idx])
+                y_train.append(self.y[train_idx])
+                X_test.append(self.X[test_idx])
+                y_test.append(self.y[test_idx])
 
-        train_dataset = SyntheticDataset(X_train, y_train)
-        valid_dataset = SyntheticDataset(X_valid, y_valid)
-        test_dataset = SyntheticDataset(X_test, y_test)
-        return train_dataset, valid_dataset, test_dataset
+            train_dataset = SyntheticDataset(X_train, y_train)
+            test_dataset = SyntheticDataset(X_test, y_test)
+            return train_dataset, test_dataset
+        else:
+            X_valid, y_valid = [], []
+            for idx in self.user_idx.values():
+                valid_size = int(len(idx) * valid_ratio)
+                test_size = int(len(idx) * test_ratio)
+
+                train_idx = idx[: -valid_size - test_size]
+                valid_idx = idx[-valid_size - test_size : -test_size]
+                test_idx = idx[-test_size:]
+
+                X_train.append(self.X[train_idx])
+                y_train.append(self.y[train_idx])
+                X_valid.append(self.X[valid_idx])
+                y_valid.append(self.y[valid_idx])
+                X_test.append(self.X[test_idx])
+                y_test.append(self.y[test_idx])
+
+            train_dataset = SyntheticDataset(X_train, y_train)
+            valid_dataset = SyntheticDataset(X_valid, y_valid)
+            test_dataset = SyntheticDataset(X_test, y_test)
+            return train_dataset, valid_dataset, test_dataset
 
     @staticmethod
     def validate_data(X: list[np.ndarray], y: list[np.ndarray]) -> bool:

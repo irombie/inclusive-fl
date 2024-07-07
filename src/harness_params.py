@@ -58,6 +58,9 @@ def get_current_params():
         data_dir=Param(str, "path to data directory", default="./data/"),
         num_classes=Param(int, "Number of classes", required=True),
         num_features=Param(int, "Number of features", default=0),
+        combine_train_val=Param(
+            bool, "Whether to combine train and validation sets", default=False
+        ),
     )
     Section("SVHN_data").enable_if(
         lambda cfg: cfg["dataset.dataset_name"] == "SVHN"

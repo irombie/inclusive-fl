@@ -7,10 +7,13 @@ import numpy as np
 import torch
 import wandb
 from dataset_defs import *
+from harness_params import get_current_params
 from collections import defaultdict
 from general_utils import normalize
 from torch.utils.data import ConcatDataset
 
+
+get_current_params()
 
 class FLDataset(Dataset):
     def __init__(self):
@@ -270,7 +273,8 @@ class FLDataset(Dataset):
         )
 
 
-def prepare_fashionMNIST(data_dir, seed=42):
+@param("split_params.combine_train_val")
+def prepare_fashionMNIST(data_dir, seed=42, combine_train_val):
     apply_transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
     )
@@ -287,18 +291,23 @@ def prepare_fashionMNIST(data_dir, seed=42):
         stratify=train_valid_dataset.targets,
     )
 
-    train_dataset = Subset(train_valid_dataset, train_idxs)
-    valid_dataset = Subset(train_valid_dataset, valid_idxs)
-    train_dataset.targets = train_valid_dataset.targets[train_idxs]
-    valid_dataset.targets = train_valid_dataset.targets[valid_idxs]
     test_dataset = datasets.FashionMNIST(
         data_dir, train=False, download=True, transform=apply_transform
     )
 
+    if combine_train_val:
+        return train_valid_dataset, test_dataset, None
+
+    train_dataset = Subset(train_valid_dataset, train_idxs)
+    valid_dataset = Subset(train_valid_dataset, valid_idxs)
+    train_dataset.targets = train_valid_dataset.targets[train_idxs]
+    valid_dataset.targets = train_valid_dataset.targets[valid_idxs]
+
     return train_dataset, test_dataset, valid_dataset
 
 
-def prepare_cifar10(data_dir, seed=42):
+@param("split_params.combine_train_val")
+def prepare_cifar10(data_dir, seed=42, combine_train_val):
     transforms_train = transforms.Compose(
         [
             transforms.RandomCrop(32, padding=4),
@@ -327,20 +336,24 @@ def prepare_cifar10(data_dir, seed=42):
         stratify=train_valid_dataset.targets,
     )
 
+    test_dataset = datasets.CIFAR10(
+        data_dir, train=False, download=True, transform=transforms_test
+    )
+
+    if combine_train_val:
+        return train_valid_dataset, test_dataset, None
+    
     train_dataset = Subset(train_valid_dataset, train_idxs)
     valid_dataset = Subset(train_valid_dataset, valid_idxs)
 
     train_dataset.targets = torch.tensor(train_valid_dataset.targets)[train_idxs]
     valid_dataset.targets = torch.tensor(train_valid_dataset.targets)[valid_idxs]
 
-    test_dataset = datasets.CIFAR10(
-        data_dir, train=False, download=True, transform=transforms_test
-    )
-
     return train_dataset, test_dataset, valid_dataset
 
 
-def prepare_utkface(self, seed=42):
+@param("split_params.combine_train_val")
+def prepare_utkface(self, seed=42, combine_train_val):
     """
     Returns train/test/validation utkface datasets.
 
@@ -369,6 +382,23 @@ def prepare_utkface(self, seed=42):
         label_type=label_type,
     )
 
+    if combine_train_val:
+        train_idxs, test_idxs = train_test_split(
+            np.arange(len(dataset)),
+            test_size=0.1,
+            random_state=seed,
+            shuffle=True,
+            stratify=dataset.targets,
+        )
+
+        train_dataset = Subset(dataset, train_idxs)
+        test_dataset = Subset(dataset, test_idxs)
+
+        train_dataset.targets = torch.tensor(dataset.labels)[train_idxs]
+        test_dataset.targets = torch.tensor(dataset.labels)[test_idxs]
+
+        return train_dataset, test_dataset, None
+    
     train_idxs, valid_idxs = train_test_split(
         np.arange(len(dataset)),
         test_size=0.1,
@@ -391,22 +421,29 @@ def prepare_utkface(self, seed=42):
     train_dataset = Subset(train_dataset, train_idxs)
     test_dataset = Subset(train_dataset, test_idxs)
 
-    train_dataset.targets = torch.tensor(train_valid_dataset.labels)[new_train_idxs]
-    valid_dataset.targets = torch.tensor(train_valid_dataset.labels)[valid_idxs]
-    test_dataset.targets = torch.tensor(train_valid_dataset.labels)[test_idxs]
-
+    train_dataset.targets = torch.tensor(dataset.labels)[new_train_idxs]
+    valid_dataset.targets = torch.tensor(dataset.labels)[valid_idxs]
+    test_dataset.targets = torch.tensor(dataset.labels)[test_idxs]
 
     return train_dataset, test_dataset, valid_dataset
 
 
-def prepare_synthetic(self, num_clients, num_classes, num_features, seed=42):
+@param("split_params.combine_train_val")
+def prepare_synthetic(self, num_clients, num_classes, num_features, combine_train_val, seed=42):
+    if combine_train_val:
+        train_dataset, test_dataset = SyntheticDataset(
+            num_clients, num_classes, num_features
+        ).split()
+        return train_dataset, test_dataset, None
+    
     train_dataset, test_dataset, valid_dataset = SyntheticDataset(
         num_clients, num_classes, num_features
     ).split()
     return train_dataset, test_dataset, valid_dataset
 
 
-def prepare_SVHN(data_dir, extra=False, seed=42):
+@param("split_params.combine_train_val")
+def prepare_SVHN(data_dir, combine_train_val, extra=False, seed=42):
     apply_transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Lambda(lambda x: normalize(x))]
     )
@@ -414,7 +451,6 @@ def prepare_SVHN(data_dir, extra=False, seed=42):
     train_valid_dataset = datasets.SVHN(
         data_dir, split="train", download=True, transform=apply_transform
     )
-    full_train_labels = train_valid_dataset.labels
     test_dataset = datasets.SVHN(
         data_dir, split="test", download=True, transform=apply_transform
     )
@@ -429,6 +465,9 @@ def prepare_SVHN(data_dir, extra=False, seed=42):
             (full_train_labels, extra_train_dataset.labels)
         )
     '''
+    if combine_train_val:
+        return train_valid_dataset, test_dataset, None
+    
     train_idxs, valid_idxs = train_test_split(
         np.arange(len(train_valid_dataset)),
         test_size=0.1,

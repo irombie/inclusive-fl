@@ -283,6 +283,13 @@ def prepare_fashionMNIST(data_dir, seed=42, combine_train_val):
         data_dir, train=True, download=True, transform=apply_transform
     )
 
+    test_dataset = datasets.FashionMNIST(
+        data_dir, train=False, download=True, transform=apply_transform
+    )
+
+    if combine_train_val:
+        return train_valid_dataset, test_dataset, None
+    
     train_idxs, valid_idxs = train_test_split(
         np.arange(len(train_valid_dataset)),
         test_size=0.1,
@@ -290,13 +297,6 @@ def prepare_fashionMNIST(data_dir, seed=42, combine_train_val):
         shuffle=True,
         stratify=train_valid_dataset.targets,
     )
-
-    test_dataset = datasets.FashionMNIST(
-        data_dir, train=False, download=True, transform=apply_transform
-    )
-
-    if combine_train_val:
-        return train_valid_dataset, test_dataset, None
 
     train_dataset = Subset(train_valid_dataset, train_idxs)
     valid_dataset = Subset(train_valid_dataset, valid_idxs)
@@ -328,6 +328,13 @@ def prepare_cifar10(data_dir, seed=42, combine_train_val):
         data_dir, train=True, download=True, transform=transforms_train
     )
 
+    test_dataset = datasets.CIFAR10(
+        data_dir, train=False, download=True, transform=transforms_test
+    )
+
+    if combine_train_val:
+        return train_valid_dataset, test_dataset, None
+    
     train_idxs, valid_idxs = train_test_split(
         np.arange(len(train_valid_dataset)),
         test_size=0.1,
@@ -335,13 +342,6 @@ def prepare_cifar10(data_dir, seed=42, combine_train_val):
         shuffle=True,
         stratify=train_valid_dataset.targets,
     )
-
-    test_dataset = datasets.CIFAR10(
-        data_dir, train=False, download=True, transform=transforms_test
-    )
-
-    if combine_train_val:
-        return train_valid_dataset, test_dataset, None
     
     train_dataset = Subset(train_valid_dataset, train_idxs)
     valid_dataset = Subset(train_valid_dataset, valid_idxs)
@@ -381,23 +381,6 @@ def prepare_utkface(self, seed=42, combine_train_val):
         transform=apply_transform,
         label_type=label_type,
     )
-
-    if combine_train_val:
-        train_idxs, test_idxs = train_test_split(
-            np.arange(len(dataset)),
-            test_size=0.1,
-            random_state=seed,
-            shuffle=True,
-            stratify=dataset.targets,
-        )
-
-        train_dataset = Subset(dataset, train_idxs)
-        test_dataset = Subset(dataset, test_idxs)
-
-        train_dataset.targets = torch.tensor(dataset.labels)[train_idxs]
-        test_dataset.targets = torch.tensor(dataset.labels)[test_idxs]
-
-        return train_dataset, test_dataset, None
     
     train_idxs, valid_idxs = train_test_split(
         np.arange(len(dataset)),
@@ -408,7 +391,7 @@ def prepare_utkface(self, seed=42, combine_train_val):
     )
 
     train_dataset = Subset(dataset, train_idxs)
-    valid_dataset = Subset(dataset, valid_idxs)
+    valid_dataset = Subset(dataset, valid_idxs) if not combine_train_val else None
 
     new_train_idxs, test_idxs = train_test_split(
         np.arange(len(train_dataset)),
@@ -418,10 +401,15 @@ def prepare_utkface(self, seed=42, combine_train_val):
         stratify=train_dataset.targets,
     )
 
-    train_dataset = Subset(train_dataset, train_idxs)
     test_dataset = Subset(train_dataset, test_idxs)
 
-    train_dataset.targets = torch.tensor(dataset.labels)[new_train_idxs]
+    if combine_train_val:
+        train_dataset = Subset(train_dataset, train_idxs)
+        train_dataset.targets = torch.tensor(dataset.labels)[train_idxs]
+    else:
+        train_dataset = Subset(train_dataset, new_train_idxs)
+        train_dataset.targets = torch.tensor(dataset.labels)[new_train_idxs]
+
     valid_dataset.targets = torch.tensor(dataset.labels)[valid_idxs]
     test_dataset.targets = torch.tensor(dataset.labels)[test_idxs]
 
@@ -429,13 +417,7 @@ def prepare_utkface(self, seed=42, combine_train_val):
 
 
 @param("split_params.combine_train_val")
-def prepare_synthetic(self, num_clients, num_classes, num_features, combine_train_val, seed=42):
-    if combine_train_val:
-        train_dataset, test_dataset = SyntheticDataset(
-            num_clients, num_classes, num_features
-        ).split()
-        return train_dataset, test_dataset, None
-    
+def prepare_synthetic(self, num_clients, num_classes, num_features, combine_train_val, seed=42):    
     train_dataset, test_dataset, valid_dataset = SyntheticDataset(
         num_clients, num_classes, num_features
     ).split()

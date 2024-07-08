@@ -172,42 +172,34 @@ class SyntheticDataset(Dataset):
         """
         X_train, y_train = [], []
         X_test, y_test = [], []
+        X_valid, y_valid = [], []
+
+        for idx in self.user_idx.values():
+            valid_size = int(len(idx) * valid_ratio)
+            test_size = int(len(idx) * test_ratio)
+
+            train_idx = idx[: -valid_size - test_size]
+            valid_idx = idx[-valid_size - test_size : -test_size]
+            test_idx = idx[-test_size:]
+
+            X_train.append(self.X[train_idx])
+            y_train.append(self.y[train_idx])
+            X_valid.append(self.X[valid_idx])
+            y_valid.append(self.y[valid_idx])
+            X_test.append(self.X[test_idx])
+            y_test.append(self.y[test_idx])
 
         if combine_train_val:
-            for idx in self.user_idx.values():
-                test_size = int(len(idx) * test_ratio)
-                train_idx = idx[: -test_size]
-                test_idx = idx[-test_size:]
-
-                X_train.append(self.X[train_idx])
-                y_train.append(self.y[train_idx])
-                X_test.append(self.X[test_idx])
-                y_test.append(self.y[test_idx])
-
-            train_dataset = SyntheticDataset(X_train, y_train)
-            test_dataset = SyntheticDataset(X_test, y_test)
-            return train_dataset, test_dataset
+            X_train.extend(X_valid)
+            y_train.extend(y_valid)
+            del X_valid, y_valid
+            valid_dataset = None
         else:
-            X_valid, y_valid = [], []
-            for idx in self.user_idx.values():
-                valid_size = int(len(idx) * valid_ratio)
-                test_size = int(len(idx) * test_ratio)
-
-                train_idx = idx[: -valid_size - test_size]
-                valid_idx = idx[-valid_size - test_size : -test_size]
-                test_idx = idx[-test_size:]
-
-                X_train.append(self.X[train_idx])
-                y_train.append(self.y[train_idx])
-                X_valid.append(self.X[valid_idx])
-                y_valid.append(self.y[valid_idx])
-                X_test.append(self.X[test_idx])
-                y_test.append(self.y[test_idx])
-
-            train_dataset = SyntheticDataset(X_train, y_train)
             valid_dataset = SyntheticDataset(X_valid, y_valid)
-            test_dataset = SyntheticDataset(X_test, y_test)
-            return train_dataset, valid_dataset, test_dataset
+
+        train_dataset = SyntheticDataset(X_train, y_train)
+        test_dataset = SyntheticDataset(X_test, y_test)
+        return train_dataset, valid_dataset, test_dataset
 
     @staticmethod
     def validate_data(X: list[np.ndarray], y: list[np.ndarray]) -> bool:

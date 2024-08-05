@@ -58,7 +58,11 @@ def get_current_params():
         data_dir=Param(str, "path to data directory", default="./data/"),
         num_classes=Param(int, "Number of classes", required=True),
         num_features=Param(int, "Number of features", default=0),
+        combine_train_val=Param(
+            bool, "Whether to combine train and validation sets", default=False
+        ),
     )
+
     Section("SVHN_data").enable_if(
         lambda cfg: cfg["dataset.dataset_name"] == "SVHN"
     ).params(
@@ -112,6 +116,12 @@ def get_current_params():
         majority_proportion=Param(float, "proportion of majority class", default=0.8),
         min_proportion=Param(float, "proportion of minority class", required=True),
         dirichlet_param=Param(float, "dirichlet parameter", default=10),
+        combine_train_val=Param(
+            bool, "Whether to combine train and validation sets", default=False
+        ),
+        fairness_proportion=Param(
+            float, "Proportion of data train data to use for fairness. Defaults to 1.", default=1
+        )
     )
 
     Section("training_params", "harness related stuff").params(

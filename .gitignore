@@ -13,4 +13,7 @@ checkpoints/
 *.csv 
 *.txt
 *.dat
+*.log
+*.out
+*.sh
 test_bed.ipynb

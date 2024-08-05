@@ -7,10 +7,13 @@ import numpy as np
 import torch
 import wandb
 from dataset_defs import *
+from harness_params import get_current_params
 from collections import defaultdict
 from general_utils import normalize
 from torch.utils.data import ConcatDataset
 
+
+get_current_params()
 
 class FLDataset(Dataset):
     def __init__(self):
@@ -27,14 +30,14 @@ class FLDataset(Dataset):
         self, dataset_name, seed, data_dir, num_clients, num_classes, num_features
     ):
         if dataset_name.lower() == "cifar10":
-            return prepare_cifar10(data_dir, seed)
+            return prepare_cifar10(data_dir, seed=seed)
         elif dataset_name.lower() == "fashionmnist":
-            return prepare_fashionMNIST(data_dir, seed)
+            return prepare_fashionMNIST(data_dir, seed=seed)
         elif dataset_name.lower() == "utkface":
-            return prepare_utkface(data_dir, seed)
+            return prepare_utkface(data_dir, seed=seed)
         elif dataset_name.lower() == "synthetic":
             return prepare_synthetic(
-                data_dir, seed, num_clients, num_classes, num_features
+                data_dir, seed=seed, num_clients=num_clients, num_classes=num_classes, num_features=num_features
             )
         elif dataset_name.lower() == "svhn":
             return prepare_SVHN(
@@ -46,23 +49,27 @@ class FLDataset(Dataset):
             raise ValueError(f"Dataset {dataset_name} not supported")
 
     @param("split_params.split_type")
-    def get_client_groups(self, split_type):
+    @param("split_params.combine_train_val")
+    def get_client_groups(self, split_type, combine_train_val):
+        valid_user_groups = None
         if split_type == "iid":
             train_user_groups = self.get_iid_partition(dataset=self.train_dataset)
-            valid_user_groups = self.get_iid_partition(dataset=self.valid_dataset)
             test_user_groups = self.get_iid_partition(dataset=self.test_dataset)
+            if not combine_train_val:
+                valid_user_groups = self.get_iid_partition(dataset=self.valid_dataset)
 
         elif split_type == "non-iid":
             distribution = self.generate_noniid_distribution(dataset=self.train_dataset)
             train_user_groups = self.get_noniid_partition(
                 dataset=self.train_dataset, distribution=distribution
             )
-            valid_user_groups = self.get_noniid_partition(
-                dataset=self.valid_dataset, distribution=distribution
-            )
             test_user_groups = self.get_noniid_partition(
                 dataset=self.test_dataset, distribution=distribution
             )
+            if not combine_train_val:
+                valid_user_groups = self.get_noniid_partition(
+                    dataset=self.valid_dataset, distribution=distribution
+                )
 
         elif split_type == "majority_minority":
             (
@@ -76,12 +83,13 @@ class FLDataset(Dataset):
             train_user_groups = self.get_noniid_partition(
                 dataset=self.train_dataset, distribution=distribution
             )
-            valid_user_groups = self.get_noniid_partition(
-                dataset=self.valid_dataset, distribution=distribution
-            )
             test_user_groups = self.get_noniid_partition(
                 dataset=self.test_dataset, distribution=distribution
             )
+            if not combine_train_val:
+                valid_user_groups = self.get_noniid_partition(
+                    dataset=self.valid_dataset, distribution=distribution
+                )
 
             """wandb.log(
                 {
@@ -270,7 +278,8 @@ class FLDataset(Dataset):
         )
 
 
-def prepare_fashionMNIST(data_dir, seed=42):
+@param("split_params.combine_train_val")
+def prepare_fashionMNIST(data_dir, combine_train_val, seed=42):
     apply_transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
     )
@@ -279,6 +288,13 @@ def prepare_fashionMNIST(data_dir, seed=42):
         data_dir, train=True, download=True, transform=apply_transform
     )
 
+    test_dataset = datasets.FashionMNIST(
+        data_dir, train=False, download=True, transform=apply_transform
+    )
+
+    if combine_train_val:
+        return train_valid_dataset, test_dataset, None
+    
     train_idxs, valid_idxs = train_test_split(
         np.arange(len(train_valid_dataset)),
         test_size=0.1,
@@ -291,14 +307,12 @@ def prepare_fashionMNIST(data_dir, seed=42):
     valid_dataset = Subset(train_valid_dataset, valid_idxs)
     train_dataset.targets = train_valid_dataset.targets[train_idxs]
     valid_dataset.targets = train_valid_dataset.targets[valid_idxs]
-    test_dataset = datasets.FashionMNIST(
-        data_dir, train=False, download=True, transform=apply_transform
-    )
 
     return train_dataset, test_dataset, valid_dataset
 
 
-def prepare_cifar10(data_dir, seed=42):
+@param("split_params.combine_train_val")
+def prepare_cifar10(data_dir, combine_train_val, seed=42):
     transforms_train = transforms.Compose(
         [
             transforms.RandomCrop(32, padding=4),
@@ -319,6 +333,13 @@ def prepare_cifar10(data_dir, seed=42):
         data_dir, train=True, download=True, transform=transforms_train
     )
 
+    test_dataset = datasets.CIFAR10(
+        data_dir, train=False, download=True, transform=transforms_test
+    )
+
+    if combine_train_val:
+        return train_valid_dataset, test_dataset, None
+    
     train_idxs, valid_idxs = train_test_split(
         np.arange(len(train_valid_dataset)),
         test_size=0.1,
@@ -326,21 +347,18 @@ def prepare_cifar10(data_dir, seed=42):
         shuffle=True,
         stratify=train_valid_dataset.targets,
     )
-
+    
     train_dataset = Subset(train_valid_dataset, train_idxs)
     valid_dataset = Subset(train_valid_dataset, valid_idxs)
 
     train_dataset.targets = torch.tensor(train_valid_dataset.targets)[train_idxs]
     valid_dataset.targets = torch.tensor(train_valid_dataset.targets)[valid_idxs]
 
-    test_dataset = datasets.CIFAR10(
-        data_dir, train=False, download=True, transform=transforms_test
-    )
-
     return train_dataset, test_dataset, valid_dataset
 
 
-def prepare_utkface(self, seed=42):
+@param("split_params.combine_train_val")
+def prepare_utkface(self, combine_train_val, seed=42):
     """
     Returns train/test/validation utkface datasets.
 
@@ -368,7 +386,7 @@ def prepare_utkface(self, seed=42):
         transform=apply_transform,
         label_type=label_type,
     )
-
+    
     train_idxs, valid_idxs = train_test_split(
         np.arange(len(dataset)),
         test_size=0.1,
@@ -378,7 +396,7 @@ def prepare_utkface(self, seed=42):
     )
 
     train_dataset = Subset(dataset, train_idxs)
-    valid_dataset = Subset(dataset, valid_idxs)
+    valid_dataset = Subset(dataset, valid_idxs) if not combine_train_val else None
 
     new_train_idxs, test_idxs = train_test_split(
         np.arange(len(train_dataset)),
@@ -388,25 +406,31 @@ def prepare_utkface(self, seed=42):
         stratify=train_dataset.targets,
     )
 
-    train_dataset = Subset(train_dataset, train_idxs)
     test_dataset = Subset(train_dataset, test_idxs)
 
-    train_dataset.targets = torch.tensor(train_valid_dataset.labels)[new_train_idxs]
-    valid_dataset.targets = torch.tensor(train_valid_dataset.labels)[valid_idxs]
-    test_dataset.targets = torch.tensor(train_valid_dataset.labels)[test_idxs]
+    if combine_train_val:
+        train_dataset = Subset(train_dataset, train_idxs)
+        train_dataset.targets = torch.tensor(dataset.labels)[train_idxs]
+    else:
+        train_dataset = Subset(train_dataset, new_train_idxs)
+        train_dataset.targets = torch.tensor(dataset.labels)[new_train_idxs]
 
+    valid_dataset.targets = torch.tensor(dataset.labels)[valid_idxs]
+    test_dataset.targets = torch.tensor(dataset.labels)[test_idxs]
 
     return train_dataset, test_dataset, valid_dataset
 
 
-def prepare_synthetic(self, num_clients, num_classes, num_features, seed=42):
+@param("split_params.combine_train_val")
+def prepare_synthetic(self, num_clients, num_classes, num_features, combine_train_val, seed=42):    
     train_dataset, test_dataset, valid_dataset = SyntheticDataset(
         num_clients, num_classes, num_features
     ).split()
     return train_dataset, test_dataset, valid_dataset
 
 
-def prepare_SVHN(data_dir, extra=False, seed=42):
+@param("split_params.combine_train_val")
+def prepare_SVHN(data_dir, combine_train_val, extra=False, seed=42):
     apply_transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Lambda(lambda x: normalize(x))]
     )
@@ -414,7 +438,6 @@ def prepare_SVHN(data_dir, extra=False, seed=42):
     train_valid_dataset = datasets.SVHN(
         data_dir, split="train", download=True, transform=apply_transform
     )
-    full_train_labels = train_valid_dataset.labels
     test_dataset = datasets.SVHN(
         data_dir, split="test", download=True, transform=apply_transform
     )
@@ -429,6 +452,9 @@ def prepare_SVHN(data_dir, extra=False, seed=42):
             (full_train_labels, extra_train_dataset.labels)
         )
     '''
+    if combine_train_val:
+        return train_valid_dataset, test_dataset, None
+    
     train_idxs, valid_idxs = train_test_split(
         np.arange(len(train_valid_dataset)),
         test_size=0.1,

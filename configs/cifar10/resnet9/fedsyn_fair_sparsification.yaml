@@ -22,3 +22,5 @@ split_params:
   split_type: non-iid
   dirichlet_param: 0.5
   min_proportion: 0.002
+  combine_train_val: True
+  fairness_proportion: 0.1

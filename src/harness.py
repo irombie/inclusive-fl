@@ -122,7 +122,7 @@ class FLTrainingHarness:
             valid_dataset=self.valid_dataset,
             train_idxs=self.train_user_groups[client_idx],
             test_idxs=self.test_user_groups[client_idx],
-            valid_idxs=self.valid_user_groups[client_idx],
+            valid_idxs=self.valid_user_groups[client_idx] if self.valid_user_groups else None,
             logger=False,
             global_model=self.global_model,
             proportion=proportion,

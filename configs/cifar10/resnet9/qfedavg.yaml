@@ -4,7 +4,6 @@ dataset:
   num_classes: 10
 model:
   model_name: ResNet9
-  device: cpu
 training_params:
   seed: 0
 fl_parameters:
@@ -24,3 +23,4 @@ split_params:
   dirichlet_param: 0.5
   min_proportion: 0.002
   combine_train_val: True
+  fairness_proportion: 0.1

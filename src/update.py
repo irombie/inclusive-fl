@@ -72,7 +72,7 @@ class LocalUpdate:
     @param("split_params.combine_train_val")
     def get_local_loaders(self, local_bs, combine_train_val):
         if combine_train_val:
-            n_samples = torch.ceil(len(self.train_idxs) * self.proportion).int()
+            n_samples = torch.ceil(torch.tensor(len(self.train_idxs) * self.proportion)).int()
             train_idx = torch.randperm(len(self.train_idxs))[:n_samples]
         else:
             train_idx = self.train_idxs

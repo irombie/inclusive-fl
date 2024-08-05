@@ -51,6 +51,7 @@ class FLDataset(Dataset):
     @param("split_params.split_type")
     @param("split_params.combine_train_val")
     def get_client_groups(self, split_type, combine_train_val):
+        valid_user_groups = None
         if split_type == "iid":
             train_user_groups = self.get_iid_partition(dataset=self.train_dataset)
             test_user_groups = self.get_iid_partition(dataset=self.test_dataset)

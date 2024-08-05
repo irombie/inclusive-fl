@@ -13,6 +13,10 @@ from torch.utils.data import DataLoader, Subset
 import torch
 
 import general_utils
+from harness_params import get_current_params
+
+
+get_current_params()
 
 
 class LocalUpdate:
@@ -36,10 +40,12 @@ class LocalUpdate:
         valid_idxs,
         logger,
         global_model,
+        proportion
     ):
 
         self.config = get_current_config()
         self.logger = logger
+        self.proportion = proportion
 
         self.device = torch.device(
             "cuda"
@@ -63,11 +69,19 @@ class LocalUpdate:
         self.trainloader, self.testloader, self.validloader = self.get_local_loaders()
 
     @param("client_parameters.local_bs")
-    def get_local_loaders(self, local_bs):
-
-        self.client_train_dataset = Subset(self.train_dataset, list(self.train_idxs))
+    @param("split_params.combine_train_val")
+    def get_local_loaders(self, local_bs, combine_train_val):
+        if combine_train_val:
+            n_samples = torch.ceil(len(self.train_idxs) * self.proportion).int()
+            train_idx = torch.randperm(len(self.train_idxs))[:n_samples]
+        else:
+            train_idx = self.train_idxs
+        self.client_train_dataset = Subset(self.train_dataset, list(train_idx))
         self.client_test_dataset = Subset(self.test_dataset, list(self.test_idxs))
-        self.client_valid_dataset = Subset(self.valid_dataset, list(self.valid_idxs))
+        if not combine_train_val:
+            self.client_valid_dataset = Subset(
+                self.train_dataset, list(self.valid_idxs)
+            )
 
         trainloader = DataLoader(
             self.client_train_dataset,
@@ -79,11 +93,11 @@ class LocalUpdate:
             batch_size=local_bs,
             shuffle=False,
         )
-        validloader = DataLoader(
+        validloader = None if combine_train_val else DataLoader(
             self.client_valid_dataset,
             batch_size=local_bs,
             shuffle=False,
-        )
+        ) 
 
         return trainloader, testloader, validloader
 
@@ -455,6 +469,7 @@ def get_local_update(
     valid_idxs,
     logger,
     global_model,
+    proportion
 ) -> LocalUpdate:
     """
     Get local update from federated learning method name and return the
@@ -480,6 +495,7 @@ def get_local_update(
             valid_idxs=valid_idxs,
             logger=logger,
             global_model=global_model,
+            proportion=proportion
         )
     raise ValueError(
         f"Unsupported federated learning method name {fl_method} for local update."

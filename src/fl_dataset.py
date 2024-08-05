@@ -30,14 +30,14 @@ class FLDataset(Dataset):
         self, dataset_name, seed, data_dir, num_clients, num_classes, num_features
     ):
         if dataset_name.lower() == "cifar10":
-            return prepare_cifar10(data_dir, seed)
+            return prepare_cifar10(data_dir, seed=seed)
         elif dataset_name.lower() == "fashionmnist":
-            return prepare_fashionMNIST(data_dir, seed)
+            return prepare_fashionMNIST(data_dir, seed=seed)
         elif dataset_name.lower() == "utkface":
-            return prepare_utkface(data_dir, seed)
+            return prepare_utkface(data_dir, seed=seed)
         elif dataset_name.lower() == "synthetic":
             return prepare_synthetic(
-                data_dir, seed, num_clients, num_classes, num_features
+                data_dir, seed=seed, num_clients=num_clients, num_classes=num_classes, num_features=num_features
             )
         elif dataset_name.lower() == "svhn":
             return prepare_SVHN(
@@ -49,23 +49,26 @@ class FLDataset(Dataset):
             raise ValueError(f"Dataset {dataset_name} not supported")
 
     @param("split_params.split_type")
-    def get_client_groups(self, split_type):
+    @param("split_params.combine_train_val")
+    def get_client_groups(self, split_type, combine_train_val):
         if split_type == "iid":
             train_user_groups = self.get_iid_partition(dataset=self.train_dataset)
-            valid_user_groups = self.get_iid_partition(dataset=self.valid_dataset)
             test_user_groups = self.get_iid_partition(dataset=self.test_dataset)
+            if not combine_train_val:
+                valid_user_groups = self.get_iid_partition(dataset=self.valid_dataset)
 
         elif split_type == "non-iid":
             distribution = self.generate_noniid_distribution(dataset=self.train_dataset)
             train_user_groups = self.get_noniid_partition(
                 dataset=self.train_dataset, distribution=distribution
             )
-            valid_user_groups = self.get_noniid_partition(
-                dataset=self.valid_dataset, distribution=distribution
-            )
             test_user_groups = self.get_noniid_partition(
                 dataset=self.test_dataset, distribution=distribution
             )
+            if not combine_train_val:
+                valid_user_groups = self.get_noniid_partition(
+                    dataset=self.valid_dataset, distribution=distribution
+                )
 
         elif split_type == "majority_minority":
             (
@@ -79,12 +82,13 @@ class FLDataset(Dataset):
             train_user_groups = self.get_noniid_partition(
                 dataset=self.train_dataset, distribution=distribution
             )
-            valid_user_groups = self.get_noniid_partition(
-                dataset=self.valid_dataset, distribution=distribution
-            )
             test_user_groups = self.get_noniid_partition(
                 dataset=self.test_dataset, distribution=distribution
             )
+            if not combine_train_val:
+                valid_user_groups = self.get_noniid_partition(
+                    dataset=self.valid_dataset, distribution=distribution
+                )
 
             """wandb.log(
                 {
@@ -274,7 +278,7 @@ class FLDataset(Dataset):
 
 
 @param("split_params.combine_train_val")
-def prepare_fashionMNIST(data_dir, seed=42, combine_train_val):
+def prepare_fashionMNIST(data_dir, combine_train_val, seed=42):
     apply_transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
     )
@@ -307,7 +311,7 @@ def prepare_fashionMNIST(data_dir, seed=42, combine_train_val):
 
 
 @param("split_params.combine_train_val")
-def prepare_cifar10(data_dir, seed=42, combine_train_val):
+def prepare_cifar10(data_dir, combine_train_val, seed=42):
     transforms_train = transforms.Compose(
         [
             transforms.RandomCrop(32, padding=4),
@@ -353,7 +357,7 @@ def prepare_cifar10(data_dir, seed=42, combine_train_val):
 
 
 @param("split_params.combine_train_val")
-def prepare_utkface(self, seed=42, combine_train_val):
+def prepare_utkface(self, combine_train_val, seed=42):
     """
     Returns train/test/validation utkface datasets.
 

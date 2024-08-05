@@ -114,7 +114,7 @@ class FLTrainingHarness:
         return global_update
 
     @param("fl_parameters.fl_method")
-    def get_local_update(self, fl_method, client_idx):
+    def get_local_update(self, fl_method, client_idx, proportion=1.0):
         local_update = get_local_update(
             fl_method=fl_method,
             train_dataset=self.train_dataset,
@@ -125,6 +125,7 @@ class FLTrainingHarness:
             valid_idxs=self.valid_user_groups[client_idx],
             logger=False,
             global_model=self.global_model,
+            proportion=proportion,
         )
 
         return local_update
@@ -271,21 +272,31 @@ class FLTrainingHarness:
     @param("fl_parameters.fairness_temperature")
     @param("fl_parameters.min_sparsification_ratio")
     @param("fl_parameters.sparsification_ratio")
+    @param("split_params.combine_train_val")
+    @param("split_params.fairness_proportion")
     def compute_client_prob_dist(
         self,
         fairness_function,
         fairness_temperature,
         min_sparsification_ratio,
         sparsification_ratio,
+        combine_train_val,
+        fairness_proportion,
     ):
         self.global_model.eval()
         valid_losses = []
         valid_accs = []
         for client_idx in self.client_indices:
-            local_update = self.get_local_update(client_idx=client_idx)
-            acc, loss = local_update.inference(
-                model=self.global_model, dataset_type="valid"
-            )
+            if combine_train_val:
+                local_update = self.get_local_update(client_idx=client_idx, proportion=fairness_proportion)
+                acc, loss = local_update.inference(
+                    model=self.global_model, dataset_type="train"
+                )
+            else:
+                local_update = self.get_local_update(client_idx=client_idx)
+                acc, loss = local_update.inference(
+                    model=self.global_model, dataset_type="valid"
+                )
             valid_losses.append(loss)
             valid_accs.append(acc)
         valid_losses = np.array(valid_losses)

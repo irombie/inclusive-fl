@@ -200,28 +200,6 @@ class LocalUpdate:
 
 
 class LocalUpdateSparsified(LocalUpdate):
-    def __init__(
-        self,
-        train_dataset,
-        test_dataset,
-        valid_dataset,
-        train_idxs,
-        valid_idxs,
-        test_idxs,
-        logger,
-        global_model,
-    ):
-        super().__init__(
-            train_dataset,
-            test_dataset,
-            valid_dataset,
-            train_idxs,
-            test_idxs,
-            valid_idxs,
-            logger,
-            global_model,
-        )
-
     @param("client_parameters.local_epochs")
     @param("fl_parameters.sparsification_type")
     @param("fl_parameters.choose_from_top_r_percentile")

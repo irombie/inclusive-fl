@@ -14,21 +14,34 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
+        id: setup-python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install project + tooling
         run: |
           python -m pip install --upgrade pip
+
+          # Install your project + dev deps from pyproject.toml if possible
+          if [ -f pyproject.toml ]; then
+            # Try dev extra first, fall back to plain install if it does not exist
+            pip install ".[dev]" || pip install .
+          elif [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          elif [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+          # Ensure pre-commit itself is installed
           pip install pre-commit
 
-      # Temporarily disabled cache to ensure fresh environment
-      # - name: Cache pre-commit environments
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: ~/.cache/pre-commit
-      #     key: pre-commit-${{ hashFiles('.pre-commit-config.yaml', 'pyproject.toml') }}
+      - name: Cache pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: >
+            pre-commit-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml', 'pyproject.toml', 'pyproject.toml.ci-config', 'uv.lock') }}
 
       - name: Run pre-commit (all files)
         run: |

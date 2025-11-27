@@ -27,17 +27,13 @@ jobs:
       - name: Install the project
         shell: bash
         run: |
-          uv sync
+          uv sync --extra dev
 
       - name: Cache pre-commit
         uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit/
           key: pre-commit-4|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
-
-      - name: Install code quality packages
-        run: |
-          uv run pre-commit install --install-hooks
 
       - name: Run pre-commit (all files)
         run: |

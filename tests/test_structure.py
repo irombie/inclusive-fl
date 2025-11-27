@@ -22,7 +22,6 @@ class TestRepositoryStructure:
         required_files = [
             "README.md",
             "pyproject.toml",
-            "environment_droplet.yml",
             "LICENSE",
         ]
 

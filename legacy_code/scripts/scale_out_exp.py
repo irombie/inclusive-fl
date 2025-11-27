@@ -4,10 +4,10 @@ import os
 import subprocess
 import time
 
-import torch
-import yaml
 from loguru import logger
+import torch
 from tqdm import tqdm
+import yaml
 
 parser = argparse.ArgumentParser()
 

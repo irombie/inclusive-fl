@@ -3,8 +3,8 @@
 # Python version: 3.6
 
 import torch
-import torch.nn.functional as F
 from torch import nn
+import torch.nn.functional as F
 from torchvision.models import resnet18, vgg11_bn
 
 

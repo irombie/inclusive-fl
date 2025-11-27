@@ -1,5 +1,5 @@
-import copy
 from abc import ABC, abstractmethod
+import copy
 from typing import Dict, List, Tuple, Type
 
 import numpy as np

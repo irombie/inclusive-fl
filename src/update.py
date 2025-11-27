@@ -5,9 +5,9 @@
 import copy
 from typing import Dict, OrderedDict, Type
 
-import torch
 from fastargs import get_current_config
 from fastargs.decorators import param
+import torch
 from torch import nn
 from torch.utils.data import DataLoader, Subset
 

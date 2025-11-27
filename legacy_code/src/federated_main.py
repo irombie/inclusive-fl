@@ -3,22 +3,22 @@
 
 
 import copy
+from datetime import datetime
 import os
 import sys
 import time
 import traceback
-from datetime import datetime
 
 import numpy as np
-import torch
 from options import args_parser
+import torch
 from tqdm import tqdm
 from utils import custom_exponential_sparsity, exp_details, flatten, get_dataset, set_seed, updateFromNumpyFlatArray
 
-import wandb
 from global_updates import get_global_update
 from models import MLP, VGG, CNNFashion_Mnist, LogisticRegression, ResNet9, ResNet18, SmallCNN
 from update import get_local_update, test_inference
+import wandb
 
 
 def main():

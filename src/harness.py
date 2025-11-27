@@ -1,20 +1,20 @@
+from argparse import ArgumentParser
 import copy
+from pathlib import Path
 import sys
 import traceback
-from argparse import ArgumentParser
-from pathlib import Path
 
-import numpy as np
-import torch
 from fastargs import get_current_config, set_current_config
 from fastargs.decorators import param
+import numpy as np
+import torch
 
-import logging_utils
-import models
 from fl_dataset import FLDataset
 from general_utils import custom_exponential_sparsity, flatten, linearly_interpolated_softmax, updateFromNumpyFlatArray
 from global_updates import get_global_update
 from harness_params import get_current_params
+import logging_utils
+import models
 from update import get_local_update
 
 get_current_params()

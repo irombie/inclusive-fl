@@ -14,10 +14,10 @@ class TestEnvironment:
 
     def test_core_imports(self):
         """Test that all core dependencies can be imported."""
+        from fastargs import get_current_config
         import numpy as np
         import torch
         import torchvision
-        from fastargs import get_current_config
 
         import wandb
 

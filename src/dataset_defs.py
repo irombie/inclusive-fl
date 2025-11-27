@@ -3,28 +3,28 @@
 # Python version: 3.6
 import json
 import os
+from pathlib import Path
 import shutil
 import sys
 import tarfile
-import zipfile
-from pathlib import Path
 from typing import Tuple
+import zipfile
 
-import gdown
-import numpy as np
-import torch
+from PIL import Image
 from fastargs import get_current_config
 from fastargs.decorators import param
+import gdown
+import numpy as np
 from parse import parse
-from PIL import Image
 from sklearn.model_selection import train_test_split
+import torch
 from torch.utils.data import Dataset, Subset
 from torchvision import datasets, transforms
 from torchvision.datasets import ImageFolder
 from torchvision.datasets.utils import download_and_extract_archive, verify_str_arg
 
-import wandb
 from harness_params import get_current_params
+import wandb
 
 get_current_params()
 

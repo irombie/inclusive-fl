@@ -3,16 +3,16 @@
 # Python version: 3.6
 from collections import defaultdict
 
-import numpy as np
-import torch
 from fastargs import get_current_config
 from fastargs.decorators import param
+import numpy as np
+import torch
 from torch.utils.data import ConcatDataset
 
-import wandb
 from dataset_defs import *
 from general_utils import normalize
 from harness_params import get_current_params
+import wandb
 
 get_current_params()
 

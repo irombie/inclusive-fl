@@ -1,11 +1,11 @@
-import copy
 from abc import ABC, abstractmethod
+import copy
 from typing import Dict, List, Tuple, Type
 
-import numpy as np
-import torch
 from fastargs import get_current_config
 from fastargs.decorators import param
+import numpy as np
+import torch
 
 import general_utils
 

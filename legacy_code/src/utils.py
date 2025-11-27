@@ -1,32 +1,32 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.6
+from argparse import Namespace
+from collections import OrderedDict, defaultdict
 import copy
 import json
 import os
+from pathlib import Path
 import random
 import shutil
 import sys
 import tarfile
-import zipfile
-from argparse import Namespace
-from collections import OrderedDict, defaultdict
-from pathlib import Path
 from typing import Callable, Dict, List, Tuple, Union
+import zipfile
 
+from PIL import Image
 import gdown
 import numpy as np
 import pandas as pd
-import torch
-import wget
 from parse import parse
-from PIL import Image
 from prettytable import PrettyTable
 from sklearn.model_selection import train_test_split
+import torch
 from torch.utils.data import Dataset, Subset
 from torchvision import datasets, transforms
 from torchvision.datasets import ImageFolder
 from torchvision.datasets.utils import download_and_extract_archive, verify_str_arg
+import wget
 
 import wandb
 

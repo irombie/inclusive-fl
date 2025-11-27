@@ -66,7 +66,7 @@ class TestProjectImports:
 
     def test_all_imports_together(self):
         """Test that all modules can be imported together without conflicts."""
-        from src import dataset_defs, fl_dataset, global_updates, harness, harness_params, logging_utils, models, update, utils
+        from src import dataset_defs, fl_dataset, global_updates, harness, harness_params, models, update, utils
 
         assert harness is not None
         assert models is not None
@@ -74,6 +74,5 @@ class TestProjectImports:
         assert global_updates is not None
         assert update is not None
         assert utils is not None
-        assert logging_utils is not None
         assert harness_params is not None
         assert dataset_defs is not None

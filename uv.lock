@@ -7,15 +7,6 @@ resolution-markers = [
 ]
 
 [[package]]
-name = "appdirs"
-version = "1.4.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d7/d8/05696357e0311f5b5c316d7b95f46c669dd9c15aaeecbb48c7d0aeb88c40/appdirs-1.4.4.tar.gz", hash = "sha256:7d5d0167b2b1ba821647616af46a749d1c653740dd0d2415100fe26e27afdf41", size = 13470, upload-time = "2020-05-11T07:59:51.037Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/00/2344469e2084fb287c2e0b57b72910309874c3245463acd6cf5e3db69324/appdirs-1.4.4-py2.py3-none-any.whl", hash = "sha256:a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128", size = 9566, upload-time = "2020-05-11T07:59:49.499Z" },
-]
-
-[[package]]
 name = "beautifulsoup4"
 version = "4.14.2"
 source = { registry = "https://pypi.org/simple" }
@@ -282,54 +273,18 @@ name = "inclusive-fl"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "appdirs" },
-    { name = "certifi" },
-    { name = "charset-normalizer" },
-    { name = "click" },
-    { name = "contourpy" },
-    { name = "cycler" },
     { name = "fastargs" },
-    { name = "filelock" },
-    { name = "fonttools" },
     { name = "gdown" },
-    { name = "gitdb" },
-    { name = "gitpython" },
-    { name = "idna" },
-    { name = "jinja2" },
-    { name = "kiwisolver" },
-    { name = "loguru" },
-    { name = "markupsafe" },
     { name = "matplotlib" },
-    { name = "mpmath" },
-    { name = "networkx" },
     { name = "numpy" },
-    { name = "packaging" },
     { name = "pandas" },
     { name = "parse" },
-    { name = "pathtools" },
     { name = "pillow" },
-    { name = "prettytable" },
-    { name = "protobuf" },
-    { name = "psutil" },
-    { name = "pyparsing" },
-    { name = "python-dateutil" },
     { name = "pyyaml" },
-    { name = "requests" },
     { name = "scikit-learn" },
-    { name = "sentry-sdk" },
-    { name = "setproctitle" },
-    { name = "six" },
-    { name = "smmap" },
-    { name = "sympy" },
-    { name = "tensorboardx" },
-    { name = "terminaltables" },
     { name = "torch" },
     { name = "torchvision" },
-    { name = "tqdm" },
-    { name = "typing-extensions" },
-    { name = "urllib3" },
     { name = "wandb" },
-    { name = "wget" },
 ]
 
 [package.optional-dependencies]
@@ -345,61 +300,25 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "appdirs", specifier = "==1.4.4" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=24.0.0" },
-    { name = "certifi", specifier = "==2022.12.7" },
-    { name = "charset-normalizer", specifier = "==3.1.0" },
-    { name = "click", specifier = "==8.1.3" },
-    { name = "contourpy", specifier = "==1.0.7" },
-    { name = "cycler", specifier = "==0.11.0" },
     { name = "fastargs", specifier = "==1.2.0" },
-    { name = "filelock", specifier = "==3.10.0" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.0.0" },
-    { name = "fonttools", specifier = "==4.39.2" },
     { name = "gdown", specifier = "==5.1.0" },
-    { name = "gitdb", specifier = "==4.0.10" },
-    { name = "gitpython", specifier = "==3.1.31" },
-    { name = "idna", specifier = "==3.4" },
     { name = "isort", marker = "extra == 'dev'", specifier = ">=5.13.0" },
-    { name = "jinja2", specifier = "==3.1.2" },
-    { name = "kiwisolver", specifier = "==1.4.4" },
-    { name = "loguru", specifier = "==0.7.0" },
-    { name = "markupsafe", specifier = "==2.1.2" },
     { name = "matplotlib", specifier = "==3.7.1" },
-    { name = "mpmath", specifier = "==1.3.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
-    { name = "networkx", specifier = "==3.0" },
     { name = "numpy", specifier = "==1.24.2" },
-    { name = "packaging", specifier = "==23.0" },
     { name = "pandas", specifier = "==2.1.1" },
     { name = "parse", specifier = "==1.19.1" },
-    { name = "pathtools", specifier = "==0.1.2" },
     { name = "pillow", specifier = "==10.2.0" },
-    { name = "prettytable", specifier = "==3.9.0" },
-    { name = "protobuf", specifier = "==3.20.3" },
-    { name = "psutil", specifier = "==5.9.4" },
-    { name = "pyparsing", specifier = "==3.0.9" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.0.0" },
-    { name = "python-dateutil", specifier = "==2.8.2" },
     { name = "pyyaml", specifier = "==6.0" },
-    { name = "requests", specifier = "==2.28.2" },
     { name = "scikit-learn", specifier = "==1.3.0" },
-    { name = "sentry-sdk", specifier = "==1.18.0" },
-    { name = "setproctitle", specifier = "==1.3.2" },
-    { name = "six", specifier = "==1.16.0" },
-    { name = "smmap", specifier = "==5.0.0" },
-    { name = "sympy", specifier = "==1.11.1" },
-    { name = "tensorboardx", specifier = "==2.6" },
-    { name = "terminaltables", specifier = "==3.1.10" },
     { name = "torch", specifier = ">=2.2.2" },
     { name = "torchvision", specifier = "==0.17.2" },
-    { name = "tqdm", specifier = "==4.66.3" },
-    { name = "typing-extensions", specifier = ">=4.5.0" },
-    { name = "urllib3", specifier = "==1.26.15" },
     { name = "wandb", specifier = ">=0.15" },
-    { name = "wget", specifier = "==3.2" },
 ]
 provides-extras = ["dev"]
 
@@ -463,19 +382,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/69/6c/8597155d3755337c7e39a7aaf54a07de0ad2572b109d904aeb70b4ab6f36/kiwisolver-1.4.4-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:283dffbf061a4ec60391d51e6155e372a1f7a4f5b15d59c8505339454f8989e4", size = 1869687, upload-time = "2022-08-16T07:20:02.66Z" },
     { url = "https://files.pythonhosted.org/packages/96/61/79804e00f7e8b5c54f5fce84740896a18142b5e85152c44d565c0d763f05/kiwisolver-1.4.4-cp311-cp311-win32.whl", hash = "sha256:d06adcfa62a4431d404c31216f0f8ac97397d799cd53800e9d3efc2fbb3cf14e", size = 45854, upload-time = "2022-08-16T07:20:04.682Z" },
     { url = "https://files.pythonhosted.org/packages/63/33/a52b723c5e6f1a7b0d73d68761f05ba217519da3ec264ef32dbead9e68ec/kiwisolver-1.4.4-cp311-cp311-win_amd64.whl", hash = "sha256:e7da3fec7408813a7cebc9e4ec55afed2d0fd65c4754bc376bf03498d4e92686", size = 55395, upload-time = "2022-08-16T07:20:06.948Z" },
-]
-
-[[package]]
-name = "loguru"
-version = "0.7.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
-    { name = "win32-setctime", marker = "sys_platform == 'win32'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/0c/1d/697cbb4ae54217784c1c4805696efb2fd7a1cbbe4827264a80a49e52b828/loguru-0.7.0.tar.gz", hash = "sha256:1612053ced6ae84d7959dd7d5e431a0532642237ec21f7fd83ac73fe539e03e1", size = 131961, upload-time = "2023-04-10T09:05:50.095Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/71/bd/337f7a0cd2628c4c77512d78e26f93b13c327a2ddf2132001dd78c000bf4/loguru-0.7.0-py3-none-any.whl", hash = "sha256:b93aa30099fa6860d4727f1b81f8718e965bb96253fa190fab2077aaad6d15d3", size = 59951, upload-time = "2023-04-10T09:05:47.468Z" },
 ]
 
 [[package]]
@@ -748,12 +654,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pathtools"
-version = "0.1.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e7/7f/470d6fcdf23f9f3518f6b0b76be9df16dcc8630ad409947f8be2eb0ed13a/pathtools-0.1.2.tar.gz", hash = "sha256:7c35c5421a39bb82e58018febd90e3b6e5db34c5443aaaf742b3f33d4655f1c0", size = 11006, upload-time = "2011-08-25T11:39:31.178Z" }
-
-[[package]]
 name = "pillow"
 version = "10.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -788,18 +688,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
-]
-
-[[package]]
-name = "prettytable"
-version = "3.9.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "wcwidth" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e1/c0/5e9c4d2a643a00a6f67578ef35485173de273a4567279e4f0c200c01386b/prettytable-3.9.0.tar.gz", hash = "sha256:f4ed94803c23073a90620b201965e5dc0bccf1760b7a7eaf3158cab8aaffdf34", size = 47874, upload-time = "2023-09-11T14:04:14.548Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4d/81/316b6a55a0d1f327d04cc7b0ba9d04058cb62de6c3a4d4b0df280cbe3b0b/prettytable-3.9.0-py3-none-any.whl", hash = "sha256:a71292ab7769a5de274b146b276ce938786f56c31cf7cea88b6f3775d82fe8c8", size = 27772, upload-time = "2023-09-11T14:03:45.582Z" },
 ]
 
 [[package]]
@@ -1099,29 +987,6 @@ wheels = [
 ]
 
 [[package]]
-name = "tensorboardx"
-version = "2.6"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-    { name = "packaging" },
-    { name = "protobuf" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c4/e3/c68897ee471518b1f8d3e53c602aec6f2b09092aa774da88764262f03f56/tensorboardX-2.6.tar.gz", hash = "sha256:d4c036964dd2deb075a1909832b276daa383eab3f9db519ad90b99f5aea06b0c", size = 91196, upload-time = "2023-02-12T17:54:36.343Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/60/9f/d532d37f10ac7af136d4c2ba71e1fe7af0f3cc0cc076dfc05826171e9737/tensorboardX-2.6-py2.py3-none-any.whl", hash = "sha256:24a7cd076488de1e9d15ef25371b8ebf90c4f8f622af2477c611198f03f4a606", size = 114480, upload-time = "2023-02-12T17:54:34.617Z" },
-]
-
-[[package]]
-name = "terminaltables"
-version = "3.1.10"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f5/fc/0b73d782f5ab7feba8d007573a3773c58255f223c5940a7b7085f02153c3/terminaltables-3.1.10.tar.gz", hash = "sha256:ba6eca5cb5ba02bba4c9f4f985af80c54ec3dccf94cfcd190154386255e47543", size = 12264, upload-time = "2021-12-07T19:03:35.758Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c4/fb/ea621e0a19733e01fe4005d46087d383693c0f4a8f824b47d8d4122c87e0/terminaltables-3.1.10-py2.py3-none-any.whl", hash = "sha256:e4fdc4179c9e4aab5f674d80f09d76fa436b96fdc698a8505e0a36bf0804a874", size = 15155, upload-time = "2021-12-07T19:03:34.013Z" },
-]
-
-[[package]]
 name = "threadpoolctl"
 version = "3.6.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1274,28 +1139,4 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/13/dd/ccaa5a51e2557368300eec9e362b5688151e45a052e33017633baa3011a9/wandb-0.18.3-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:2c91315b8b62423eae18577d66a4b4bb8e4341a7d5c849cb2963e3b3dff0bf6d", size = 13038220, upload-time = "2024-10-01T23:27:28.35Z" },
     { url = "https://files.pythonhosted.org/packages/bc/6f/fabbf2161078556384ef48f3db89182773010cdd14900986004e702b85f5/wandb-0.18.3-py3-none-win32.whl", hash = "sha256:92a647dab783938ec87776a9fae8a13e72e6dad939c53e357cdea9d2570f0ad8", size = 12573298, upload-time = "2024-10-01T23:27:31.722Z" },
     { url = "https://files.pythonhosted.org/packages/d8/7b/e94b46d620d26b2e1f486f2746febdcb6579be20f361355b40263ddd8262/wandb-0.18.3-py3-none-win_amd64.whl", hash = "sha256:29cac2cfa3124241fed22cfedc9a52e1500275ee9bbb0b428ce4bf63c4723bf0", size = 12573303, upload-time = "2024-10-01T23:27:34.317Z" },
-]
-
-[[package]]
-name = "wcwidth"
-version = "0.2.14"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/24/30/6b0809f4510673dc723187aeaf24c7f5459922d01e2f794277a3dfb90345/wcwidth-0.2.14.tar.gz", hash = "sha256:4d478375d31bc5395a3c55c40ccdf3354688364cd61c4f6adacaa9215d0b3605", size = 102293, upload-time = "2025-09-22T16:29:53.023Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/af/b5/123f13c975e9f27ab9c0770f514345bd406d0e8d3b7a0723af9d43f710af/wcwidth-0.2.14-py2.py3-none-any.whl", hash = "sha256:a7bb560c8aee30f9957e5f9895805edd20602f2d7f720186dfd906e82b4982e1", size = 37286, upload-time = "2025-09-22T16:29:51.641Z" },
-]
-
-[[package]]
-name = "wget"
-version = "3.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/47/6a/62e288da7bcda82b935ff0c6cfe542970f04e29c756b0e147251b2fb251f/wget-3.2.zip", hash = "sha256:35e630eca2aa50ce998b9b1a127bb26b30dfee573702782aa982f875e3f16061", size = 10857, upload-time = "2015-10-22T15:26:37.51Z" }
-
-[[package]]
-name = "win32-setctime"
-version = "1.2.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b3/8f/705086c9d734d3b663af0e9bb3d4de6578d08f46b1b101c2442fd9aecaa2/win32_setctime-1.2.0.tar.gz", hash = "sha256:ae1fdf948f5640aae05c511ade119313fb6a30d7eabe25fef9764dca5873c4c0", size = 4867, upload-time = "2024-12-07T15:28:28.314Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e1/07/c6fe3ad3e685340704d314d765b7912993bcb8dc198f0e7a89382d37974b/win32_setctime-1.2.0-py3-none-any.whl", hash = "sha256:95d644c4e708aba81dc3704a116d8cbc974d70b3bdb8be1d150e36be6e9d1390", size = 4083, upload-time = "2024-12-07T15:28:26.465Z" },
 ]

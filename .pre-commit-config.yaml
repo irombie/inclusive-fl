@@ -1,5 +1,5 @@
 # .pre-commit-config.yaml
-default_stages: [pre-commit, pre-push]
+default_stages: [pre-commit]
 
 repos:
   # General sanity checks
@@ -37,5 +37,5 @@ repos:
     rev: 24.8.0
     hooks:
       - id: black
-        language_version: python3
+        language_version: python3.11
         exclude: ^legacy_code/

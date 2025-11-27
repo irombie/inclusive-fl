@@ -31,7 +31,7 @@ jobs:
     - name: Install isort
       run: pip install isort==5.13.2
     - name: Check imports
-      run: isort --check-only --diff --profile black --line-length 127 src/ tests/
+      run: isort --check-only --diff src/ tests/
 
   flake8:
     name: Lint with flake8

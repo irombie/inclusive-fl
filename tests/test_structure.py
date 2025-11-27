@@ -65,9 +65,8 @@ class TestRepositoryStructure:
             "update.py",
             "global_updates.py",
             "dataset_defs.py",
-            ".py",
             "harness_params.py",
-            ".py",
+            "utils.py",
         ]
 
         for filename in source_files:

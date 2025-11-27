@@ -16,7 +16,7 @@ jobs:
       with:
         python-version: '3.11'
     - name: Install black
-      run: pip install black
+      run: pip install black==24.2.0
     - name: Check formatting
       run: black --check --diff src/ tests/
 
@@ -29,9 +29,9 @@ jobs:
       with:
         python-version: '3.11'
     - name: Install isort
-      run: pip install isort
+      run: pip install isort==5.13.2
     - name: Check imports
-      run: isort --check-only --diff src/ tests/
+      run: isort --check-only --diff --profile black --line-length 127 src/ tests/
 
   flake8:
     name: Lint with flake8

@@ -7,9 +7,8 @@ from typing import Dict, List
 
 import numpy as np
 import torch
-from fastargs import get_current_config
-
 import wandb
+from fastargs import get_current_config
 
 
 def set_seed(seed: int = 42, is_deterministic=False) -> None:

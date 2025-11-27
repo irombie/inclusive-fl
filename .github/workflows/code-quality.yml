@@ -24,21 +24,16 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install project + tooling
+      - name: Cache pre-commit
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit/
+          key: pre-commit-4|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Install code quality packages
         run: |
-          # Install project with dev dependencies
-          uv pip install --system -e ".[dev]"
-
-          # Ensure pre-commit itself is installed
-          uv pip install --system pre-commit
-
-      # - name: Cache pre-commit environments
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: ~/.cache/pre-commit
-      #     key: >
-      #       pre-commit-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml', 'pyproject.toml', 'pyproject.toml.ci-config', 'uv.lock') }}
+          uv run pre-commit install --install-hooks
 
       - name: Run pre-commit (all files)
         run: |
-          pre-commit run --all-files --show-diff-on-failure
+          uv run pre-commit run --all-files --show-diff-on-failure

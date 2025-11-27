@@ -3,28 +3,24 @@
 # Python version: 3.6
 import json
 import os
-from pathlib import Path
 import shutil
 import sys
 import tarfile
-from typing import Tuple
 import zipfile
+from pathlib import Path
+from typing import Tuple
 
-from PIL import Image
-from fastargs import get_current_config
-from fastargs.decorators import param
 import gdown
 import numpy as np
-from parse import parse
-from sklearn.model_selection import train_test_split
 import torch
-from torch.utils.data import Dataset, Subset
-from torchvision import datasets, transforms
+from fastargs.decorators import param
+from parse import parse
+from PIL import Image
+from torch.utils.data import Dataset
 from torchvision.datasets import ImageFolder
 from torchvision.datasets.utils import download_and_extract_archive, verify_str_arg
 
 from harness_params import get_current_params
-import wandb
 
 get_current_params()
 
@@ -71,8 +67,9 @@ class UTKFaceDataset(Dataset):
         for i, file in enumerate(os.listdir(extract_dir + "/UTKFace")):
             file_labels = parse("{age}_{gender}_{ethnicity}_{}.jpg", file)
             if file_labels is not None:
-                ## ignore age values larger 120 and gender values that are not 0 or 1 -- this is just to ensure there are no errors
-                ## does not come up as the current dataset only supports the ethnicity task
+                # Ignore age values larger 120 and gender values that are not 0 or 1
+                # This is just to ensure there are no errors
+                # Does not come up as the current dataset only supports the ethnicity task
                 if int(file_labels["age"]) > 120 or int(file_labels["gender"]) > 1:
                     continue
 
@@ -99,13 +96,17 @@ class UTKFaceDataset(Dataset):
 class SyntheticDataset(Dataset):
     """Synthetic dataset generated using the function generate_synthetic_data"""
 
-    def __init__(self, num_clients, num_classes, num_features):
+    def __init__(self, num_clients, num_classes, num_features, gdrive_id: str, data_path: str | Path = "data"):
         """
         Returns synthetic dataset at the given path.
 
-        :params path: path to the synthetic data file
+        :params num_clients: number of clients
+        :params num_classes: number of classes
+        :params num_features: number of features
+        :params gdrive_id: Google Drive ID for the synthetic data
+        :params data_path: path to save/load the synthetic data
         """
-        X, y = self.fetch_synthetic_data()
+        X, y = self.fetch_synthetic_data(num_clients, num_classes, num_features, gdrive_id, data_path)
         self.n_users = len(X)
         self.n_samples_per_user = [len(x) for x in X]
         self.n_samples = sum(self.n_samples_per_user)
@@ -121,21 +122,27 @@ class SyntheticDataset(Dataset):
     def __len__(self) -> int:
         return self.n_samples
 
-    def fetch_synthetic_data(self, num_clients, num_classes, num_features, url: str, path: str | Path):
+    def fetch_synthetic_data(
+        self, num_clients: int, num_classes: int, num_features: int, gdrive_id: str, data_path: str | Path
+    ):
         """
         Fetch the synthetic data from the given URL and save it to the given path.
 
-        :param url: URL to fetch the synthetic data from
-        :param path: path to save the synthetic data to
+        :param num_clients: number of clients
+        :param num_classes: number of classes
+        :param num_features: number of features
+        :param gdrive_id: Google Drive ID for the synthetic data
+        :param data_path: path to save the synthetic data to
         """
-        synthetic_data_url = f"https://drive.google.com/uc?id={args['gdrive_id']}"
+        synthetic_data_url = f"https://drive.google.com/uc?id={gdrive_id}"
 
-        path = Path(path).resolve() / "synthetic_data.zip"
-        if not path.exists():
-            gdown.download(synthetic_data_url, path.as_posix())
+        data_path = Path(data_path).resolve()
+        zip_path = data_path / "synthetic_data.zip"
+        if not zip_path.exists():
+            gdown.download(synthetic_data_url, zip_path.as_posix())
 
-        with zipfile.ZipFile(data_zip, "r") as zip_ref:
-            fname = f"data/synthetic_data_nusers_{args['num_clients']}_nclasses_{args['num_classes']}_ndims_{args['num_features']}.json"
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            fname = f"data/synthetic_data_nusers_{num_clients}_nclasses_{num_classes}_ndims_{num_features}.json"
             with zip_ref.open(fname) as f:
                 data = json.load(f)
                 X = [np.array(x) for x in data["X"]]
@@ -154,7 +161,10 @@ class SyntheticDataset(Dataset):
 
     @param("split_params.combine_train_val")
     def split(
-        self, combine_train_val: bool = False, valid_ratio: float = 0.1, test_ratio: float = 0.1
+        self,
+        combine_train_val: bool = False,
+        valid_ratio: float = 0.1,
+        test_ratio: float = 0.1,
     ) -> tuple["SyntheticDataset", "SyntheticDataset", "SyntheticDataset"]:
         """
         Split the data into training and validation sets.

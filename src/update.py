@@ -5,9 +5,9 @@
 import copy
 from typing import Dict, OrderedDict, Type
 
+import torch
 from fastargs import get_current_config
 from fastargs.decorators import param
-import torch
 from torch import nn
 from torch.utils.data import DataLoader, Subset
 
@@ -29,9 +29,17 @@ class LocalUpdate:
     """
 
     def __init__(
-        self, train_dataset, test_dataset, valid_dataset, train_idxs, test_idxs, valid_idxs, logger, global_model, proportion
+        self,
+        train_dataset,
+        test_dataset,
+        valid_dataset,
+        train_idxs,
+        test_idxs,
+        valid_idxs,
+        logger,
+        global_model,
+        proportion,
     ):
-
         self.config = get_current_config()
         self.logger = logger
         self.proportion = proportion
@@ -415,7 +423,16 @@ def test_inference(model, test_dataset):
 
 
 def get_local_update(
-    fl_method, train_dataset, test_dataset, valid_dataset, train_idxs, test_idxs, valid_idxs, logger, global_model, proportion
+    fl_method,
+    train_dataset,
+    test_dataset,
+    valid_dataset,
+    train_idxs,
+    test_idxs,
+    valid_idxs,
+    logger,
+    global_model,
+    proportion,
 ) -> LocalUpdate:
     """
     Get local update from federated learning method name and return the

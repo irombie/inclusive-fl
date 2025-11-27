@@ -1,18 +1,16 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Python version: 3.6
 from collections import defaultdict
 
-from fastargs import get_current_config
-from fastargs.decorators import param
 import numpy as np
 import torch
-from torch.utils.data import ConcatDataset
+from fastargs import get_current_config
+from fastargs.decorators import param
+from sklearn.model_selection import train_test_split
+from torch.utils.data import Dataset, Subset
+from torchvision import datasets, transforms
 
-from dataset_defs import *
 from general_utils import normalize
 from harness_params import get_current_params
-import wandb
+from src.dataset_defs import SyntheticDataset, UTKFaceDataset
 
 get_current_params()
 
@@ -37,7 +35,11 @@ class FLDataset(Dataset):
             return prepare_utkface(data_dir, seed=seed)
         elif dataset_name.lower() == "synthetic":
             return prepare_synthetic(
-                data_dir, seed=seed, num_clients=num_clients, num_classes=num_classes, num_features=num_features
+                data_dir,
+                seed=seed,
+                num_clients=num_clients,
+                num_classes=num_classes,
+                num_features=num_features,
             )
         elif dataset_name.lower() == "svhn":
             return prepare_SVHN(
@@ -173,7 +175,7 @@ class FLDataset(Dataset):
 
         if min_proportion >= 1 / num_clients:
             raise ValueError(
-                f"min_proportion per user must be less than {1/num_clients} for a dataset with {num_clients} in it"
+                f"min_proportion per user must be less than {1 / num_clients} for a dataset with {num_clients} in it"
             )
         class_sample_distribution = np.zeros((num_classes, num_clients))
         dataset_proportion_per_user = np.zeros(num_clients)
@@ -238,7 +240,8 @@ class FLDataset(Dataset):
         distribution = uniform_distribution * overlap + (1 - overlap) * grouped_distribution
         assert (distribution.sum(axis=1).round(3) == 1).all(), "distribution must sum to 1 across users for each class"
 
-        # The order of the users doesn't matter, however which classes are chosen for each groups is important and must be able to vary.
+        # The order of the users doesn't matter, however which classes are chosen
+        # for each groups is important and must be able to vary.
         permutation = np.random.permutation(num_classes)
 
         return (
@@ -320,7 +323,11 @@ def prepare_cifar10(data_dir, combine_train_val, seed=42):
 
 
 @param("split_params.combine_train_val")
-def prepare_utkface(self, combine_train_val, seed=42):
+@param("dataset.data_dir")
+@param("dataset.zfile")
+@param("dataset.extract_dir")
+@param("dataset.label_type")
+def prepare_utkface(self, combine_train_val, data_dir, zfile, extract_dir, label_type="ethnicity", seed=42):
     """
     Returns train/test/validation utkface datasets.
 
@@ -328,10 +335,13 @@ def prepare_utkface(self, combine_train_val, seed=42):
     :params zfile: relative path from home folder to the zip file stored under data
     :params extract_dir: main directory where the UTKFace folder will be stored
     :params apply_transform: image transformation for UTKFace
+    :params label_type: type of label to use (default: ethnicity)
+    :params seed: random seed
 
     :returns: train/test/validation utkface datasets that can be used for training UTKFace
     """
-    generator = torch.Generator().manual_seed(seed)
+    # Remove unused generator variable
+    # generator = torch.Generator().manual_seed(seed)
 
     apply_transform = transforms.Compose(
         [

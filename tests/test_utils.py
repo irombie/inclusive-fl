@@ -81,7 +81,10 @@ class TestGeneralUtils:
 
         flat_array = np.random.randn(1000)
         bitmask = get_bitmask_per_method(
-            flat_array, sparse_ratio=0.3, sparsification_type="rtopk", choose_from_top_r_percentile=0.5
+            flat_array,
+            sparse_ratio=0.3,
+            sparsification_type="rtopk",
+            choose_from_top_r_percentile=0.5,
         )
 
         assert bitmask.shape == flat_array.shape

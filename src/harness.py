@@ -1,20 +1,20 @@
-from argparse import ArgumentParser
 import copy
-from pathlib import Path
 import sys
 import traceback
+from argparse import ArgumentParser
+from pathlib import Path
 
-from fastargs import get_current_config, set_current_config
-from fastargs.decorators import param
 import numpy as np
 import torch
+from fastargs import get_current_config, set_current_config
+from fastargs.decorators import param
 
+import logging_utils
+import models
 from fl_dataset import FLDataset
 from general_utils import custom_exponential_sparsity, flatten, linearly_interpolated_softmax, updateFromNumpyFlatArray
 from global_updates import get_global_update
 from harness_params import get_current_params
-import logging_utils
-import models
 from update import get_local_update
 
 get_current_params()
@@ -129,7 +129,6 @@ class FLTrainingHarness:
         local_update,
         epoch,
     ):
-
         local_model = copy.deepcopy(self.global_model)
         if use_fair_sparsification:
             assert self.client_prob_dist is not None
@@ -314,9 +313,7 @@ class FLTrainingHarness:
 
 if __name__ == "__main__":
     if sys.version_info[0:2] != (3, 11):
-        raise RuntimeError(
-            f"Code requires python 3.11. You are using {sys.version_info[0:2]}. Please update your conda env and install requirements.txt on the new env."
-        )
+        raise RuntimeError(f"Code requires python 3.11. You are using {sys.version_info[0:2]}. Please update and run uv sync.")
 
     config = get_current_config()
     parser = ArgumentParser()

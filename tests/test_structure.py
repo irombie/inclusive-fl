@@ -1,7 +1,5 @@
 """Tests for repository structure and file organization."""
 
-from pathlib import Path
-
 import pytest
 
 

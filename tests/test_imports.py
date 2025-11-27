@@ -1,7 +1,5 @@
 """Tests for project module imports."""
 
-import pytest
-
 
 class TestProjectImports:
     """Test suite for project module imports."""

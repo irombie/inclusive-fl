@@ -11,7 +11,11 @@ class WandbLogger:
         self.config = get_current_config()
         self.flat_config = self.parse_config(self.config)
         self.project_name = f"fl-{self.config['model.model_name']}-{self.config['dataset.dataset_name']}"
-        self.run_name = f"{self.config['fl_parameters.fl_method']}-clients_{self.config['fl_parameters.num_clients']}-frac_{self.config['fl_parameters.frac']}-sparsification_ratio_{self.config['fl_parameters.sparsification_ratio']}-{self.now}"
+        fl_method = self.config["fl_parameters.fl_method"]
+        num_clients = self.config["fl_parameters.num_clients"]
+        frac = self.config["fl_parameters.frac"]
+        sparsification_ratio = self.config["fl_parameters.sparsification_ratio"]
+        self.run_name = f"{fl_method}-clients_{num_clients}-frac_{frac}-sparsification_ratio_{sparsification_ratio}-{self.now}"
         self.tags = [f"{k}:{v}" for k, v in self.flat_config.items()]
         self.run = wandb.init(
             project=self.project_name,

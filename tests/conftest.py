@@ -1,7 +1,7 @@
 """Pytest configuration and fixtures for inclusive-fl tests."""
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 

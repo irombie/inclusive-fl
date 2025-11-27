@@ -6,9 +6,9 @@ import copy
 from typing import Dict, OrderedDict, Type
 
 import torch
+import utils
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
-import utils
 
 
 class DatasetSplit(Dataset):

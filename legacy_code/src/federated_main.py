@@ -3,30 +3,28 @@
 
 
 import copy
-from datetime import datetime
 import os
 import sys
 import time
 import traceback
+from datetime import datetime
 
 import numpy as np
-from options import args_parser
 import torch
+from options import args_parser
 from tqdm import tqdm
 from utils import custom_exponential_sparsity, exp_details, flatten, get_dataset, set_seed, updateFromNumpyFlatArray
 
+import wandb
 from global_updates import get_global_update
 from models import MLP, VGG, CNNFashion_Mnist, LogisticRegression, ResNet9, ResNet18, SmallCNN
 from update import get_local_update, test_inference
-import wandb
 
 
 def main():
     if sys.version_info[0:2] != (3, 11):
         print()
-        raise RuntimeError(
-            f"Code requires python 3.11. You are using {sys.version_info[0:2]}. Please update your conda env and install requirements.txt on the new env."
-        )
+        raise RuntimeError(f"Code requires python 3.11. You are using {sys.version_info[0:2]}. Please update and uv sync.")
     start_time = time.time()
 
     args = args_parser()
@@ -130,7 +128,7 @@ def main():
 
     for epoch in tqdm(range(args.epochs)):
         local_losses = []
-        print(f"\n | Global Training Round : {epoch+1} |\n")
+        print(f"\n | Global Training Round : {epoch + 1} |\n")
 
         m = max(int(args.frac * args.num_users), 1)
         idxs_users = np.random.choice(range(args.num_users), m, replace=False)
@@ -175,11 +173,10 @@ def main():
         valid_acc_avg = sum(valid_accs) / len(valid_accs)
         valid_accuracy.append(valid_acc_avg)
 
-        run.log({f"Local Model Stddev of Valid Losses": np.std(np.array(valid_losses).flatten())})
+        run.log({"Local Model Stddev of Valid Losses": np.std(np.array(valid_losses).flatten())})
 
         client_prob_dist = None
         if args.use_fair_sparsification:
-
             client_prob_dist = custom_exponential_sparsity(
                 np.array(valid_losses),
                 args.sparsification_ratio,
@@ -238,7 +235,7 @@ def main():
             # run.log({f"local model training loss per iteration for user {idx}": loss})
             # run.log({f"local model training accuracy per iteration for user {idx}": acc})
 
-        run.log({f"Local Model Stddev of Train Losses": np.std(np.array(local_losses).flatten())})
+        run.log({"Local Model Stddev of Train Losses": np.std(np.array(local_losses).flatten())})
 
         num_client_params_sent = local_bitmasks_sum
         run.log({"Standard deviation of number of parameters sent:": np.std(num_client_params_sent)})
@@ -305,9 +302,9 @@ def main():
         test_acc_avg = sum(test_accs) / len(test_accs)
         test_accuracy.append(test_acc_avg)
 
-        run.log({f"Local Model Stddev of Test Losses": np.std(np.array(test_losses).flatten())})
+        run.log({"Local Model Stddev of Test Losses": np.std(np.array(test_losses).flatten())})
         run.log({"client_test_loss_hist": wandb.Histogram(np.array(test_losses).flatten())})
-        run.log({f"Local Model Stddev of Test Accuracies": np.std(np.array(test_accs).flatten())})
+        run.log({"Local Model Stddev of Test Accuracies": np.std(np.array(test_accs).flatten())})
 
         run.log({"Global test accuracy: ": 100 * test_accuracy[-1]})
         run.log({"Global train accuracy: ": 100 * train_accuracy[-1]})
@@ -318,7 +315,7 @@ def main():
 
         # print global training loss after every 'i' rounds
         if (epoch + 1) % print_every == 0:
-            print(f" \nAvg Training Stats after {epoch+1} global rounds:")
+            print(f" \nAvg Training Stats after {epoch + 1} global rounds:")
             print(f"Training Loss : {np.mean(np.array(train_loss))}")
             print("Train Accuracy: {:.2f}% \n".format(100 * train_accuracy[-1]))
             print("Test Accuracy: {:.2f}% \n".format(100 * test_accuracy[-1]))

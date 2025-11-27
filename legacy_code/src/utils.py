@@ -1,34 +1,33 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.6
-from argparse import Namespace
-from collections import OrderedDict, defaultdict
 import copy
 import json
 import os
-from pathlib import Path
 import random
 import shutil
 import sys
 import tarfile
-from typing import Callable, Dict, List, Tuple, Union
 import zipfile
+from argparse import Namespace
+from collections import OrderedDict, defaultdict
+from pathlib import Path
+from typing import Dict, List, Tuple, Union
 
-from PIL import Image
 import gdown
 import numpy as np
-import pandas as pd
+import torch
 from parse import parse
+from PIL import Image
 from prettytable import PrettyTable
 from sklearn.model_selection import train_test_split
-import torch
 from torch.utils.data import Dataset, Subset
 from torchvision import datasets, transforms
 from torchvision.datasets import ImageFolder
 from torchvision.datasets.utils import download_and_extract_archive, verify_str_arg
-import wget
 
 import wandb
+from dataset_defs import SyntheticDataset, UTKFaceDataset
 
 
 def exp_details(args):
@@ -114,7 +113,7 @@ def paramaterise_noniid_distribution(
         class_weights[class_number] = (dataset_labels == class_number).sum() / len(dataset_labels)
 
     if min_proportion >= 1 / num_users:
-        return ValueError(f"min_proportion per user must be less than {1/num_users} for a dataset with {num_users} in it")
+        return ValueError(f"min_proportion per user must be less than {1 / num_users} for a dataset with {num_users} in it")
     class_sample_distribution = np.zeros((num_classes, num_users))
     dataset_proportion_per_user = np.zeros(num_users)
     while dataset_proportion_per_user.min() <= min_proportion:
@@ -450,7 +449,9 @@ def fetch_synthetic_data(url: str, path: str | Path):
     return path
 
 
-def get_dataset(args: Union[Namespace, Dict]) -> Tuple[
+def get_dataset(
+    args: Union[Namespace, Dict],
+) -> Tuple[
     datasets.VisionDataset,
     datasets.VisionDataset,
     datasets.VisionDataset,

@@ -68,6 +68,14 @@ dev = [
     "mypy>=1.0.0",
 ]
 
+[tool.ruff]
+line-length = 127
+exclude = ["legacy_code"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]  # "I" enables isort-compatible import rules
+
+
 [build-system]
 requires = ["setuptools>=65", "wheel"]
 build-backend = "setuptools.build_meta"

@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.11
 
-from collections import OrderedDict
 import copy
 import os
 import random
+from collections import OrderedDict
 from typing import Dict, List
 
 import numpy as np

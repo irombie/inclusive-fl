@@ -2,8 +2,6 @@
 
 import sys
 
-import pytest
-
 
 class TestEnvironment:
     """Test suite for environment setup."""
@@ -14,12 +12,9 @@ class TestEnvironment:
 
     def test_core_imports(self):
         """Test that all core dependencies can be imported."""
-        from fastargs import get_current_config
         import numpy as np
         import torch
         import torchvision
-
-        import wandb
 
         # Basic version checks
         assert torch.__version__ is not None

@@ -27,7 +27,7 @@ jobs:
       - name: Install the project
         shell: bash
         run: |
-          uv sync --no-dev
+          uv sync --all-extras
 
       - name: Cache pre-commit
         uses: actions/cache@v4

@@ -36,12 +36,12 @@ jobs:
           # Ensure pre-commit itself is installed
           pip install pre-commit
 
-      - name: Cache pre-commit environments
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pre-commit
-          key: >
-            pre-commit-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml', 'pyproject.toml', 'pyproject.toml.ci-config', 'uv.lock') }}
+      # - name: Cache pre-commit environments
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ~/.cache/pre-commit
+      #     key: >
+      #       pre-commit-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml', 'pyproject.toml', 'pyproject.toml.ci-config', 'uv.lock') }}
 
       - name: Run pre-commit (all files)
         run: |

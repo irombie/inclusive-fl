@@ -310,6 +310,7 @@ dependencies = [
     { name = "pre-commit" },
     { name = "pyyaml" },
     { name = "scikit-learn" },
+    { name = "terminaltables" },
     { name = "torch" },
     { name = "torchvision" },
     { name = "wandb" },
@@ -345,6 +346,7 @@ requires-dist = [
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.0.0" },
     { name = "pyyaml", specifier = "==6.0" },
     { name = "scikit-learn", specifier = "==1.3.0" },
+    { name = "terminaltables", specifier = ">=3.1.10" },
     { name = "torch", specifier = ">=2.2.2" },
     { name = "torchvision", specifier = "==0.17.2" },
     { name = "wandb", specifier = ">=0.15" },
@@ -1038,6 +1040,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/5a/36/4667b08bc45131fe655a27b1a112c1730f3244343c53a338f44d730bd6ba/sympy-1.11.1.tar.gz", hash = "sha256:e32380dce63cb7c0108ed525570092fd45168bdae2faa17e528221ef72e88658", size = 12921384, upload-time = "2022-08-30T17:33:21.269Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2d/49/a2d03101e2d28ad528968144831d506344418ef1cc04839acdbe185889c2/sympy-1.11.1-py3-none-any.whl", hash = "sha256:938f984ee2b1e8eae8a07b884c8b7a1146010040fccddc6539c54f401c8f6fcf", size = 6471005, upload-time = "2022-08-30T17:32:15.752Z" },
+]
+
+[[package]]
+name = "terminaltables"
+version = "3.1.10"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/fc/0b73d782f5ab7feba8d007573a3773c58255f223c5940a7b7085f02153c3/terminaltables-3.1.10.tar.gz", hash = "sha256:ba6eca5cb5ba02bba4c9f4f985af80c54ec3dccf94cfcd190154386255e47543", size = 12264, upload-time = "2021-12-07T19:03:35.758Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c4/fb/ea621e0a19733e01fe4005d46087d383693c0f4a8f824b47d8d4122c87e0/terminaltables-3.1.10-py2.py3-none-any.whl", hash = "sha256:e4fdc4179c9e4aab5f674d80f09d76fa436b96fdc698a8505e0a36bf0804a874", size = 15155, upload-time = "2021-12-07T19:03:34.013Z" },
 ]
 
 [[package]]

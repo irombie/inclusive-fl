@@ -1,7 +1,5 @@
 """Tests for repository structure and file organization."""
 
-from pathlib import Path
-
 import pytest
 
 
@@ -22,7 +20,6 @@ class TestRepositoryStructure:
         required_files = [
             "README.md",
             "pyproject.toml",
-            "environment_droplet.yml",
             "LICENSE",
         ]
 
@@ -40,9 +37,8 @@ class TestRepositoryStructure:
             "update.py",
             "global_updates.py",
             "dataset_defs.py",
-            "general_utils.py",
+            "utils.py",
             "harness_params.py",
-            "logging_utils.py",
         ]
 
         for filename in source_files:
@@ -69,9 +65,8 @@ class TestRepositoryStructure:
             "update.py",
             "global_updates.py",
             "dataset_defs.py",
-            "general_utils.py",
             "harness_params.py",
-            "logging_utils.py",
+            "utils.py",
         ]
 
         for filename in source_files:

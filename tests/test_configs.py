@@ -1,7 +1,6 @@
 """Tests for configuration loading and validation."""
 
 import sys
-from pathlib import Path
 
 import pytest
 

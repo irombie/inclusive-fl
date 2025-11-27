@@ -1,7 +1,5 @@
 """Tests for project module imports."""
 
-import pytest
-
 
 class TestProjectImports:
     """Test suite for project module imports."""
@@ -39,19 +37,19 @@ class TestProjectImports:
 
         assert hasattr(update, "LocalUpdate")
 
-    def test_general_utils_import(self):
-        """Test that general_utils module can be imported."""
-        from src import general_utils
+    def test_utils_import(self):
+        """Test that utils module can be imported."""
+        from src import utils
 
-        assert hasattr(general_utils, "flatten")
-        assert hasattr(general_utils, "updateFromNumpyFlatArray")
-        assert hasattr(general_utils, "get_bitmask_per_method")
+        assert hasattr(utils, "flatten")
+        assert hasattr(utils, "updateFromNumpyFlatArray")
+        assert hasattr(utils, "get_bitmask_per_method")
 
     def test_logging_utils_import(self):
         """Test that logging_utils module can be imported."""
-        from src import logging_utils
+        from src import utils
 
-        assert hasattr(logging_utils, "WandbLogger")
+        assert hasattr(utils, "WandbLogger")
 
     def test_harness_params_import(self):
         """Test that harness_params module can be imported."""
@@ -68,24 +66,13 @@ class TestProjectImports:
 
     def test_all_imports_together(self):
         """Test that all modules can be imported together without conflicts."""
-        from src import (
-            dataset_defs,
-            fl_dataset,
-            general_utils,
-            global_updates,
-            harness,
-            harness_params,
-            logging_utils,
-            models,
-            update,
-        )
+        from src import dataset_defs, fl_dataset, global_updates, harness, harness_params, models, update, utils
 
         assert harness is not None
         assert models is not None
         assert fl_dataset is not None
         assert global_updates is not None
         assert update is not None
-        assert general_utils is not None
-        assert logging_utils is not None
+        assert utils is not None
         assert harness_params is not None
         assert dataset_defs is not None

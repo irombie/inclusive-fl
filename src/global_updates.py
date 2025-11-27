@@ -7,7 +7,7 @@ import torch
 from fastargs import get_current_config
 from fastargs.decorators import param
 
-import general_utils
+import utils
 
 
 class AbstractGlobalUpdate(ABC):
@@ -99,7 +99,7 @@ class MeanWeights(AbstractGlobalUpdate):
         return np.divide(local_weights_sum, num_clients)
 
     def update_global_model(self, global_model, global_weights, **kwargs) -> None:
-        general_utils.updateFromNumpyFlatArray(global_weights, global_model)
+        utils.updateFromNumpyFlatArray(global_weights, global_model)
 
 
 class MeanWeightsSparsified(AbstractGlobalUpdate):
@@ -134,7 +134,7 @@ class MeanWeightsSparsified(AbstractGlobalUpdate):
             out=np.zeros_like(local_weights_sum),
             where=local_bitmasks_sum != 0,
         )
-        flat_glob = general_utils.flatten(global_model)
+        flat_glob = utils.flatten(global_model)
         return flat_glob + global_lr * weigted_local_model_sum
 
 
@@ -284,7 +284,7 @@ class qFedAvgGlobalUpdate(AbstractGlobalUpdate):
             out=np.zeros_like(delta_sum),
             where=h_sum != 0,
         )
-        flat_glob = general_utils.flatten(global_model)
+        flat_glob = utils.flatten(global_model)
         return flat_glob - weigted_local_model_sum
 
 

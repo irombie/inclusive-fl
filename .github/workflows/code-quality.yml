@@ -2,66 +2,39 @@ name: Code Quality
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main, develop ]
 
 jobs:
-  black:
-    name: Check code formatting
+  code-quality:
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-    - name: Install black
-      run: pip install black
-    - name: Check formatting
-      run: black --check --diff src/ tests/
 
-  isort:
-    name: Check import sorting
-    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-    - name: Install isort
-      run: pip install isort
-    - name: Check imports
-      run: isort --check-only --diff src/ tests/
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-  flake8:
-    name: Lint with flake8
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-    - name: Install flake8
-      run: pip install flake8 flake8-docstrings
-    - name: Lint code
-      run: |
-        # Critical errors only
-        flake8 src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        # All errors as warnings
-        flake8 src/ tests/ --count --exit-zero --max-complexity=15 --max-line-length=127 --statistics
+      - name: Set up Python
+        id: setup-python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-  mypy:
-    name: Type checking
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-    - name: Install dependencies
-      run: |
-        pip install mypy
-        pip install -e .
-    - name: Type check
-      run: mypy src/ --ignore-missing-imports --check-untyped-defs
-      continue-on-error: true
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install the project
+        shell: bash
+        run: |
+          uv sync --extra dev
+
+      - name: Cache pre-commit
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit/
+          key: pre-commit-4|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Run pre-commit (all files)
+        run: |
+          uv run pre-commit run --all-files --show-diff-on-failure

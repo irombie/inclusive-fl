@@ -2,9 +2,7 @@ import argparse
 import itertools
 import os
 import subprocess
-import time
 
-import torch
 import yaml
 from loguru import logger
 from tqdm import tqdm
@@ -184,7 +182,7 @@ def main():
     # Remove unwanted experiments:
     final_list = []
     for exp in parameter_combinations:
-        if not (exp[MODEL_IDX], exp[DATASET_IDX]) in IGNORE_EXPERIMENTS:
+        if (exp[MODEL_IDX], exp[DATASET_IDX]) not in IGNORE_EXPERIMENTS:
             final_list.append(exp)
 
     parameter_combinations = final_list
@@ -196,7 +194,7 @@ def main():
         command.insert(0, f"{os.getcwd()}/src/federated_main.py")  # + command
         command.insert(0, "python")  # might need to change to python depending on how it is aliased in your machine
 
-        logger.info(f'Launching experiment {i+1}/{len(parameter_combinations)}: {" ".join(command)}')
+        logger.info(f"Launching experiment {i + 1}/{len(parameter_combinations)}: {' '.join(command)}")
 
         subprocess.run(command)
 

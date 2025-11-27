@@ -11,8 +11,9 @@ from fastargs.decorators import param
 from torch import nn
 from torch.utils.data import DataLoader, Subset
 
-import general_utils
+import utils
 from harness_params import get_current_params
+
 
 get_current_params()
 
@@ -29,9 +30,17 @@ class LocalUpdate:
     """
 
     def __init__(
-        self, train_dataset, test_dataset, valid_dataset, train_idxs, test_idxs, valid_idxs, logger, global_model, proportion
+        self,
+        train_dataset,
+        test_dataset,
+        valid_dataset,
+        train_idxs,
+        test_idxs,
+        valid_idxs,
+        logger,
+        global_model,
+        proportion,
     ):
-
         self.config = get_current_config()
         self.logger = logger
         self.proportion = proportion
@@ -210,7 +219,7 @@ class LocalUpdateSparsified(LocalUpdate):
 
         # Set optimizer for the local updates
         optimizer = self.configure_optimizer(model=model)
-        glob_flat = general_utils.flatten(model)
+        glob_flat = utils.flatten(model)
 
         for iter_ in range(local_epochs):
             batch_loss = []
@@ -240,9 +249,9 @@ class LocalUpdateSparsified(LocalUpdate):
 
         sparse_ratio = sparsification_ratio
 
-        flat = general_utils.flatten(model)
+        flat = utils.flatten(model)
         diff_flat = flat - glob_flat
-        bitmask = general_utils.get_bitmask_per_method(
+        bitmask = utils.get_bitmask_per_method(
             flat_model=diff_flat,
             sparse_ratio=sparse_ratio,
             sparsification_type=sparsification_type,
@@ -367,8 +376,8 @@ class qFedAvgLocalUpdate(LocalUpdate):
                 h_expanded[key] = torch.full((size,), h[key])
 
             return (
-                general_utils.flatten(delta, is_dict=True),
-                general_utils.flatten(h_expanded, is_dict=True),
+                utils.flatten(delta, is_dict=True),
+                utils.flatten(h_expanded, is_dict=True),
                 model,
                 sum(epoch_loss) / len(epoch_loss),
             )
@@ -415,7 +424,16 @@ def test_inference(model, test_dataset):
 
 
 def get_local_update(
-    fl_method, train_dataset, test_dataset, valid_dataset, train_idxs, test_idxs, valid_idxs, logger, global_model, proportion
+    fl_method,
+    train_dataset,
+    test_dataset,
+    valid_dataset,
+    train_idxs,
+    test_idxs,
+    valid_idxs,
+    logger,
+    global_model,
+    proportion,
 ) -> LocalUpdate:
     """
     Get local update from federated learning method name and return the

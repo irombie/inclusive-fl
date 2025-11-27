@@ -11,7 +11,7 @@ class TestGeneralUtils:
     def test_flatten_model(self):
         """Test model flattening."""
         from src import models
-        from src.general_utils import flatten
+        from src.utils import flatten
 
         model = models.SmallCNN(num_classes=10)
         flat = flatten(model)
@@ -23,7 +23,7 @@ class TestGeneralUtils:
     def test_update_from_flat_array(self):
         """Test updating model from flat array."""
         from src import models
-        from src.general_utils import flatten, updateFromNumpyFlatArray
+        from src.utils import flatten, updateFromNumpyFlatArray
 
         model = models.SmallCNN(num_classes=10)
         original_flat = flatten(model)
@@ -52,7 +52,7 @@ class TestGeneralUtils:
     @pytest.mark.parametrize("sparse_ratio", [0.1, 0.5, 0.9])
     def test_randk_sparsification(self, sparse_ratio):
         """Test random-k sparsification."""
-        from src.general_utils import get_bitmask_per_method
+        from src.utils import get_bitmask_per_method
 
         flat_array = np.random.randn(1000)
         bitmask = get_bitmask_per_method(flat_array, sparse_ratio=sparse_ratio, sparsification_type="randk")
@@ -65,7 +65,7 @@ class TestGeneralUtils:
     @pytest.mark.parametrize("sparse_ratio", [0.1, 0.5, 0.9])
     def test_topk_sparsification(self, sparse_ratio):
         """Test top-k sparsification."""
-        from src.general_utils import get_bitmask_per_method
+        from src.utils import get_bitmask_per_method
 
         flat_array = np.random.randn(1000)
         bitmask = get_bitmask_per_method(flat_array, sparse_ratio=sparse_ratio, sparsification_type="topk")
@@ -77,11 +77,14 @@ class TestGeneralUtils:
 
     def test_rtopk_sparsification(self):
         """Test random top-k sparsification."""
-        from src.general_utils import get_bitmask_per_method
+        from src.utils import get_bitmask_per_method
 
         flat_array = np.random.randn(1000)
         bitmask = get_bitmask_per_method(
-            flat_array, sparse_ratio=0.3, sparsification_type="rtopk", choose_from_top_r_percentile=0.5
+            flat_array,
+            sparse_ratio=0.3,
+            sparsification_type="rtopk",
+            choose_from_top_r_percentile=0.5,
         )
 
         assert bitmask.shape == flat_array.shape
@@ -91,7 +94,7 @@ class TestGeneralUtils:
 
     def test_invalid_sparsification_type(self):
         """Test that invalid sparsification type raises error."""
-        from src.general_utils import get_bitmask_per_method
+        from src.utils import get_bitmask_per_method
 
         flat_array = np.random.randn(1000)
 
@@ -100,7 +103,7 @@ class TestGeneralUtils:
 
     def test_temperatured_softmax(self):
         """Test temperatured softmax function."""
-        from src.general_utils import temperatured_softmax
+        from src.utils import temperatured_softmax
 
         losses = np.array([1.0, 2.0, 3.0, 4.0])
         result = temperatured_softmax(losses, softmax_temperature=1.0)
@@ -111,7 +114,7 @@ class TestGeneralUtils:
 
     def test_custom_exponential_sparsity(self):
         """Test custom exponential sparsity function."""
-        from src.general_utils import custom_exponential_sparsity
+        from src.utils import custom_exponential_sparsity
 
         losses = np.array([1.0, 2.0, 3.0, 4.0])
         result = custom_exponential_sparsity(losses, max_sparsity=0.8, min_sparsity=0.2, temperature=1.0)
@@ -122,7 +125,7 @@ class TestGeneralUtils:
 
     def test_linearly_interpolated_softmax(self):
         """Test linearly interpolated softmax function."""
-        from src.general_utils import linearly_interpolated_softmax
+        from src.utils import linearly_interpolated_softmax
 
         losses = np.array([1.0, 2.0, 3.0, 4.0])
         result = linearly_interpolated_softmax(losses, max_sparsity=0.8, min_sparsity=0.2, temperature=1.0)
@@ -134,7 +137,7 @@ class TestGeneralUtils:
 
     def test_set_seed(self):
         """Test seed setting function."""
-        from src.general_utils import set_seed
+        from src.utils import set_seed
 
         set_seed(42)
         rand1 = np.random.rand()
@@ -146,7 +149,7 @@ class TestGeneralUtils:
 
     def test_dict_sum(self):
         """Test dictionary summing function."""
-        from src.general_utils import dict_sum
+        from src.utils import dict_sum
 
         dict1 = {"a": torch.tensor([1.0, 2.0]), "b": torch.tensor([3.0, 4.0])}
         dict2 = {"a": torch.tensor([5.0, 6.0]), "b": torch.tensor([7.0, 8.0])}
@@ -158,7 +161,7 @@ class TestGeneralUtils:
 
     def test_normalize(self):
         """Test normalize function for image data."""
-        from src.general_utils import normalize
+        from src.utils import normalize
 
         # Create dummy image tensor (0-255 range)
         img = torch.tensor([0.0, 127.5, 255.0])

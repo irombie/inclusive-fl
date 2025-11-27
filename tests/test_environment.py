@@ -2,8 +2,6 @@
 
 import sys
 
-import pytest
-
 
 class TestEnvironment:
     """Test suite for environment setup."""
@@ -17,9 +15,6 @@ class TestEnvironment:
         import numpy as np
         import torch
         import torchvision
-        from fastargs import get_current_config
-
-        import wandb
 
         # Basic version checks
         assert torch.__version__ is not None

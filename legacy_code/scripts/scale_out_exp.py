@@ -70,8 +70,8 @@ def generate_command_args(combination):
         command_args["--num_features"] = combination[-2]
         command_args["--num_classes"] = combination[-1]
     if combination[5] == "majority_minority":
-            command_args["--majority_proportion"] = combination[-5]
-            command_args["--majority_minority_overlap"] = combination[-4]
+        command_args["--majority_proportion"] = combination[-5]
+        command_args["--majority_minority_overlap"] = combination[-4]
     return command_args
 
 
@@ -82,7 +82,7 @@ def main():
     if configs is None:
         raise Exception("Unable to read config file!")
 
-    if ("sparsification_ratio" in configs.keys()) and ('rtopk' in configs['sparsification_type']):
+    if ("sparsification_ratio" in configs.keys()) and ("rtopk" in configs["sparsification_type"]):
         configs["choose_from_top_r_percentile"] = [1.5 * float(num) for num in configs["sparsification_ratio"]]
 
     # Generate all parameter combinations
@@ -194,13 +194,9 @@ def main():
         command_args = generate_command_args(combination)
         command = [f"{k}={v}" for k, v in command_args.items()]
         command.insert(0, f"{os.getcwd()}/src/federated_main.py")  # + command
-        command.insert(
-            0, "python"
-        )  # might need to change to python depending on how it is aliased in your machine
+        command.insert(0, "python")  # might need to change to python depending on how it is aliased in your machine
 
-        logger.info(
-            f'Launching experiment {i+1}/{len(parameter_combinations)}: {" ".join(command)}'
-        )
+        logger.info(f'Launching experiment {i+1}/{len(parameter_combinations)}: {" ".join(command)}')
 
         subprocess.run(command)
 

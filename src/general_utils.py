@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.11
 
-from collections import OrderedDict
-from typing import Dict, List
 import copy
 import os
 import random
+from collections import OrderedDict
+from typing import Dict, List
 
 import numpy as np
 import torch
@@ -92,9 +92,7 @@ def get_bitmask_per_method(
 
     if sparsification_type == "topk":
         num_params = int(sparse_ratio * len(flat_model))
-        max_indices = np.argpartition(np.absolute(flat_model), -num_params)[
-            -num_params:
-        ]
+        max_indices = np.argpartition(np.absolute(flat_model), -num_params)[-num_params:]
         bitmask = np.zeros_like(flat_model)
         np.put(bitmask, max_indices, 1)
         return bitmask
@@ -103,12 +101,8 @@ def get_bitmask_per_method(
         choose_from_top_r_percentile = max(choose_from_top_r_percentile, sparse_ratio)
 
         num_params = int(choose_from_top_r_percentile * len(flat_model))
-        max_indices = np.argpartition(np.absolute(flat_model), -num_params)[
-            -num_params:
-        ]
-        sparse_max_indices = np.random.choice(
-            max_indices, size=int(sparse_ratio * len(flat_model)), replace=False
-        )
+        max_indices = np.argpartition(np.absolute(flat_model), -num_params)[-num_params:]
+        sparse_max_indices = np.random.choice(max_indices, size=int(sparse_ratio * len(flat_model)), replace=False)
         bitmask = np.zeros_like(flat_model)
         np.put(bitmask, sparse_max_indices, 1)
         return bitmask
@@ -122,14 +116,10 @@ def temperatured_softmax(client_losses, softmax_temperature):
     """
     client_losses = client_losses / softmax_temperature
     max_client_loss = np.max(client_losses)
-    return np.exp(client_losses - max_client_loss) / np.sum(
-        np.exp(client_losses - max_client_loss)
-    )
+    return np.exp(client_losses - max_client_loss) / np.sum(np.exp(client_losses - max_client_loss))
 
 
-def linearly_interpolated_softmax(
-    client_losses, max_sparsity, min_sparsity, temperature
-):
+def linearly_interpolated_softmax(client_losses, max_sparsity, min_sparsity, temperature):
     """
     This method is an extension to the temperatured softmax, which addresses the failiure case when
     not enough parameters are sent by each cases (as is done with custom_exponential_sparsity).
@@ -144,10 +134,7 @@ def linearly_interpolated_softmax(
     """
     assert max_sparsity > min_sparsity
     client_prob_masses = temperatured_softmax(client_losses, temperature)
-    return [
-        max_sparsity * client_prob + (1 - client_prob) * min_sparsity
-        for client_prob in client_prob_masses
-    ]
+    return [max_sparsity * client_prob + (1 - client_prob) * min_sparsity for client_prob in client_prob_masses]
 
 
 def custom_exponential_sparsity(client_losses, max_sparsity, min_sparsity, temperature):
@@ -166,9 +153,7 @@ def custom_exponential_sparsity(client_losses, max_sparsity, min_sparsity, tempe
     assert max_sparsity > min_sparsity, "Max sparsity must be less than min sparsity"
     client_losses = client_losses / temperature
     max_client_loss = np.max(client_losses)
-    return (max_sparsity - min_sparsity) * np.exp(
-        client_losses - max_client_loss
-    ) + min_sparsity
+    return (max_sparsity - min_sparsity) * np.exp(client_losses - max_client_loss) + min_sparsity
 
 
 def normalize(data_tensor):

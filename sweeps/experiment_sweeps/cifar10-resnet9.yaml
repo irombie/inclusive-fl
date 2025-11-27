@@ -2,7 +2,7 @@ project: cifar10-resnet9
 program: harness.py
 method: grid
 parameters:
-  config: 
+  config:
     values:
       - configs/cifar10/resnet9/fedavg.yaml
       - configs/cifar10/resnet9/fedsyn_fair_custom-exp.yaml

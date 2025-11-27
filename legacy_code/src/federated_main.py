@@ -11,29 +11,14 @@ from datetime import datetime
 
 import numpy as np
 import torch
+from options import args_parser
 from tqdm import tqdm
+from utils import custom_exponential_sparsity, exp_details, flatten, get_dataset, set_seed, updateFromNumpyFlatArray
 
 import wandb
 from global_updates import get_global_update
-from models import (
-    VGG,
-    CNNFashion_Mnist,
-    ResNet9,
-    ResNet18,
-    SmallCNN,
-    MLP,
-    LogisticRegression,
-)
-from options import args_parser
+from models import MLP, VGG, CNNFashion_Mnist, LogisticRegression, ResNet9, ResNet18, SmallCNN
 from update import get_local_update, test_inference
-from utils import (
-    custom_exponential_sparsity,
-    exp_details,
-    flatten,
-    get_dataset,
-    set_seed,
-    updateFromNumpyFlatArray,
-)
 
 
 def main():
@@ -56,11 +41,7 @@ def main():
         tag_list.append(f"{k}:{args_dict[k]}")
     run = wandb.init(project=args.wandb_name, config=args, name=run_name, tags=tag_list)
 
-    device = torch.device(
-        "cuda"
-        if torch.cuda.is_available()
-        else ("mps" if torch.backends.mps.is_built() else "cpu")
-    )
+    device = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_built() else "cpu"))
 
     set_seed(args.seed, False)
 
@@ -194,13 +175,7 @@ def main():
         valid_acc_avg = sum(valid_accs) / len(valid_accs)
         valid_accuracy.append(valid_acc_avg)
 
-        run.log(
-            {
-                f"Local Model Stddev of Valid Losses": np.std(
-                    np.array(valid_losses).flatten()
-                )
-            }
-        )
+        run.log({f"Local Model Stddev of Valid Losses": np.std(np.array(valid_losses).flatten())})
 
         client_prob_dist = None
         if args.use_fair_sparsification:
@@ -212,9 +187,7 @@ def main():
                 args.fairness_temperature,
             )
 
-            client_prob_dist = {
-                idxs_users[i]: client_prob_dist[i] for i in range(len(client_prob_dist))
-            }
+            client_prob_dist = {idxs_users[i]: client_prob_dist[i] for i in range(len(client_prob_dist))}
 
         for idx in idxs_users:
             local_model = copy.deepcopy(global_model)
@@ -249,16 +222,12 @@ def main():
                 local_weights_sum += flat_update
                 local_bitmasks_sum += bitmask
             elif args.fl_method == "qFedAvg":
-                delta, h, w, loss = local_update.update_weights(
-                    model=local_model, global_round=epoch
-                )
+                delta, h, w, loss = local_update.update_weights(model=local_model, global_round=epoch)
                 local_delta_sum += delta
                 local_h_sum += h
                 local_bitmasks_sum += np.ones_like(local_bitmasks_sum)
             else:
-                w, loss = local_update.update_weights(
-                    model=local_model, global_round=epoch
-                )
+                w, loss = local_update.update_weights(model=local_model, global_round=epoch)
                 local_weights_sum += flatten(local_model)
                 local_bitmasks_sum += np.ones_like(local_bitmasks_sum)
 
@@ -269,48 +238,25 @@ def main():
             # run.log({f"local model training loss per iteration for user {idx}": loss})
             # run.log({f"local model training accuracy per iteration for user {idx}": acc})
 
-        run.log(
-            {
-                f"Local Model Stddev of Train Losses": np.std(
-                    np.array(local_losses).flatten()
-                )
-            }
-        )
+        run.log({f"Local Model Stddev of Train Losses": np.std(np.array(local_losses).flatten())})
 
         num_client_params_sent = local_bitmasks_sum
-        run.log(
-            {
-                "Standard deviation of number of parameters sent:": np.std(
-                    num_client_params_sent
-                )
-            }
-        )
-        run.log(
-            {
-                "Mean of number of parameters sent:": np.sum(num_client_params_sent)
-                / len(idxs_users)
-            }
-        )
+        run.log({"Standard deviation of number of parameters sent:": np.std(num_client_params_sent)})
+        run.log({"Mean of number of parameters sent:": np.sum(num_client_params_sent) / len(idxs_users)})
 
         acc_avg = sum(list_acc) / len(list_acc)
         train_accuracy.append(acc_avg)
 
         # update global weights
         if args.fl_method == "FedSyn":
-            global_w = global_update.aggregate_weights(
-                local_weights_sum, global_model, local_bitmasks_sum
-            )
+            global_w = global_update.aggregate_weights(local_weights_sum, global_model, local_bitmasks_sum)
             # update models
             updateFromNumpyFlatArray(global_w, global_model)
         elif args.fl_method == "qFedAvg":
-            global_weights = global_update.aggregate_weights(
-                global_model, local_delta_sum, local_h_sum
-            )
+            global_weights = global_update.aggregate_weights(global_model, local_delta_sum, local_h_sum)
             updateFromNumpyFlatArray(global_weights, global_model)
         else:
-            global_weights = global_update.aggregate_weights(
-                local_weights_sum, valid_losses, len(idxs_users)
-            )
+            global_weights = global_update.aggregate_weights(local_weights_sum, valid_losses, len(idxs_users))
             global_update.update_global_model(global_model, global_weights)
 
         if epoch % int(args.save_every) == 0:
@@ -359,23 +305,9 @@ def main():
         test_acc_avg = sum(test_accs) / len(test_accs)
         test_accuracy.append(test_acc_avg)
 
-        run.log(
-            {
-                f"Local Model Stddev of Test Losses": np.std(
-                    np.array(test_losses).flatten()
-                )
-            }
-        )
-        run.log(
-            {"client_test_loss_hist": wandb.Histogram(np.array(test_losses).flatten())}
-        )
-        run.log(
-            {
-                f"Local Model Stddev of Test Accuracies": np.std(
-                    np.array(test_accs).flatten()
-                )
-            }
-        )
+        run.log({f"Local Model Stddev of Test Losses": np.std(np.array(test_losses).flatten())})
+        run.log({"client_test_loss_hist": wandb.Histogram(np.array(test_losses).flatten())})
+        run.log({f"Local Model Stddev of Test Accuracies": np.std(np.array(test_accs).flatten())})
 
         run.log({"Global test accuracy: ": 100 * test_accuracy[-1]})
         run.log({"Global train accuracy: ": 100 * train_accuracy[-1]})

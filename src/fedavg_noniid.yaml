@@ -1,14 +1,14 @@
 dataset:
-  dataset_name: FashionMNIST 
+  dataset_name: FashionMNIST
   data_dir: ./data
   num_classes: 10
 model:
-  model_name: CNNFashionMNIST 
+  model_name: CNNFashionMNIST
 training_params:
   seed: 0
 fl_parameters:
   num_clients: 100
-  fl_method: FedAvg 
+  fl_method: FedAvg
   frac: 0.3
 global_parameters:
   global_rounds: 100

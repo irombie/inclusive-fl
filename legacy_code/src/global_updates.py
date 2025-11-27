@@ -4,7 +4,6 @@ from typing import Dict, List, Tuple, Type
 
 import numpy as np
 import torch
-
 import utils
 
 
@@ -62,9 +61,7 @@ class AbstractGlobalUpdate(ABC):
         global_model.load_state_dict(global_weights)
 
     @staticmethod
-    def update_local_models(
-        local_models: List[torch.nn.Module], global_weights: Dict[str, torch.Tensor]
-    ) -> None:
+    def update_local_models(local_models: List[torch.nn.Module], global_weights: Dict[str, torch.Tensor]) -> None:
         """
         Update local models with global weights
         In this case, updating each local model to be exactly the
@@ -145,9 +142,7 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
     def __init__(self, args, model: torch.nn.Module):
         super().__init__(args, model)
         batchnorm_layers = self._find_batchnorm_layers(model)
-        assert (
-            len(batchnorm_layers) != 0
-        ), "No batch norm layers found, cannot use FedBN."
+        assert len(batchnorm_layers) != 0, "No batch norm layers found, cannot use FedBN."
         self.batchnorm_layers = batchnorm_layers
 
     @staticmethod
@@ -198,9 +193,7 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
         return w_avg
 
     @staticmethod
-    def update_global_model(
-        global_model: torch.nn.Module, global_weights: Dict[str, torch.Tensor]
-    ) -> None:
+    def update_global_model(global_model: torch.nn.Module, global_weights: Dict[str, torch.Tensor]) -> None:
         """
         Update global model with global weights
 
@@ -213,9 +206,7 @@ class MeanWeightsNoBatchNorm(AbstractGlobalUpdate):
         global_model.load_state_dict(global_weights, strict=False)
 
     @staticmethod
-    def update_local_models(
-        local_models: List[torch.nn.Module], global_weights: Dict[str, torch.Tensor]
-    ) -> None:
+    def update_local_models(local_models: List[torch.nn.Module], global_weights: Dict[str, torch.Tensor]) -> None:
         """
         Update local models with global weights
         In this case, updating local models and preserving batch norm layers
@@ -317,6 +308,4 @@ def get_global_update(args, model: torch.nn.Module, **kwargs) -> AbstractGlobalU
     if args.fl_method in NAME_TO_GLOBAL_UPDATE:
         return NAME_TO_GLOBAL_UPDATE[args.fl_method](args, model, **kwargs)
     else:
-        raise ValueError(
-            f"Unsupported federated learning method name {args.fl_method} for global update."
-        )
+        raise ValueError(f"Unsupported federated learning method name {args.fl_method} for global update.")

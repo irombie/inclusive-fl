@@ -1,28 +1,21 @@
-from argparse import ArgumentParser
-from pathlib import Path
 import copy
 import sys
 import traceback
+from argparse import ArgumentParser
+from pathlib import Path
 
-from fastargs import get_current_config, set_current_config
-from fastargs.decorators import param
 import numpy as np
 import torch
+from fastargs import get_current_config, set_current_config
+from fastargs.decorators import param
 
-from general_utils import (
-    custom_exponential_sparsity,
-    linearly_interpolated_softmax,
-    flatten,
-    updateFromNumpyFlatArray,
-)
-
+import logging_utils
+import models
 from fl_dataset import FLDataset
+from general_utils import custom_exponential_sparsity, flatten, linearly_interpolated_softmax, updateFromNumpyFlatArray
 from global_updates import get_global_update
 from harness_params import get_current_params
 from update import get_local_update
-import logging_utils
-import models
-
 
 get_current_params()
 
@@ -31,9 +24,7 @@ class FLTrainingHarness:
     def __init__(self):
         self.config = get_current_config()
         self.device = self.config["model.device"] or torch.device(
-            "cuda"
-            if torch.cuda.is_available()
-            else ("mps" if torch.backends.mps.is_built() else "cpu")
+            "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_built() else "cpu")
         )
         self.global_model = self.init_global_model()
         (
@@ -52,9 +43,7 @@ class FLTrainingHarness:
     def ckpt_dir(self):
         if self._ckpt_dir is None:
             self._ckpt_dir = (
-                Path(self.config["fl_parameters.ckpt_path"]).resolve()
-                / self.logger.project_name
-                / self.logger.run_name
+                Path(self.config["fl_parameters.ckpt_path"]).resolve() / self.logger.project_name / self.logger.run_name
             )
             self.ckpt_dir.mkdir(parents=True, exist_ok=True)
         return self._ckpt_dir
@@ -158,9 +147,7 @@ class FLTrainingHarness:
 
     def run_qfedavg_client(self, local_update, epoch):
         local_model = copy.deepcopy(self.global_model)
-        delta, h, w, _ = local_update.update_weights(
-            model=local_model, global_round=epoch
-        )
+        delta, h, w, _ = local_update.update_weights(model=local_model, global_round=epoch)
         acc, loss = local_update.inference(model=w, dataset_type="train")
         return delta, h, w, loss, acc, local_model
 
@@ -179,9 +166,7 @@ class FLTrainingHarness:
         global_flat = flatten(self.global_model)
         m = max(int(frac * num_clients), 1)
 
-        self.client_indices = np.random.choice(
-            range(num_clients), m, replace=False
-        ).tolist()
+        self.client_indices = np.random.choice(range(num_clients), m, replace=False).tolist()
 
         local_weights_sum, local_bitmasks_sum, local_delta_sum, local_h_sum = (
             np.zeros_like(global_flat),
@@ -210,9 +195,7 @@ class FLTrainingHarness:
                     train_loss,
                     train_acc,
                     local_model,
-                ) = self.run_fedsyn_client(
-                    client_idx=client_idx, local_update=local_update, epoch=epoch
-                )
+                ) = self.run_fedsyn_client(client_idx=client_idx, local_update=local_update, epoch=epoch)
                 local_weights_sum += flat_update
                 local_bitmasks_sum += bitmask
                 local_bitmasks = bitmask
@@ -230,9 +213,7 @@ class FLTrainingHarness:
                 local_bitmasks_sum += np.ones_like(local_bitmasks_sum)
                 local_bitmasks = np.ones_like(local_bitmasks_sum)
             else:
-                w, train_loss, train_acc, local_model = self.run_generic_client(
-                    local_update, epoch
-                )
+                w, train_loss, train_acc, local_model = self.run_generic_client(local_update, epoch)
                 local_weights_sum += flatten(w)
                 local_bitmasks_sum += np.ones_like(local_bitmasks_sum)
                 local_bitmasks = np.ones_like(local_bitmasks_sum)
@@ -256,14 +237,10 @@ class FLTrainingHarness:
             )
             updateFromNumpyFlatArray(flat_arr=global_weights, model=self.global_model)
         elif fl_method == "qFedAvg":
-            global_weights = self.global_update.aggregate_weights(
-                self.global_model, local_delta_sum, local_h_sum
-            )
+            global_weights = self.global_update.aggregate_weights(self.global_model, local_delta_sum, local_h_sum)
             updateFromNumpyFlatArray(flat_arr=global_weights, model=self.global_model)
         else:
-            global_weights = self.global_update.aggregate_weights(
-                len(self.client_indices), local_weights_sum, valid_losses
-            )
+            global_weights = self.global_update.aggregate_weights(len(self.client_indices), local_weights_sum, valid_losses)
             self.global_update.update_global_model(self.global_model, global_weights)
 
         return client_metrics
@@ -289,14 +266,10 @@ class FLTrainingHarness:
         for client_idx in self.client_indices:
             if combine_train_val:
                 local_update = self.get_local_update(client_idx=client_idx, proportion=fairness_proportion)
-                acc, loss = local_update.inference(
-                    model=self.global_model, dataset_type="train"
-                )
+                acc, loss = local_update.inference(model=self.global_model, dataset_type="train")
             else:
                 local_update = self.get_local_update(client_idx=client_idx)
-                acc, loss = local_update.inference(
-                    model=self.global_model, dataset_type="valid"
-                )
+                acc, loss = local_update.inference(model=self.global_model, dataset_type="valid")
             valid_losses.append(loss)
             valid_accs.append(acc)
         valid_losses = np.array(valid_losses)
@@ -314,10 +287,7 @@ class FLTrainingHarness:
                 min_sparsification_ratio,
                 fairness_temperature,
             )
-        self.client_prob_dist = {
-            client_idx: client_prob_dist[i]
-            for i, client_idx in enumerate(self.client_indices)
-        }
+        self.client_prob_dist = {client_idx: client_prob_dist[i] for i, client_idx in enumerate(self.client_indices)}
         self.global_model.train()
         return valid_losses, valid_accs
 
@@ -330,9 +300,7 @@ class FLTrainingHarness:
         test_accs = []
         for client_idx in range(num_clients):
             local_update = self.get_local_update(client_idx=client_idx)
-            acc, loss = local_update.inference(
-                model=self.global_model, dataset_type="test"
-            )
+            acc, loss = local_update.inference(model=self.global_model, dataset_type="test")
             test_losses.append(loss)
             test_accs.append(acc)
 

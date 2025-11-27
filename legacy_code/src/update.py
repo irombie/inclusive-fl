@@ -6,10 +6,9 @@ import copy
 from typing import Dict, OrderedDict, Type
 
 import torch
+import utils
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
-
-import utils
 
 
 class DatasetSplit(Dataset):
@@ -28,9 +27,7 @@ class DatasetSplit(Dataset):
         except:
             # print("IN EXCEPT -- OR UTKFACE")
             image = self.dataset.dataset.images[self.idxs[item]]
-            label = [d["ethnicity"] for d in self.dataset.dataset.labels][
-                self.idxs[item]
-            ]
+            label = [d["ethnicity"] for d in self.dataset.dataset.labels][self.idxs[item]]
         return image, label
 
 
@@ -77,9 +74,7 @@ class LocalUpdate:
             shuffle=False,
         )
         self.device = torch.device(
-            "cuda"
-            if torch.cuda.is_available()
-            else ("mps" if torch.backends.mps.is_built() else "cpu")
+            "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_built() else "cpu")
         )
 
         self.criterion = nn.NLLLoss().to(self.device)
@@ -274,9 +269,7 @@ class FedProxLocalUpdate(LocalUpdate):
             proximal_term = Σ(||w - w_t||^2)
         """
         if self.args.mu is None:
-            raise ValueError(
-                "mu argument must be passed as arugument for fl_method=FedProx"
-            )
+            raise ValueError("mu argument must be passed as arugument for fl_method=FedProx")
         fedprox_term = 0.0
         proximal_term = 0.0
 
@@ -346,9 +339,7 @@ class qFedAvgLocalUpdate(LocalUpdate):
             # qFedAvg update to the model
             F = sum(training_losses) / len(training_losses)
             if self.args.q is None:
-                raise ValueError(
-                    "q argument must be passed as argument for fl_method=qFedAvg"
-                )
+                raise ValueError("q argument must be passed as argument for fl_method=qFedAvg")
             F += self.args.eps
             Fq = torch.pow(torch.tensor(F, dtype=torch.float32), self.args.q)
             L = 1.0 / self.args.lr
@@ -369,14 +360,7 @@ class qFedAvgLocalUpdate(LocalUpdate):
                 # Lipchitz constant at q=0 and when q>0. It is used to estimate the learning rate
                 # as the learning rate is set as the inverse of lipschitz constant.
                 size = 1
-                h[key] = Fq * (
-                    (
-                        self.args.q
-                        * torch.norm(torch.flatten(delta_weights[key]), 2) ** 2
-                    )
-                    / F
-                    + L
-                )
+                h[key] = Fq * ((self.args.q * torch.norm(torch.flatten(delta_weights[key]), 2) ** 2) / F + L)
 
                 for dim in model.state_dict()[key].shape:
                     size *= dim
@@ -406,11 +390,7 @@ def test_inference(args, model, test_dataset):
     model.eval()
     loss, total, correct = 0.0, 0.0, 0.0
 
-    device = torch.device(
-        "cuda"
-        if torch.cuda.is_available()
-        else ("mps" if torch.backends.mps.is_built() else "cpu")
-    )
+    device = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_built() else "cpu"))
 
     criterion = nn.NLLLoss().to(device)
     testloader = DataLoader(test_dataset, batch_size=128, shuffle=False)
@@ -474,6 +454,4 @@ def get_local_update(
             global_model=global_model,
         )
     else:
-        raise ValueError(
-            f"Unsupported federated learning method name {args.fl_method} for local update."
-        )
+        raise ValueError(f"Unsupported federated learning method name {args.fl_method} for local update.")

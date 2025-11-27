@@ -1,5 +1,11 @@
 # Inclusive Federated Learning (PyTorch)
 
+[![CI](https://github.com/irombie/inclusive-fl/actions/workflows/ci.yml/badge.svg)](https://github.com/irombie/inclusive-fl/actions/workflows/ci.yml)
+[![Tests](https://github.com/irombie/inclusive-fl/actions/workflows/tests.yml/badge.svg)](https://github.com/irombie/inclusive-fl/actions/workflows/tests.yml)
+[![Code Quality](https://github.com/irombie/inclusive-fl/actions/workflows/code-quality.yml/badge.svg)](https://github.com/irombie/inclusive-fl/actions/workflows/code-quality.yml)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
+
 Codebase for experimentation on Federated learning algorithms including but not limited to standard averaging schemes, fairness based techniques and th like. The primary aim of building this code-base is to provide an easily extensible and consistent way to experiment with, extend and evaluate federated learning algorithms.
 
 The focus of our research was device-fairness.
@@ -19,14 +25,14 @@ The following datasets are supported:
 6. Synthetic Data (from qFedAvg)
 7. Synthetic Data (majority-minority)
 
-We also provide relevant dataset utils for 
+We also provide relevant dataset utils for
 - IID Data Distribution
 - Non-IID Data distribution (Dirichlet parameterization)
 - Majority - Minority IID distribution
 
 ## Setup
 
-Create a conda environment from the `environment_droplet.yml` via running the command 
+Create a conda environment from the `environment_droplet.yml` via running the command
 
 ```conda env create --name <envname> --file=environment_droplet.yml```
 
@@ -48,7 +54,7 @@ python src/harness.py --config configs/fedavg_fmnist.yaml
 
 python src/harness.py --config configs/fedavg_fmnist.yaml --local_parameters.local_ep 3
 ```
-Make sure your wandb settings are configured properly so that the experiment results are being logged onto our [team space called `inclusive-fl`](https://wandb.ai/inclusive-fl). 
+Make sure your wandb settings are configured properly so that the experiment results are being logged onto our [team space called `inclusive-fl`](https://wandb.ai/inclusive-fl).
 
 Federated experiment involves training a global model using many local models.
 
@@ -56,8 +62,8 @@ Federated experiment involves training a global model using many local models.
 
 You can create a hyperparameter sweep or an experimentation sweep on wandb easily. First of all, create a (set of) single experiment config(s) in the appropriate directory under `configs/`. Currently, we organize experiments first by the dataset name and then by the model name.
 
-If you are planning to do an experiment, create an experimentation sweep config under `sweeps/experiment_sweeps`. You can give it an appropriate project name to identify the experiment easily later on. This type of config will run a set of configs. 
+If you are planning to do an experiment, create an experimentation sweep config under `sweeps/experiment_sweeps`. You can give it an appropriate project name to identify the experiment easily later on. This type of config will run a set of configs.
 
 Alternatively, you can run a hyperparameter sweep on a single experiment config. Create the sweep config under `sweeps/hparam_sweeps/`. Add the path of the config you want to run in the `command` section of the config and specify the grids for each hyperparameter in the config. You can refer to the existing configs if needed.
 
-Once you have the sweep config prepared, running the sweep is as easy as running the command `wandb sweep <CONFIG_PATH>`. Then, wandb will prompt you with a command to kick off the sweep. Copy and paste it in your terminal and you are done! 
+Once you have the sweep config prepared, running the sweep is as easy as running the command `wandb sweep <CONFIG_PATH>`. Then, wandb will prompt you with a command to kick off the sweep. Copy and paste it in your terminal and you are done!

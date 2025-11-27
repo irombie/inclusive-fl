@@ -13,7 +13,7 @@ parameters:
   fl_parameters.fairness_temperature:
     values:
       - 0.5
-      - 0.6 
+      - 0.6
       - 0.8
   client_parameters.local_epochs:
     values:

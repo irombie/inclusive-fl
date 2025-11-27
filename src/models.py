@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
-from torch import nn
-from torchvision.models import resnet18, vgg11_bn
 import torch
 import torch.nn.functional as F
+from torch import nn
+from torchvision.models import resnet18, vgg11_bn
 
 
 class LogisticRegression(nn.Module):

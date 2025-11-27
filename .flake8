@@ -1,0 +1,43 @@
+[flake8]
+max-line-length = 127
+max-complexity = 15
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    .eggs,
+    *.egg,
+    build,
+    dist,
+    legacy_code,
+    data
+
+# Ignore specific error codes
+# E203: whitespace before ':'
+# E266: too many leading '#' for block comment
+# E501: line too long (handled by black)
+# W503: line break before binary operator
+# W504: line break after binary operator
+# E402: module level import not at top of file
+# F401: imported but unused (intentional for re-exports)
+# F403: star import used (intentional for dataset_defs)
+# F405: may be undefined from star imports (intentional)
+# F821: undefined name (legacy/incomplete code)
+# F841: local variable assigned but unused (can be cleaned up later)
+ignore =
+    E203,
+    E266,
+    E501,
+    W503,
+    W504,
+    E402,
+    F401,
+    F403,
+    F405,
+    F821,
+    F841
+
+per-file-ignores =
+    __init__.py:F401
+    tests/*:F401,F811

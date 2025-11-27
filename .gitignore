@@ -10,10 +10,11 @@ venv/
 checkpoints/
 .ipynb_checkpoints/
 *.pt
-*.csv 
+*.csv
 *.txt
 *.dat
 *.log
 *.out
 *.sh
 test_bed.ipynb
+*.egg-info

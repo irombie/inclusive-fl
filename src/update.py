@@ -2,19 +2,17 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.11
 
-from typing import Dict, OrderedDict, Type
 import copy
+from typing import Dict, OrderedDict, Type
 
+import torch
 from fastargs import get_current_config
 from fastargs.decorators import param
-
 from torch import nn
 from torch.utils.data import DataLoader, Subset
-import torch
 
 import general_utils
 from harness_params import get_current_params
-
 
 get_current_params()
 
@@ -31,16 +29,7 @@ class LocalUpdate:
     """
 
     def __init__(
-        self,
-        train_dataset,
-        test_dataset,
-        valid_dataset,
-        train_idxs,
-        test_idxs,
-        valid_idxs,
-        logger,
-        global_model,
-        proportion
+        self, train_dataset, test_dataset, valid_dataset, train_idxs, test_idxs, valid_idxs, logger, global_model, proportion
     ):
 
         self.config = get_current_config()
@@ -48,9 +37,7 @@ class LocalUpdate:
         self.proportion = proportion
 
         self.device = torch.device(
-            "cuda"
-            if torch.cuda.is_available()
-            else ("mps" if torch.backends.mps.is_built() else "cpu")
+            "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_built() else "cpu")
         )
 
         self.criterion = nn.NLLLoss().to(self.device)
@@ -79,9 +66,7 @@ class LocalUpdate:
         self.client_train_dataset = Subset(self.train_dataset, list(train_idx))
         self.client_test_dataset = Subset(self.test_dataset, list(self.test_idxs))
         if not combine_train_val:
-            self.client_valid_dataset = Subset(
-                self.train_dataset, list(self.valid_idxs)
-            )
+            self.client_valid_dataset = Subset(self.train_dataset, list(self.valid_idxs))
 
         trainloader = DataLoader(
             self.client_train_dataset,
@@ -93,11 +78,15 @@ class LocalUpdate:
             batch_size=local_bs,
             shuffle=False,
         )
-        validloader = None if combine_train_val else DataLoader(
-            self.client_valid_dataset,
-            batch_size=local_bs,
-            shuffle=False,
-        ) 
+        validloader = (
+            None
+            if combine_train_val
+            else DataLoader(
+                self.client_valid_dataset,
+                batch_size=local_bs,
+                shuffle=False,
+            )
+        )
 
         return trainloader, testloader, validloader
 
@@ -106,9 +95,7 @@ class LocalUpdate:
         """
         Configures the optimizer for the local updates.
         """
-        optimizer = torch.optim.SGD(
-            model.parameters(), lr=local_lr, momentum=0.5
-        )  # 0.5 momentum? why?
+        optimizer = torch.optim.SGD(model.parameters(), lr=local_lr, momentum=0.5)  # 0.5 momentum? why?
         return optimizer
 
     def calculate_loss(self, model, images, labels):
@@ -279,9 +266,7 @@ class FedProxLocalUpdate(LocalUpdate):
         """
         mu = self.config["fl_parameters.mu"]
         if mu is None:
-            raise ValueError(
-                "mu argument must be passed as arugument for fl_method=FedProx"
-            )
+            raise ValueError("mu argument must be passed as arugument for fl_method=FedProx")
         fedprox_term = 0.0
         proximal_term = 0.0
 
@@ -354,9 +339,7 @@ class qFedAvgLocalUpdate(LocalUpdate):
             # qFedAvg update to the model
             F = sum(training_losses) / len(training_losses)
             if q is None:
-                raise ValueError(
-                    "q argument must be passed as argument for fl_method=qFedAvg"
-                )
+                raise ValueError("q argument must be passed as argument for fl_method=qFedAvg")
             F += eps
             Fq = torch.pow(torch.tensor(F, dtype=torch.float32), q)
             L = 1.0 / local_lr
@@ -377,9 +360,7 @@ class qFedAvgLocalUpdate(LocalUpdate):
                 # Lipchitz constant at q=0 and when q>0. It is used to estimate the learning rate
                 # as the learning rate is set as the inverse of lipschitz constant.
                 size = 1
-                h[key] = Fq * (
-                    (q * torch.norm(torch.flatten(delta_weights[key]), 2) ** 2) / F + L
-                )
+                h[key] = Fq * ((q * torch.norm(torch.flatten(delta_weights[key]), 2) ** 2) / F + L)
 
                 for dim in model.state_dict()[key].shape:
                     size *= dim
@@ -409,11 +390,7 @@ def test_inference(model, test_dataset):
     model.eval()
     loss, total, correct = 0.0, 0.0, 0.0
 
-    device = torch.device(
-        "cuda"
-        if torch.cuda.is_available()
-        else ("mps" if torch.backends.mps.is_built() else "cpu")
-    )
+    device = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_built() else "cpu"))
 
     criterion = nn.NLLLoss().to(device)
     testloader = DataLoader(test_dataset, batch_size=128, shuffle=False)
@@ -438,16 +415,7 @@ def test_inference(model, test_dataset):
 
 
 def get_local_update(
-    fl_method,
-    train_dataset,
-    test_dataset,
-    valid_dataset,
-    train_idxs,
-    test_idxs,
-    valid_idxs,
-    logger,
-    global_model,
-    proportion
+    fl_method, train_dataset, test_dataset, valid_dataset, train_idxs, test_idxs, valid_idxs, logger, global_model, proportion
 ) -> LocalUpdate:
     """
     Get local update from federated learning method name and return the
@@ -473,8 +441,6 @@ def get_local_update(
             valid_idxs=valid_idxs,
             logger=logger,
             global_model=global_model,
-            proportion=proportion
+            proportion=proportion,
         )
-    raise ValueError(
-        f"Unsupported federated learning method name {fl_method} for local update."
-    )
+    raise ValueError(f"Unsupported federated learning method name {fl_method} for local update.")

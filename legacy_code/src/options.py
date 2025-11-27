@@ -9,16 +9,10 @@ def args_parser():
     parser = argparse.ArgumentParser()
 
     # federated arguments (Notation for the arguments followed from paper)
-    parser.add_argument(
-        "--epochs", type=int, default=10, help="number of rounds of training"
-    )
+    parser.add_argument("--epochs", type=int, default=10, help="number of rounds of training")
     parser.add_argument("--num_users", type=int, default=10, help="number of users: K")
-    parser.add_argument(
-        "--frac", type=float, default=1, help="the fraction of clients: C"
-    )
-    parser.add_argument(
-        "--local_ep", type=int, default=5, help="the number of local epochs: E"
-    )
+    parser.add_argument("--frac", type=float, default=1, help="the fraction of clients: C")
+    parser.add_argument("--local_ep", type=int, default=5, help="the number of local epochs: E")
     parser.add_argument("--local_bs", type=int, default=64, help="local batch size: B")
     parser.add_argument("--lr", type=float, default=0.01, help="learning rate")
 
@@ -84,9 +78,7 @@ def args_parser():
         default="FL",
         help="wandb project name, please set according to the details of your experiment",
     )
-    parser.add_argument(
-        "--save_every", type=int, default=2, help="save model every x rounds"
-    )
+    parser.add_argument("--save_every", type=int, default=2, help="save model every x rounds")
     parser.add_argument(
         "--ckpt_path",
         type=str,

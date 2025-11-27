@@ -4,12 +4,11 @@ This script is based on the GitHub repository fair_flearn. The original code is 
 https://github.com/litian96/fair_flearn/blob/master/data/synthetic/generate_synthetic.py
 """
 
-from pathlib import Path
 import argparse
 import json
+from pathlib import Path
 
 import numpy as np
-
 
 PROJECT_ROOT_DIR: Path = Path(__file__).resolve().parent.parent
 DATA_DIR: Path = PROJECT_ROOT_DIR / "data"
@@ -51,9 +50,7 @@ def get_parser():
         action="store_true",
         help="Whether the weights and biases are generated identically distributed or not.",
     )
-    parser.add_argument(
-        "--seed", type=int, default=None, help="Seed for the random number generator."
-    )
+    parser.add_argument("--seed", type=int, default=None, help="Seed for the random number generator.")
     return parser
 
 
@@ -113,9 +110,7 @@ def generate_synthetic(
     else:
         mean_W = rng.normal(0, alpha, n_users)
         mean_b = mean_W
-        W = rng.normal(
-            mean_W[:, np.newaxis, np.newaxis], 1, (n_users, n_dims, n_classes)
-        )
+        W = rng.normal(mean_W[:, np.newaxis, np.newaxis], 1, (n_users, n_dims, n_classes))
         b = rng.normal(mean_b[:, np.newaxis], 1, (n_users, n_classes))
         mean_x = rng.normal(mean_of_mean_x[:, np.newaxis], 1, (n_users, n_dims))
 

@@ -58,14 +58,10 @@ def get_current_params():
         data_dir=Param(str, "path to data directory", default="./data/"),
         num_classes=Param(int, "Number of classes", required=True),
         num_features=Param(int, "Number of features", default=0),
-        combine_train_val=Param(
-            bool, "Whether to combine train and validation sets", default=False
-        ),
+        combine_train_val=Param(bool, "Whether to combine train and validation sets", default=False),
     )
 
-    Section("SVHN_data").enable_if(
-        lambda cfg: cfg["dataset.dataset_name"] == "SVHN"
-    ).params(
+    Section("SVHN_data").enable_if(lambda cfg: cfg["dataset.dataset_name"] == "SVHN").params(
         extra=Param(bool, "Whether to add the extra SVHN training data", default=False)
     )
 
@@ -82,9 +78,7 @@ def get_current_params():
         ),
         sparsification_ratio=Param(float, "sparsification ratio", default=0.2),
         sparsification_type=Param(str, "sparsification type", default="rtopk"),
-        choose_from_top_r_percentile=Param(
-            float, "choose from top r percentile", default=0.5
-        ),
+        choose_from_top_r_percentile=Param(float, "choose from top r percentile", default=0.5),
         use_fair_sparsification=Param(bool, "use fair sparsification", default=False),
         fairness_function=Param(
             And(
@@ -95,9 +89,7 @@ def get_current_params():
             default="custom-exp",
         ),
         fairness_temperature=Param(float, "fairness temperature", default=1),
-        min_sparsification_ratio=Param(
-            float, "minimum sparsification ratio", default=0
-        ),
+        min_sparsification_ratio=Param(float, "minimum sparsification ratio", default=0),
         mu=Param(float, "mu value for FedProx", default=0.01),
         q=Param(float, "q value for qFedAvg", default=None),
         eps=Param(float, "eps value for qFedAvg", default=1e-6),
@@ -110,18 +102,12 @@ def get_current_params():
             "split type",
             required=True,
         ),
-        overlap=Param(
-            float, "overlap between majority and minority classes", default=0.1
-        ),
+        overlap=Param(float, "overlap between majority and minority classes", default=0.1),
         majority_proportion=Param(float, "proportion of majority class", default=0.8),
         min_proportion=Param(float, "proportion of minority class", required=True),
         dirichlet_param=Param(float, "dirichlet parameter", default=10),
-        combine_train_val=Param(
-            bool, "Whether to combine train and validation sets", default=False
-        ),
-        fairness_proportion=Param(
-            float, "Proportion of data train data to use for fairness. Defaults to 1.", default=1
-        )
+        combine_train_val=Param(bool, "Whether to combine train and validation sets", default=False),
+        fairness_proportion=Param(float, "Proportion of data train data to use for fairness. Defaults to 1.", default=1),
     )
 
     Section("training_params", "harness related stuff").params(

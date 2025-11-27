@@ -1,7 +1,7 @@
-dataset: ['cifar'] #, "cifar"] # , "tiny-imagenet", 
+dataset: ['cifar'] #, "cifar"] # , "tiny-imagenet",
 model: ["small_cnn"] # 'vgg11_bn', 'small_cnn'] #'resenet18',
 epochs: [30]
-lr: [0.01] 
+lr: [0.01]
 distribution: ["non_iid"]
 num_users: [100]
 frac: [0.5]

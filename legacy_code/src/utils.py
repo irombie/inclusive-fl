@@ -9,16 +9,15 @@ import shutil
 import sys
 import tarfile
 import zipfile
-import gdown
 from argparse import Namespace
 from collections import OrderedDict, defaultdict
 from pathlib import Path
-from typing import Dict, List, Tuple, Union, Callable
+from typing import Callable, Dict, List, Tuple, Union
 
+import gdown
 import numpy as np
 import pandas as pd
 import torch
-import wandb
 import wget
 from parse import parse
 from PIL import Image
@@ -28,6 +27,8 @@ from torch.utils.data import Dataset, Subset
 from torchvision import datasets, transforms
 from torchvision.datasets import ImageFolder
 from torchvision.datasets.utils import download_and_extract_archive, verify_str_arg
+
+import wandb
 
 
 def exp_details(args):
@@ -39,11 +40,7 @@ def exp_details(args):
     exp_table.add_row(
         [
             "Device",
-            torch.device(
-                "cuda"
-                if torch.cuda.is_available()
-                else ("mps" if torch.backends.mps.is_built() else "cpu")
-            ),
+            torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_built() else "cpu")),
         ]
     )
 
@@ -114,30 +111,20 @@ def paramaterise_noniid_distribution(
         dataset_labels = torch.tensor(dataset_labels)
     class_weights = np.zeros((num_classes,))
     for class_number in range(num_classes):
-        class_weights[class_number] = (dataset_labels == class_number).sum() / len(
-            dataset_labels
-        )
+        class_weights[class_number] = (dataset_labels == class_number).sum() / len(dataset_labels)
 
     if min_proportion >= 1 / num_users:
-        return ValueError(
-            f"min_proportion per user must be less than {1/num_users} for a dataset with {num_users} in it"
-        )
+        return ValueError(f"min_proportion per user must be less than {1/num_users} for a dataset with {num_users} in it")
     class_sample_distribution = np.zeros((num_classes, num_users))
     dataset_proportion_per_user = np.zeros(num_users)
     while dataset_proportion_per_user.min() <= min_proportion:
-        class_sample_distribution = np.random.dirichlet(
-            np.repeat(beta, num_users), num_classes
-        )
-        dataset_proportion_per_user = (class_weights @ class_sample_distribution) / (
-            class_weights.sum()
-        )
+        class_sample_distribution = np.random.dirichlet(np.repeat(beta, num_users), num_classes)
+        dataset_proportion_per_user = (class_weights @ class_sample_distribution) / (class_weights.sum())
 
     return class_sample_distribution
 
 
-def get_noniid_partition(
-    dataset_labels: torch.Tensor, distribution: Union[torch.Tensor, List]
-) -> Dict[int, List[int]]:
+def get_noniid_partition(dataset_labels: torch.Tensor, distribution: Union[torch.Tensor, List]) -> Dict[int, List[int]]:
     """
     Get samples assigned to each user
 
@@ -155,9 +142,7 @@ def get_noniid_partition(
     users_data = defaultdict(list)
     for i in range(num_classes):
         num_class_samples = len(sample_idxs[i])
-        sample_user_idx = np.random.choice(
-            num_users, num_class_samples, p=distribution[i]
-        )
+        sample_user_idx = np.random.choice(num_users, num_class_samples, p=distribution[i])
         for user_idx, sample_idx in zip(sample_user_idx, sample_idxs[i]):
             users_data[user_idx].append(sample_idx.item())
 
@@ -168,9 +153,7 @@ def get_noniid_partition(
 
 
 class UTKFaceDataset(Dataset):
-    def __init__(
-        self, directory, zfile, extract_dir, transform, label_type="ethnicity"
-    ):
+    def __init__(self, directory, zfile, extract_dir, transform, label_type="ethnicity"):
         """
         Returns utkface dataset downloaded from link https://susanqq.github.io/UTKFace/.
         Download the aligned and cropped dataset (107 MB) and add it to the data folder
@@ -258,9 +241,7 @@ class SyntheticDataset(Dataset):
         self.cumulative_samples = np.cumsum([0] + self.n_samples_per_user)
         self.user_idx = {
             i: np.arange(start, end).tolist()
-            for i, (start, end) in enumerate(
-                zip(self.cumulative_samples, self.cumulative_samples[1:])
-            )
+            for i, (start, end) in enumerate(zip(self.cumulative_samples, self.cumulative_samples[1:]))
         }
         self.X = np.concatenate(X).astype(np.float32)
         self.y = np.concatenate(y).astype(np.int64)
@@ -375,9 +356,7 @@ def get_utkface(data_dir, zfile, extract_dir, apply_transform, label_type="ethni
     return train_dataset, test_dataset, valid_dataset
 
 
-def normalize_tin_val_folder_structure(
-    path, images_folder="images", annotations_file="val_annotations.txt"
-):
+def normalize_tin_val_folder_structure(path, images_folder="images", annotations_file="val_annotations.txt"):
     # Check if files/annotations are still there to see
     # if we already run reorganize the folder structure.
     images_folder = os.path.join(path, images_folder)
@@ -427,9 +406,7 @@ class TinyImageNet(ImageFolder):
             self.download()
 
         if not self._check_exists():
-            raise RuntimeError(
-                "Dataset not found." + " You can use download=True to download it"
-            )
+            raise RuntimeError("Dataset not found." + " You can use download=True to download it")
         super().__init__(self.split_folder, **kwargs)
 
     @property
@@ -473,9 +450,7 @@ def fetch_synthetic_data(url: str, path: str | Path):
     return path
 
 
-def get_dataset(
-    args: Union[Namespace, Dict]
-) -> Tuple[
+def get_dataset(args: Union[Namespace, Dict]) -> Tuple[
     datasets.VisionDataset,
     datasets.VisionDataset,
     datasets.VisionDataset,
@@ -517,13 +492,9 @@ def get_dataset(
             ]
         )
 
-        train_valid_dataset = datasets.CIFAR10(
-            data_dir, train=True, download=True, transform=apply_transform
-        )
+        train_valid_dataset = datasets.CIFAR10(data_dir, train=True, download=True, transform=apply_transform)
 
-        test_dataset = datasets.CIFAR10(
-            data_dir, train=False, download=True, transform=apply_transform
-        )
+        test_dataset = datasets.CIFAR10(data_dir, train=False, download=True, transform=apply_transform)
 
         train_idxs, valid_idxs = train_test_split(
             np.arange(len(train_valid_dataset)),
@@ -542,17 +513,11 @@ def get_dataset(
     elif args["dataset"] == "fashionmnist":
         data_dir = "../data/fashionmnist/"
 
-        apply_transform = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-        )
+        apply_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
 
-        train_valid_dataset = datasets.FashionMNIST(
-            data_dir, train=True, download=True, transform=apply_transform
-        )
+        train_valid_dataset = datasets.FashionMNIST(data_dir, train=True, download=True, transform=apply_transform)
 
-        test_dataset = datasets.FashionMNIST(
-            data_dir, train=False, download=True, transform=apply_transform
-        )
+        test_dataset = datasets.FashionMNIST(data_dir, train=False, download=True, transform=apply_transform)
         train_idxs, valid_idxs = train_test_split(
             np.arange(len(train_valid_dataset)),
             test_size=0.1,
@@ -573,9 +538,7 @@ def get_dataset(
             [
                 transforms.Resize((64, 64)),
                 transforms.ToTensor(),
-                transforms.Normalize(
-                    (0.5959, 0.4562, 0.3906), (0.2591, 0.2312, 0.2268)
-                ),
+                transforms.Normalize((0.5959, 0.4562, 0.3906), (0.2591, 0.2312, 0.2268)),
             ]
         )
 
@@ -611,12 +574,8 @@ def get_dataset(
             ]
         )
 
-        train_valid_dataset = TinyImageNet(
-            data_dir, split="train", download=True, transform=apply_transform
-        )
-        test_dataset = TinyImageNet(
-            data_dir, split="val", download=True, transform=apply_transform
-        )
+        train_valid_dataset = TinyImageNet(data_dir, split="train", download=True, transform=apply_transform)
+        test_dataset = TinyImageNet(data_dir, split="val", download=True, transform=apply_transform)
 
         train_idxs, valid_idxs = train_test_split(
             np.arange(len(train_valid_dataset)),
@@ -636,7 +595,7 @@ def get_dataset(
         data_dir = "../data"
 
         if not os.path.exists(data_dir):
-             os.makedirs(data_dir)
+            os.makedirs(data_dir)
         synthetic_data_url = f"https://drive.google.com/uc?id={args['gdrive_id']}"
         data_zip = fetch_synthetic_data(synthetic_data_url, data_dir)
         with zipfile.ZipFile(data_zip, "r") as zip_ref:
@@ -709,9 +668,7 @@ def get_dataset(
     )
 
 
-def split_majority_minority(
-    num_users: int, num_classes: int, majority_proportion: float, overlap: float
-):
+def split_majority_minority(num_users: int, num_classes: int, majority_proportion: float, overlap: float):
     """
     Split the classes and users into a majority and minority group
 
@@ -749,18 +706,12 @@ def split_majority_minority(
     uniform_distribution = np.ones((num_classes, num_users)) / num_users
 
     grouped_distribution = np.zeros((num_classes, num_users))
-    grouped_distribution[:num_majority_classes, :num_majority_users] = (
-        1 / num_majority_users
-    )
-    grouped_distribution[num_majority_classes:, num_majority_users:] = (
-        1 / num_minority_users
-    )
+    grouped_distribution[:num_majority_classes, :num_majority_users] = 1 / num_majority_users
+    grouped_distribution[num_majority_classes:, num_majority_users:] = 1 / num_minority_users
     # this sums to 1 across users for each class, because uniform_distribution and grouped_distribution both
     # sum to 1 across users for each class
     distribution = uniform_distribution * overlap + (1 - overlap) * grouped_distribution
-    assert (
-        distribution.sum(axis=1).round(3) == 1
-    ).all(), "distribution must sum to 1 across users for each class"
+    assert (distribution.sum(axis=1).round(3) == 1).all(), "distribution must sum to 1 across users for each class"
 
     # The order of the users doesn't matter, however which classes are chosen for each groups is important and must be able to vary.
     permutation = np.random.permutation(num_classes)
@@ -837,9 +788,7 @@ def get_bitmask_per_method(
         return bitmask
     elif sparsification_type == "topk":
         num_params = int(sparse_ratio * len(flat_model))
-        max_indices = np.argpartition(np.absolute(flat_model), -num_params)[
-            -num_params:
-        ]
+        max_indices = np.argpartition(np.absolute(flat_model), -num_params)[-num_params:]
         bitmask = np.zeros_like(flat_model)
         np.put(bitmask, max_indices, 1)
         return bitmask
@@ -850,12 +799,8 @@ def get_bitmask_per_method(
         #     choose_from_top_r_percentile >= sparse_ratio
         # ), "choose_from_top_r_percentile for rtopk should be larger than sparse_ratio"
         num_params = int(choose_from_top_r_percentile * len(flat_model))
-        max_indices = np.argpartition(np.absolute(flat_model), -num_params)[
-            -num_params:
-        ]
-        sparse_max_indices = np.random.choice(
-            max_indices, size=int(sparse_ratio * len(flat_model)), replace=False
-        )
+        max_indices = np.argpartition(np.absolute(flat_model), -num_params)[-num_params:]
+        sparse_max_indices = np.random.choice(max_indices, size=int(sparse_ratio * len(flat_model)), replace=False)
         bitmask = np.zeros_like(flat_model)
         np.put(bitmask, sparse_max_indices, 1)
         return bitmask
@@ -868,9 +813,7 @@ def temperatured_softmax(client_losses, softmax_temperature):
     temperature
     """
     client_losses = client_losses / softmax_temperature
-    return np.exp(client_losses - np.max(client_losses)) / np.sum(
-        np.exp(client_losses - np.max(client_losses))
-    )
+    return np.exp(client_losses - np.max(client_losses)) / np.sum(np.exp(client_losses - np.max(client_losses)))
 
 
 def custom_exponential_sparsity(client_losses, max_sparsity, min_sparsity, temperature):
@@ -889,6 +832,4 @@ def custom_exponential_sparsity(client_losses, max_sparsity, min_sparsity, tempe
     assert max_sparsity > min_sparsity, "Max sparsity must be less than min sparsity"
     client_losses = client_losses / temperature
     max_client_loss = np.max(client_losses)
-    return (max_sparsity - min_sparsity) * np.exp(
-        client_losses - max_client_loss
-    ) + min_sparsity
+    return (max_sparsity - min_sparsity) * np.exp(client_losses - max_client_loss) + min_sparsity

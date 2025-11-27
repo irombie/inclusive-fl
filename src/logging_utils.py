@@ -1,6 +1,7 @@
 import datetime
 
 from fastargs import get_current_config
+
 import wandb
 
 

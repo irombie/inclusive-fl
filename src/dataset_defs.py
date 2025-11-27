@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.6
-from pathlib import Path
-from typing import Tuple
-
 import json
 import os
 import shutil
 import sys
 import tarfile
 import zipfile
-import gdown
+from pathlib import Path
+from typing import Tuple
 
+import gdown
+import numpy as np
+import torch
 from fastargs import get_current_config
 from fastargs.decorators import param
 from parse import parse
@@ -21,18 +22,15 @@ from torch.utils.data import Dataset, Subset
 from torchvision import datasets, transforms
 from torchvision.datasets import ImageFolder
 from torchvision.datasets.utils import download_and_extract_archive, verify_str_arg
-import numpy as np
-import torch
-import wandb
 
+import wandb
 from harness_params import get_current_params
 
 get_current_params()
 
+
 class UTKFaceDataset(Dataset):
-    def __init__(
-        self, directory, zfile, extract_dir, transform, label_type="ethnicity"
-    ):
+    def __init__(self, directory, zfile, extract_dir, transform, label_type="ethnicity"):
         """
         ** DATASET HAS TO BE DOWNLOADED FIRST**
         Returns utkface dataset downloaded from link https://susanqq.github.io/UTKFace/.
@@ -114,9 +112,7 @@ class SyntheticDataset(Dataset):
         self.cumulative_samples = np.cumsum([0] + self.n_samples_per_user)
         self.user_idx = {
             i: np.arange(start, end).tolist()
-            for i, (start, end) in enumerate(
-                zip(self.cumulative_samples, self.cumulative_samples[1:])
-            )
+            for i, (start, end) in enumerate(zip(self.cumulative_samples, self.cumulative_samples[1:]))
         }
         self.X = np.concatenate(X).astype(np.float32)
         self.y = np.concatenate(y).astype(np.int64)
@@ -125,9 +121,7 @@ class SyntheticDataset(Dataset):
     def __len__(self) -> int:
         return self.n_samples
 
-    def fetch_synthetic_data(
-        self, num_clients, num_classes, num_features, url: str, path: str | Path
-    ):
+    def fetch_synthetic_data(self, num_clients, num_classes, num_features, url: str, path: str | Path):
         """
         Fetch the synthetic data from the given URL and save it to the given path.
 
@@ -247,14 +241,10 @@ class TinyImageNet(ImageFolder):
             self.download()
 
         if not self._check_exists():
-            raise RuntimeError(
-                "Dataset not found." + " You can use download=True to download it"
-            )
+            raise RuntimeError("Dataset not found." + " You can use download=True to download it")
         super().__init__(self.split_folder, **kwargs)
 
-    def normalize_tin_val_folder_structure(
-        self, path, images_folder="images", annotations_file="val_annotations.txt"
-    ):
+    def normalize_tin_val_folder_structure(self, path, images_folder="images", annotations_file="val_annotations.txt"):
         # Check if files/annotations are still there to see
         # if we already run reorganize the folder structure.
         images_folder = os.path.join(path, images_folder)
@@ -311,10 +301,4 @@ class TinyImageNet(ImageFolder):
             md5=self.zip_md5,
         )
         assert "val" in self.splits
-        self.normalize_tin_val_folder_structure(
-            os.path.join(self.dataset_folder, "val")
-        )
-
-
-
-
+        self.normalize_tin_val_folder_structure(os.path.join(self.dataset_folder, "val"))

@@ -1,14 +1,14 @@
-dataset: ["utkface"] 
+dataset: ["utkface"]
 model: ["small_cnn"]
 epochs: [50]
-lr: [0.01] 
+lr: [0.01]
 distribution: ["non_iid"]
 num_users: [100]
 frac: [0.5]
 local_ep: [5]
 local_bs: [256]
 q: [0.001, 0.01] #qfedavg,
-fl_method:  ['FedAvg', 'FedProx'] 
+fl_method:  ['FedAvg', 'FedProx']
 mu: [0.01]
 sparsification_ratio: [0.2, 0.5] #fedsyn
 sparsification_type: ['topk', 'rtopk'] #fedsyn

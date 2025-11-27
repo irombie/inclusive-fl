@@ -24,6 +24,11 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Install the project
+        shell: bash
+        run: |
+          uv sync --no-dev
+
       - name: Cache pre-commit
         uses: actions/cache@v4
         with:

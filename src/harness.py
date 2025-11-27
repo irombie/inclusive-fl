@@ -9,13 +9,13 @@ import torch
 from fastargs import get_current_config, set_current_config
 from fastargs.decorators import param
 
-import logging_utils
 import models
+import utils
 from fl_dataset import FLDataset
-from general_utils import custom_exponential_sparsity, flatten, linearly_interpolated_softmax, updateFromNumpyFlatArray
 from global_updates import get_global_update
 from harness_params import get_current_params
 from update import get_local_update
+from utils import custom_exponential_sparsity, flatten, linearly_interpolated_softmax, updateFromNumpyFlatArray
 
 
 get_current_params()
@@ -37,7 +37,7 @@ class FLTrainingHarness:
         self.client_prob_dist = None
         self.client_indices = None
 
-        self.logger: logging_utils.WandbLogger
+        self.logger: utils.WandbLogger
         self._ckpt_dir = None
 
     @property
@@ -50,7 +50,7 @@ class FLTrainingHarness:
         return self._ckpt_dir
 
     def run(self):
-        self.logger = logging_utils.WandbLogger()
+        self.logger = utils.WandbLogger()
         try:
             for epoch in range(self.config["global_parameters.global_rounds"]):
                 client_metrics = self.train_stage(epoch=epoch)

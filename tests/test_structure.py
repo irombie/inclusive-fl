@@ -37,9 +37,9 @@ class TestRepositoryStructure:
             "update.py",
             "global_updates.py",
             "dataset_defs.py",
-            "general_utils.py",
+            ".py",
             "harness_params.py",
-            "logging_utils.py",
+            ".py",
         ]
 
         for filename in source_files:
@@ -66,9 +66,9 @@ class TestRepositoryStructure:
             "update.py",
             "global_updates.py",
             "dataset_defs.py",
-            "general_utils.py",
+            ".py",
             "harness_params.py",
-            "logging_utils.py",
+            ".py",
         ]
 
         for filename in source_files:

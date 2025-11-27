@@ -10,6 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
+
 PROJECT_ROOT_DIR: Path = Path(__file__).resolve().parent.parent
 DATA_DIR: Path = PROJECT_ROOT_DIR / "data"
 DEFAULT_OUTPUT_PATH: Path = DATA_DIR / "synthetic_data.json"

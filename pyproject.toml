@@ -75,6 +75,11 @@ exclude = ["legacy_code"]
 [tool.ruff.lint]
 select = ["E", "F", "I"]  # "I" enables isort-compatible import rules
 
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+force-single-line = false
+lines-after-imports = 2
+
 
 [build-system]
 requires = ["setuptools>=65", "wheel"]

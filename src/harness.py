@@ -17,6 +17,7 @@ from global_updates import get_global_update
 from harness_params import get_current_params
 from update import get_local_update
 
+
 get_current_params()
 
 

@@ -12,6 +12,7 @@ from general_utils import normalize
 from harness_params import get_current_params
 from src.dataset_defs import SyntheticDataset, UTKFaceDataset
 
+
 get_current_params()
 
 

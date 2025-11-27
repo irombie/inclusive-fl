@@ -22,6 +22,7 @@ from torchvision.datasets.utils import download_and_extract_archive, verify_str_
 
 from harness_params import get_current_params
 
+
 get_current_params()
 
 
